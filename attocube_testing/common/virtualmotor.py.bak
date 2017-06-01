@@ -1,0 +1,49 @@
+#from motor import Motor
+from time import sleep
+class VirtualMotor(object):
+  def __init__(self,motorsobj,name,move,wm,wait=None,set=None,set_hilim=None,get_hilim=None,set_lowlim=None,get_lowlim=None):
+#    Motor.__init__(self,None,name,readbackpv=None,has_dial=False)
+    self.name   = name
+    self.move   = move
+    self.wm     = wm
+    self.wait   = wait
+    self.set    = set
+    self.set_hilim    = set_hilim
+    self.set_lowlim    = set_lowlim
+    self.get_hilim    = get_hilim
+    self.get_lowlim    = get_lowlim
+    self.pvname = "virtual motor"
+    self.move_silent = move
+    motorsobj.__setattr__(self.name,self)
+
+  def wm_string(self):
+    pos = self.wm()
+    return str(pos)
+  
+  def __call__(self,value):
+    self.move(value)
+
+  def __repr__(self):
+    return self.status()
+
+  def status(self):
+    s  = "virtual motor %s\n" % self.name
+    s += "  current position %.5g\n" % self.wm()
+    return s
+
+  def move_relative(self,howmuch):
+    p = self.wm()
+    self.move(p+howmuch)
+
+  def mvr(self,howmuch): self.move_relative(howmuch)
+
+  def umvr(self,howmuch):
+    self.mvr(howmuch)
+    sleep(0.1)
+    s = "motor position: %s" % self.wm_string()
+    print s
+    
+  def  mv(self,value):   self.move(value)
+  
+  def  set(self,value):   self.set(value)
+
