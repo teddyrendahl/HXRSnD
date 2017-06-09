@@ -4,7 +4,9 @@ from common.motor import Motor as psmotor
 import time
 import psp.Pv as Pv
 import csv
+import sys
 
+#Pv.DEFAULT_TIMEOUT = 5.0 # Had no effect on timeouts
 
 # Read in attocubes to be tested and build lists of PVs
 stages = []
@@ -120,6 +122,13 @@ def home(stage):
     wait(stage, 5)
     print 'Homing complete.'
 
+def homeRepeatability(stage, n):
+    # Home the stage n times, allowing for external measurement of reapeatibity
+    
+    for i in range(n+1):
+        print 'Homing test %i' % i
+        home(stage)
+    print 'Home repeatability test complete.'
 
 def testAccuracy(stage, step):
     # Move stage in small increments across its entire range, to measure accuracy
@@ -128,6 +137,7 @@ def testAccuracy(stage, step):
     home(stage) 
     origLowLim = stage.get_lowlim()
     stage.set_lowlim(-16000.0) # Set low lim very low, allowing the following move
+    stage.set_hilim(10000.0) # Set hi lim above limit switch, allowing stage to move to limit
     stage.mv(-15000.0) # Move the stage very far, forcing it to hit a limit
     wait(stage, 5)
     data = []
@@ -154,19 +164,27 @@ def testAccuracy(stage, step):
 ### Begin testing ###
 if __name__ == '__main__':
 
+
     startTime = time.time()
+
 
     # Create a file that results will be written to
     datafile = open('results.csv', 'wb')
     writer = csv.writer(datafile)
 
-    # Home the stage(s) initially
-    for motor in enumerate(motors):
-        home(motors[motor[0]])
 
-    # Test repeatability, i.e. move to a position, move somewhere else, move back,
-    # check the difference.
-    # for motor in enumerate(motors):
+    # Home the stage initially
+    home(motors[sys.argv[1]])
+
+
+    # Test home repeatability, i.e, home the motor, check the position externally,
+    # rinse, repeat.
+    homeRepeatability(motors[sys.argv[1]], 10)
+
+    
+    # Test movement repeatability, i.e. move to a position, move somewhere else, 
+    # move back, check the difference.
+    for motor in enumerate(motors):
         repeatability = testRepeatability(motor[1])
         writer.writerow(['attocube stage %i' % motor[0]])
         writer.writerows([['Repeatability Test']])
@@ -175,13 +193,15 @@ if __name__ == '__main__':
             writer.writerows(data)
         writer.writerow(['']) # Append a blank line to separate sections
 
+
     # Test the stability of the position by measuring position over a period of time
-    # for motor in enumerate(motors):
+    for motor in enumerate(motors):
         stability = testStability(motor[1])
         writer.writerow(['attocube stage %i' % motor[0]])
         writer.writerows([['Stability Test']])
         writer.writerows([stability])
         writer.writerow(['']) # Append a blank line to separate sections
+
 
     # Test the accuracy of the stage by moving in small increments, recoddring the
     # set position and the readback position for later comparison with external 
@@ -194,7 +214,9 @@ if __name__ == '__main__':
         writer.writerows([moves, data])
         writer.writerow(['']) # Append a blank line to separate sections
 
+
     endTime = time.time()
+
 
     # Calculate the elapsed time
     timeDiff = endTime - startTime
