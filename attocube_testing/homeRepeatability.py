@@ -1,6 +1,6 @@
 #! /reg/g/pcds/pkg_mgr/release/controls-0.1.8/x86_64-rhel6-gcc44-opt/bin/python
 
-from attocube_test_script import testAccuracy as testAccuracy
+from attocube_test_script import homeRepeatability as homeRepeatability
 from attocube_test_script import home as home
 from common.motor import Motor as psmotor
 import sys
@@ -21,16 +21,14 @@ for stage in enumerate(stages):
 args = sys.argv
 if len(args) == 2:
     index = int(sys.argv[1])
-    moves, data = testAccuracy(motors[index])
+    positions = homeRepeatability(motors[index])
 if len(args) == 3:
     index = int(sys.argv[1])
-    step = float(sys.argv[2])
-    moves, data = testAccuracy(motors[index], step)
+    n = int(sys.argv[2])
+    positions = homeRepeatability(motors[index], n)
 
-datafile = open('accuracy_results.csv', 'wb')
+datafile = open('home_repeatability_results.csv', 'wb')
 writer = csv.writer(datafile)
-writer.writerow(['Accuracy Test'])
-writer.writerow(['Moves'])
-writer.writerow(moves)
+writer.writerow(['Home Repeatability Test'])
 writer.writerow(['Readbacks'])
-writer.writerow(data)
+writer.writerow(positions)

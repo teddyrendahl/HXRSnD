@@ -18,9 +18,17 @@ motors = []
 for stage in enumerate(stages):
     motors.append(psmotor(stage[1], 'acube%i' % stage[0]))
 
-index = int(sys.argv[1])
+if len(sys.argv) == 2:
+    index = int(sys.argv[1])
+    data = testStability(motors[index])
+if len(sys.argv) == 3:
+    index = int(sys.argv[1])
+    t = float(sys.argv[2])
+    data = testStability(motors[index], t)
 
 home(motors[index])
 
-data = testStability(motors[index])
-print data
+datafile = open('stability_results.csv', 'wb')
+writer = csv.writer(datafile)
+writer.writerow(['Stability Test'])
+writer.writerow(data)

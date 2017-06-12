@@ -4,6 +4,7 @@ from attocube_test_script import testRepeatability as testRepeatability
 from attocube_test_script import home as home
 from common.motor import Motor as psmotor
 import sys
+from sys import exit
 import csv
 
 # Read in attocubes to be tested and build lists of PVs
@@ -18,7 +19,18 @@ motors = []
 for stage in enumerate(stages):
     motors.append(psmotor(stage[1], 'acube%i' % stage[0]))
 
-index = int(sys.argv[1])
+args = sys.argv
+if len(args) >= 3:
+    index = int(sys.argv[1])
+    positions = [float(x) for x in sys.argv[2:]]
+    repeat = testRepeatability(motors[index], positions)
+if len(args) == 2:
+    index = int(sys.argv[1])
+    repeat = testRepeatability(motors[index])
 
-data = testRepeatability(motors[index])
-print data
+datafile = open('repeatability_resulst.csv', 'wb')
+writer = csv.writer(datafile)
+writer.writerow(['Repeatability Test'])
+for run in repeat:
+    data = [['step', run[0]], ['Differences'], run[1], ['Difference Average', run[2]]]
+    writer.writerows(data)
