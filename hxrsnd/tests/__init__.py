@@ -1,1 +1,1 @@
-from .conftest import Puck
+from .test_states import Puck
