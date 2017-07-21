@@ -30,8 +30,6 @@ class MachineMeta(ComponentMeta):
             #Link a copy of the statemachine to new `state` property
             clsobj.state = SubscriptionPropertyMachine(machine)
         else:
-            logger.warning("Class {} did not contain a `machine` attribute "
-                           "to build an OphydMachine.")
             clsobj.state = None
         return clsobj
 
