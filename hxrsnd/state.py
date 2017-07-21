@@ -6,7 +6,6 @@ from copy import copy
 ###############
 # Third Party #
 ###############
-from pypvserver import PyPV
 from ophyd.device import Device, ComponentMeta
 from super_state_machine.machines import StateMachine
 from super_state_machine.extras  import PropertyMachine
