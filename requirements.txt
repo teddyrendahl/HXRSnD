@@ -1,4 +1,2 @@
-pcaspy
 super_state_machine
-git+https://github.com/slaclab/pswalker#egg=pswalker
-git+https://github.com/klauer/pypvserver#egg=pypvserver
+ophyd 
