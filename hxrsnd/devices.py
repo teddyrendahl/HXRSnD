@@ -46,19 +46,19 @@ class DelayTower(TowerBase):
     
     Components
     ----------
-    r0 : RotationAero
+    tth : RotationAero
     	Rotation axis of the entire delay arm
 
-    r1 : RotationAero
+    th1 : RotationAero
     	Rotation axis of the static crystal
 
-    r2 : RotationAero
+    th2 : RotationAero
     	Rotation axis of the delay crystal
 
-    l0 : LinearAero
+    x : LinearAero
     	Linear stage for insertion/bypass of the tower
 
-    l1 : LinearAero
+    L : LinearAero
     	Linear stage for the delay crystal
 
     y1 : TranslationEcc
@@ -73,7 +73,7 @@ class DelayTower(TowerBase):
     chi2 : GoniometerEcc
     	Goniometer on delay crystal
 
-    d1 : DiodeEcc
+    dh : DiodeEcc
     	Diode insertion motor
 
     diode : HamamatsuDiode
@@ -83,13 +83,13 @@ class DelayTower(TowerBase):
     	RTD temperature sensor for the nitrogen.    
     """
     # Rotation stages
-    r0 = Component(RotationAero, ":R0")
-    r1 = Component(RotationAero, ":R1")
-    r2 = Component(RotationAero, ":R1")
+    tth = Component(RotationAero, ":TTH")
+    th1 = Component(RotationAero, ":TH1")
+    th2 = Component(RotationAero, ":TH2")
 
     # Linear stages
-    l0 = Component(LinearAero, ":L0")
-    l1 = Component(LinearAero, ":L1")
+    x = Component(LinearAero, ":X")
+    L = Component(LinearAero, ":L")
 
     # Y Crystal motion
     y1 = Component(TranslationEcc, ":Y1")
@@ -100,7 +100,7 @@ class DelayTower(TowerBase):
     chi2 = Component(GoniometerEcc, ":CHI2")
 
     # Diode motion
-    d1 = Component(DiodeEcc, ":D1")
+    dh = Component(DiodeEcc, ":DH")
 
     # Diode
     diode = Component(HamamatsuDiode, ":DIODE")
@@ -236,9 +236,10 @@ class SplitAndDelay(Device):
         """
         # Lets internally keep track of this
         self.t = t
-        
-        length = ((t*self.c + 2*self.gap * (1 - np.cos(2*self.t1.r1.position))/
-                   np.sin(self.t1.r1.position))/
+
+        # TODO : Double check that this is correct
+        length = ((t*self.c + 2*self.gap * (1 - np.cos(2*self.t1.th1.position))/
+                   np.sin(self.t1.th1.position))/
                   (2*(1 - np.cos(2*self.t3.th.position))))
 
         # TODO: Length calculation checks
@@ -273,14 +274,14 @@ class SplitAndDelay(Device):
         self.theta1 = self.e1_to_theta1(E1)
 
         # Set the position of the motors on tower 1
-        status_t1_r0 = t1.r0.move(2*self.theta1, wait=False)
-        status_t1_r1 = t1.r1.move(self.theta1, wait=False)
-        status_t1_r2 = t1.r2.move(self.theta1, wait=False)
+        status_t1_tth = t1.tth.move(2*self.theta1, wait=False)
+        status_t1_th1 = t1.th1.move(-self.theta1, wait=False)
+        status_t1_th2 = t1.th2.move(-self.theta1, wait=False)
 
         # Set the positions of the motors on tower 4
-        status_t4_r0 = t4.r0.move(2*self.theta1, wait=False)
-        status_t4_r1 = t4.r1.move(self.theta1, wait=False)
-        status_t4_r2 = t4.r2.move(self.theta1, wait=False)
+        status_t4_tth = t4.tth.move(-2*self.theta1, wait=False)
+        status_t4_th1 = t4.th1.move(self.theta1, wait=False)
+        status_t4_th2 = t4.th2.move(self.theta1, wait=False)
 
         # Wait for the status objects to register the moves as complete
         if wait:
@@ -332,8 +333,8 @@ class SplitAndDelay(Device):
         """
         self.length = self.t_to_length(t)
 
-        status_t1_l1 = self.t1.l1.move(self.length, wait=False)
-        status_t4_l1 = self.t4.l1.move(self.length, wait=False)
+        status_t1_L = self.t1.L.move(self.length, wait=False)
+        status_t4_L = self.t4.L.move(self.length, wait=False)
 
         # Wait for the status objects to register the moves as complete
         if wait:
@@ -343,4 +344,11 @@ class SplitAndDelay(Device):
         
         # TODO: Find a way to create composite statuses
         # return status_composite
+
+# Notes :
+# - What is the gap?
+# - How does the eq for t1.L and t4.L change for the correct system
+
+
+
         
