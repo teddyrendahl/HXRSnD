@@ -19,9 +19,10 @@ from ophyd.status import wait as status_wait
 from pcdsdevices.device import Device
 from pcdsdevices.component import Component
 from pcdsdevices.epics.rtd import OmegaRTD
-from pcdsdevices.epics.diode import HamamatsuDiode
 from pcdsdevices.epics.aerotech import (RotationAero, LinearAero)
 from pcdsdevices.epics.attocube import (TranslationEcc, GoniometerEcc, DiodeEcc)
+from pcdsdevices.epics.diode import (HamamatsuDiode, HamamatsuXMotionDiode,
+                                     HamamatsuXYMotionCamDiode)
 
 ##########
 # Module #
@@ -127,15 +128,60 @@ class ChannelCutTower(TowerBase):
     x = Component(LinearAero, ":X")
 
 
-class SnD(Device):
+class SplitAndDelay(Device):
     """
     Hard X-Ray Split and Delay System.
-    """
-    t1 = component(DelayTower, ":T1")
-    t2 = component(ChannelCutTower, ":T2")
-    t3 = component(ChannelCutTower, ":T3")
-    t4 = component(DelayTower, ":T4")
 
+    Components
+    ----------
+    t1 : DelayTower
+    	Tower 1 in the split and delay system
+
+    t4 : DelayTower
+    	Tower 4 in the split and delay system
+
+    t2 : ChannelCutTower
+    	Tower 2 in the split and delay system
+
+    t3 : ChannelCutTower
+    	Tower 3 in the split and delay system
+
+    di : HamamatsuXYMotionCamDiode
+    	Input diode for the system
+    
+    dd : HamamatsuXYMotionCamDiode
+    	Diode between the two delay towers
+
+    do : HamamatsuXYMotionCamDiode
+    	Output diode for the system
+
+    dci : HamamatsuXMotionDiode
+    	Input diode for the channel cut line
+    
+    dcc : HamamatsuXMotionDiode
+    	Diode between the two channel cut towers
+    
+    dco : HamamatsuXMotionDiode
+    	Input diode for the channel cut line
+    """
+    # Delay Towers
+    t1 = Component(DelayTower, ":T1")
+    t4 = Component(DelayTower, ":T4")
+
+    # Channel Cut Towers
+    t2 = Component(ChannelCutTower, ":T2")
+    t3 = Component(ChannelCutTower, ":T3")
+
+    # SnD and Delay line diodes
+    di = Component(HamamatsuXYMotionCamDiode, ":DI")
+    dd = Component(HamamatsuXYMotionCamDiode, ":DD")
+    do = Component(HamamatsuXYMotionCamDiode, ":DO")
+
+    # Channel Cut Diodes
+    dci = Component(HamamatsuXMotionDiode, ":DCI")
+    dcc = Component(HamamatsuXMotionDiode, ":DCC")
+    dco = Component(HamamatsuXMotionDiode, ":DCO")
+    
     # Constants
     c = 299792458               # m/s
     gap = 0.055                 # m
@@ -143,7 +189,6 @@ class SnD(Device):
 
     def __init__(self, prefix, *, **kwargs):
         super().__init__(prefix, **kwargs)
-
 
     def e1_to_theta1(self, E1, **kwargs):
         """
@@ -211,8 +256,7 @@ class SnD(Device):
         """
         status_e1 = self.energy1(E, **kwargs)
         status_e2 = self.energy2(E, **kwargs)
-        return status_e1, status_e2
-    
+        return status_e1, status_e2    
 
     def energy1(self, E1, wait=False, **kwargs):
         """
