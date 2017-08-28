@@ -187,7 +187,7 @@ class SplitAndDelay(Device):
     gap = 0.055                 # m
     min_dist = 0.105            # m
 
-    def __init__(self, prefix, *, **kwargs):
+    def __init__(self, prefix, **kwargs):
         super().__init__(prefix, **kwargs)
 
     def e1_to_theta1(self, E1, **kwargs):
