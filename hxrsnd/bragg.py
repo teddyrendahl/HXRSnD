@@ -162,6 +162,55 @@ lattice_parameters = {'H' :(3.75,3.75,6.12,90,90,120),
      'MgO':(4.212,4.212,4.212,90,90,90)
 }
 
+#define units and constants
+u = {'fm': 1e15,
+     'pm': 1e12,
+     'ang': 1e10,
+     'nm': 1e9,
+     'um': 1e6,
+     'mm': 1e3,
+     'cm': 1e2,
+     'km': 1e-3,
+     'kHz':1e-3,
+     'MHz':1e-6,
+     'GHz':1e-9,
+     'THz':1e-12,
+     'PHz':1e-15,
+     'inch':39.370079,
+     'mile':0.000621,
+     'ft':3.28084,
+     'yard':1.093613,
+     'mil':39.370079*1000,
+     'barn':1e28,  
+     'Mbarn':1e22,  
+     'fs':1e15,
+     'ps':1e12,
+     'ns':1e9,
+     'us':1e6,
+     'ms':1e3,
+     'min':1/60.,
+     'hour':1/3600.,
+     'day':1/(3600*24.),
+     'mdeg':1e3,
+     'udeg':1e6,
+     'ndeg':1e9,
+     'rad':np.pi/180,
+     'mrad':np.pi/180*1e3,
+     'urad':np.pi/180*1e6,
+     'nrad':np.pi/180*1e9,
+     'asec':3600,
+     'amin':60,
+     'g':1e3,
+     'eV':6.2415e+18,
+     'erg':1e7,
+     'cal':0.239,
+     'mJ':1e3,
+     'uJ':1e6,
+     'nJ':1e9,
+     'pJ':1e9,
+     'Torr':7.5006e-3
+}
+
 # Trigonometric Functions
 
 def sind(A):
@@ -203,6 +252,30 @@ def atand(x):
 
 # Higher level functions
 
+def lam(E, o=0):
+    """ 
+    Computes photon wavelength in m
+    
+    Parameters
+    ----------
+    E : float
+        The input energy in eV or KeV
+    
+    o : float, optional
+        Set o to 0 if working at sub-100 eV energies
+
+    Returns
+    -------
+    lam : float
+        Input energy converted to wavelength
+    """
+    if o:
+      E=E
+    else:
+      E=eV(E)
+    lam=(12398.4/E)/u['ang']
+    return lam
+
 def eV(E):
     """
     Returns photon energy in eV if specified in eV or KeV. Assumes that any
@@ -211,12 +284,12 @@ def eV(E):
     Parameters
     ----------
     E : float
-    	The input energy to convert to eV
+        The input energy to convert to eV
 
     Returns
     -------
     E : float
-    	Energy converted to eV from KeV    
+        Energy converted to eV from KeV    
     """
     if E < 100:
       E *= 1000.0
@@ -229,11 +302,11 @@ def check_id(ID):
     Parameters
     ----------
     ID : str
-    	The desired ID
+        The desired ID
 
     Returns
     id : str
-    	The full ID name from the alias dictionary or just ID
+        The full ID name from the alias dictionary or just ID
     """
     try:
       return alias[ID]
@@ -247,16 +320,16 @@ def get_e(energy=None, correct_ev=True):
     Parameters
     ----------
     energy : float or None, optional
-    	If energy passed in, return it, otherwise return manual_energy if set,
-    	or machine energy otherwise.
+        If energy passed in, return it, otherwise return manual_energy if set,
+        or machine energy otherwise.
 
     correct_ev : bool, optional
-    	Convert to eV if True
+        Convert to eV if True
 
     Returns
     -------
     en : float
-    	The desired working energy
+        The desired working energy
     """
     en = None
     if energy is not None:
@@ -274,7 +347,7 @@ def d_space(ID, hkl):
     Parameters
     ----------
     ID : str
-    	Chemical fomula : 'Si'
+        Chemical fomula : 'Si'
 
     hlk : tuple
         The reflection : (1,1,1)
@@ -282,7 +355,7 @@ def d_space(ID, hkl):
     Returns
     -------
     d : float
-    	The d-spacing of the crystal using the inputted reflection.
+        The d-spacing of the crystal using the inputted reflection.
     """
     ID = check_id(ID)
     h = hkl[0]
@@ -320,18 +393,18 @@ def bragg_angle(ID="Si", hkl=(1,1,1), E=None):
     Parameters
     ----------
     ID : str, optional
-    	Chemical fomula : 'Si'
+        Chemical fomula : 'Si'
 
     hlk : tuple, optional
         The reflection : (1,1,1)
 
     E : float, optional
-    	Photon energy in eV or keV (default is LCLS value)
+        Photon energy in eV or keV (default is LCLS value)
 
     Returns
     -------
     theta : float
-    	Expected bragg angle
+        Expected bragg angle
     """
     ID = check_id(ID)
     E = get_e(energy=E, correct_ev=True)
