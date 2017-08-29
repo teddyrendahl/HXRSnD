@@ -1,5 +1,6 @@
 """
-Script to hold functions copied over from blutils
+Script to hold functions copied over from blutils that pertain to computing
+the bragg angle of the HXRSnD crystals.
 """
 ############
 # Standard #
@@ -270,9 +271,9 @@ def lam(E, o=0):
         Input energy converted to wavelength
     """
     if o:
-      E=E
+        E=E
     else:
-      E=eV(E)
+        E=eV(E)
     lam=(12398.4/E)/u['ang']
     return lam
 
@@ -292,7 +293,7 @@ def eV(E):
         Energy converted to eV from KeV    
     """
     if E < 100:
-      E *= 1000.0
+        E *= 1000.0
     return float(E)
 
 def check_id(ID):
@@ -309,9 +310,9 @@ def check_id(ID):
         The full ID name from the alias dictionary or just ID
     """
     try:
-      return alias[ID]
+        return alias[ID]
     except KeyError:
-      return ID
+        return ID
 
 def get_e(energy=None, correct_ev=True):
     """
@@ -350,7 +351,7 @@ def d_space(ID, hkl):
         Chemical fomula : 'Si'
 
     hlk : tuple
-        The reflection : (1,1,1)
+        The reflection : (2,2,0)
 
     Returns
     -------
@@ -385,7 +386,7 @@ def d_space(ID, hkl):
     d = invdsqr**-0.5
     return d
 
-def bragg_angle(ID="Si", hkl=(1,1,1), E=None):
+def bragg_angle(ID="Si", hkl=(2,2,0), E=None):
     """
     Computes the Bragg angle (deg) of the specified material, reflection and
     photon energy.
@@ -396,7 +397,7 @@ def bragg_angle(ID="Si", hkl=(1,1,1), E=None):
         Chemical fomula : 'Si'
 
     hlk : tuple, optional
-        The reflection : (1,1,1)
+        The reflection : (2,2,0)
 
     E : float, optional
         Photon energy in eV or keV (default is LCLS value)

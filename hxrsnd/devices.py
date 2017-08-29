@@ -191,7 +191,7 @@ class SplitAndDelay(Device):
     def __init__(self, prefix, **kwargs):
         super().__init__(prefix, **kwargs)
 
-    def e1_to_theta1(self, E1, ID="Si", hlk=(1,1,1)):
+    def e1_to_theta1(self, E1, ID="Si", hkl=(2,2,0)):
         """
         Computes theta1 based on the inputted energy. This should function
         as a lookup table.
@@ -204,17 +204,17 @@ class SplitAndDelay(Device):
         ID : str, optional
             Chemical fomula : 'Si'
 
-        hlk : tuple, optional
-            The reflection : (1,1,1)
+        hkl : tuple, optional
+            The reflection : (2,2,0)
 
         Returns
         -------
         theta1 : float
             Expected bragg angle for E1
         """
-        return bragg_angle(E=E1, ID=ID, hlk=hlk)
+        return bragg_angle(E=E1, ID=ID, hkl=hkl)
 
-    def e2_to_theta2(self, E2, ID="Si", hlk=(1,1,1)):
+    def e2_to_theta2(self, E2, ID="Si", hkl=(2,2,0)):
         """
         Computes theta2 based on the inputted energy. This should function
         as a lookup table.
@@ -227,15 +227,15 @@ class SplitAndDelay(Device):
         ID : str, optional
             Chemical fomula : 'Si'
 
-        hlk : tuple, optional
-            The reflection : (1,1,1)
+        hkl : tuple, optional
+            The reflection : (2,2,0)
 
         Returns
         -------
         theta2 : float
             Expected bragg angle for E1
         """
-        return bragg_angle(E=E2, ID=ID, hlk=hlk)
+        return bragg_angle(E=E2, ID=ID, hkl=hkl)
 
     def t_to_length(self, t, **kwargs):
         """
@@ -254,11 +254,11 @@ class SplitAndDelay(Device):
         	recombining crystal.
         """
         # Lets internally keep track of this
-        self.t = t / 1e-12      # Convert to seconds
+        self.t = t * 1e-12      # Convert to seconds
 
         # TODO : Double check that this is correct
-        length = ((t*self.c + 2*self.gap * (1 - np.cos(2*self.t1.th1.position))/
-                   np.sin(self.t1.th1.position))/
+        length = ((self.t*self.c + 2*self.gap * (1 - np.cos(
+            2*self.t1.th1.position))/np.sin(self.t1.th1.position))/
                   (2*(1 - np.cos(2*self.t3.th.position))))
 
         return length * 1000    # Convert to mm
@@ -293,9 +293,9 @@ class SplitAndDelay(Device):
 
         logger.debug("Input E1: {0}. \nMoving t1.tth to {1} \nMoving t1.th1 "
                      "and t1.th2 to {2} \nMoving t4.tth to {3} \nMoving t4.th1 "
-                     "and t4.th2 to {4}".format(E1, 2*self.theta1, -self.theta1,
-                                                -self.theta1, 2*self.theta1,
-                                                -self.theta1, -self.theta1))
+                     "and t4.th2 to {4}".format(E1, 2*self.theta1, self.theta1,
+                                                self.theta1, 2*self.theta1,
+                                                self.theta1, self.theta1))
 
         # Set the position of the motors on tower 1
         status_t1_tth = t1.tth.move(2*self.theta1, wait=False)
@@ -330,8 +330,8 @@ class SplitAndDelay(Device):
         # TODO: Error handling here
         self.theta2 = self.e2_to_theta2(E2, **kwargs)
 
-        logger.debug("Input E2: {0}. \nMoving t2.th to {0} \nMoving t3.th to "
-                     "{1}".format(E2, -self.theta2, self.theta2))
+        logger.debug("Input E2: {0}. \nMoving t2.th and t3.th to {1}".format(
+            E2, self.theta2))
 
         # Set the position of the motors on tower 2
         status_t2_th = t2.th.move(self.theta2, wait=False)
