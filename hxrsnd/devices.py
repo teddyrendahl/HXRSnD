@@ -27,6 +27,7 @@ from pcdsdevices.epics.diode import (HamamatsuDiode, HamamatsuXMotionDiode,
 ##########
 # Module #
 ##########
+from .bragg import bragg_angle
 
 logger = logging.getLogger(__name__)
 
@@ -190,7 +191,7 @@ class SplitAndDelay(Device):
     def __init__(self, prefix, **kwargs):
         super().__init__(prefix, **kwargs)
 
-    def e1_to_theta1(self, E1, **kwargs):
+    def e1_to_theta1(self, E1, ID="Si", hlk=(1,1,1)):
         """
         Computes theta1 based on the inputted energy. This should function
         as a lookup table.
@@ -199,12 +200,21 @@ class SplitAndDelay(Device):
         ---------
         E1 : float
         	Energy to convert to theta1
-        """
-        # TODO: Find out what the conversion factor is
-        # TODO: Add a check for energy
-        return E1
 
-    def e2_to_theta2(self, E2, **kwargs):
+        ID : str, optional
+            Chemical fomula : 'Si'
+
+        hlk : tuple, optional
+            The reflection : (1,1,1)
+
+        Returns
+        -------
+        theta1 : float
+            Expected bragg angle for E1
+        """
+        return bragg_angle(E=E1, ID=ID, hlk=hlk)
+
+    def e2_to_theta2(self, E2, ID="Si", hlk=(1,1,1)):
         """
         Computes theta2 based on the inputted energy. This should function
         as a lookup table.
@@ -213,10 +223,19 @@ class SplitAndDelay(Device):
         ---------
         E2 : float
         	Energy to convert to theta2
+
+        ID : str, optional
+            Chemical fomula : 'Si'
+
+        hlk : tuple, optional
+            The reflection : (1,1,1)
+
+        Returns
+        -------
+        theta2 : float
+            Expected bragg angle for E1
         """
-        # TODO: Find out what the conversion factor is
-        # TODO: Add a check for energy
-        return E2
+        return bragg_angle(E=E2, ID=ID, hlk=hlk)
 
     def t_to_length(self, t, **kwargs):
         """
@@ -226,7 +245,7 @@ class SplitAndDelay(Device):
         Parameters
         ----------
         t : float
-        	The desired delay from the system.
+        	The desired delay from the system in picoseconds
 
         Returns
         -------
@@ -235,15 +254,14 @@ class SplitAndDelay(Device):
         	recombining crystal.
         """
         # Lets internally keep track of this
-        self.t = t
+        self.t = t / 1e-12      # Convert to seconds
 
         # TODO : Double check that this is correct
         length = ((t*self.c + 2*self.gap * (1 - np.cos(2*self.t1.th1.position))/
                    np.sin(self.t1.th1.position))/
                   (2*(1 - np.cos(2*self.t3.th.position))))
 
-        # TODO: Length calculation checks
-        return length
+        return length * 1000    # Convert to mm
 
     def energy(self, E, **kwargs):
         """
@@ -271,15 +289,21 @@ class SplitAndDelay(Device):
         """
         # Convert to theta1
         # TODO: Error handling here
-        self.theta1 = self.e1_to_theta1(E1)
+        self.theta1 = self.e1_to_theta1(E1, **kwargs)
+
+        logger.debug("Input E1: {0}. \nMoving t1.tth to {1} \nMoving t1.th1 "
+                     "and t1.th2 to {2} \nMoving t4.tth to {3} \nMoving t4.th1 "
+                     "and t4.th2 to {4}".format(E1, 2*self.theta1, -self.theta1,
+                                                -self.theta1, 2*self.theta1,
+                                                -self.theta1, -self.theta1))
 
         # Set the position of the motors on tower 1
         status_t1_tth = t1.tth.move(2*self.theta1, wait=False)
-        status_t1_th1 = t1.th1.move(-self.theta1, wait=False)
-        status_t1_th2 = t1.th2.move(-self.theta1, wait=False)
+        status_t1_th1 = t1.th1.move(self.theta1, wait=False)
+        status_t1_th2 = t1.th2.move(self.theta1, wait=False)
 
         # Set the positions of the motors on tower 4
-        status_t4_tth = t4.tth.move(-2*self.theta1, wait=False)
+        status_t4_tth = t4.tth.move(2*self.theta1, wait=False)
         status_t4_th1 = t4.th1.move(self.theta1, wait=False)
         status_t4_th2 = t4.th2.move(self.theta1, wait=False)
 
@@ -304,10 +328,13 @@ class SplitAndDelay(Device):
         """
         # Convert to theta2
         # TODO: Error handling here
-        self.theta2 = self.e2_to_theta2(E2)
+        self.theta2 = self.e2_to_theta2(E2, **kwargs)
+
+        logger.debug("Input E2: {0}. \nMoving t2.th to {0} \nMoving t3.th to "
+                     "{1}".format(E2, -self.theta2, self.theta2))
 
         # Set the position of the motors on tower 2
-        status_t2_th = t2.th.move(-self.theta2, wait=False)
+        status_t2_th = t2.th.move(self.theta2, wait=False)
         
         # Set the positions of the motors on tower 3
         status_t3_th = t3.th.move(self.theta2, wait=False)
@@ -332,6 +359,9 @@ class SplitAndDelay(Device):
         	The desired delay from the system.
         """
         self.length = self.t_to_length(t)
+
+        logger.debug("Input delay: {0}. \nMoving t1.L and t2.L to {1}".format(
+            t, self.length))
 
         status_t1_L = self.t1.L.move(self.length, wait=False)
         status_t4_L = self.t4.L.move(self.length, wait=False)
