@@ -9,7 +9,6 @@ max-line-length: 80
 autodetect: true
 ignore-paths:
   - docs
-  - logs
   - attocube_testing
 python-targets:
   - 3
