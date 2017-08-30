@@ -250,8 +250,7 @@ def atand(x):
     A = np.rad2deg(A) 
     return A
 
-
-# Higher level functions
+# Frequency, wavelength and energy conversions
 
 def lam(E, o=0):
     """ 
@@ -276,6 +275,42 @@ def lam(E, o=0):
         E=eV(E)
     lam=(12398.4/E)/u['ang']
     return lam
+
+def lam2E(l):
+    """
+    Computes photon energy in eV
+
+    Parameters
+    ----------    
+    l : float
+    	Photon wavelength in m
+    
+    Returns
+    -------
+    E : float
+    	Energy in eV
+    """
+    E = 12398.4/(l*u['ang'])
+    return E
+
+def lam2f(l):
+    """
+    Computes the photon frequency in Hz
+
+    Parameters
+    ----------    
+    l : float
+    	Photon wavelength in m
+    
+    Returns
+    -------
+    f : float
+    	Frequency in Hz
+    """
+    f = c['c']/l
+    return f    
+
+# Higher level functions
 
 def eV(E):
     """
@@ -378,10 +413,9 @@ def d_space(ID, hkl):
     sb = sind(beta)
     sg = sind(gamma)
 
-    invdsqr = 1 / ((1.+2.*ca*cb*cg-ca**2.-cb**2.-cg**2.) *
-                   (h**2.*sa**2./a**2. + k**2.*sb**2./b**2. +
-                    l**2.*sg**2./c**2. + 2.*h*k*(ca*cb-cg)/a/b+2.*k*l*
-                    (cb*cg-ca)/b/c+2.*h*l*(ca*cg-cb)/a/c))
+    invdsqr = 1 / (1.+2.*ca*cb*cg-ca**2.-cb**2.-cg**2.) * \
+      (h**2.*sa**2./a**2. + k**2.*sb**2./b**2. + l**2.*sg**2./c**2. +
+       2.*h*k*(ca*cb-cg)/a/b+2.*k*l*(cb*cg-ca)/b/c+2.*h*l*(ca*cg-cb)/a/c)
       
     d = invdsqr**-0.5
     return d
@@ -404,11 +438,38 @@ def bragg_angle(ID="Si", hkl=(2,2,0), E=None):
 
     Returns
     -------
-    theta : float
+    two_theta : float
         Expected bragg angle
     """
     ID = check_id(ID)
     E = get_e(energy=E, correct_ev=True)
     d = d_space(ID, hkl)
-    theta = asind(lam(E)/2/d)
-    return theta
+    two_theta = asind(lam(E)/2/d)
+    return two_theta
+
+def bragg_energy(two_theta, ID="Si", hkl=(2,2,0)):
+    """
+    Computes the photon energy that satisfies the Bragg condition of the
+    specified material, reflection and two_theta angle.
+
+    Parameters
+    ----------
+    two_theta : float, optional
+        The scattering angle in degrees
+    
+    ID : str, optional
+        Chemical fomula : 'Si'
+
+    hlk : tuple, optional
+        The reflection : (2,2,0)
+
+    Returns
+    -------
+    E : float, optional
+        Photon energy in eV
+    """
+    ID = check_id(ID)
+    d = d_space(ID, hkl)
+    l = 2*d*sind(two_theta/2.0)
+    E = lam2E(l)
+    return E

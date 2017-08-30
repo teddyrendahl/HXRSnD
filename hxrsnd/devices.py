@@ -5,6 +5,7 @@ Script to hold the split and delay devices.
 # Standard #
 ############
 import logging
+from enum import Enum
 
 ###############
 # Third Party #
@@ -28,6 +29,7 @@ from pcdsdevices.epics.diode import (HamamatsuDiode, HamamatsuXMotionDiode,
 # Module #
 ##########
 from .bragg import bragg_angle
+from .state import OphydMachine
 
 logger = logging.getLogger(__name__)
 
@@ -212,6 +214,7 @@ class SplitAndDelay(Device):
         theta1 : float
             Expected bragg angle for E1
         """
+        self.E1 = E1
         return bragg_angle(E=E1, ID=ID, hkl=hkl)
 
     def e2_to_theta2(self, E2, ID="Si", hkl=(2,2,0)):
@@ -235,6 +238,7 @@ class SplitAndDelay(Device):
         theta2 : float
             Expected bragg angle for E1
         """
+        self.E2 = E2
         return bragg_angle(E=E2, ID=ID, hkl=hkl)
 
     def t_to_length(self, t, **kwargs):
@@ -263,7 +267,20 @@ class SplitAndDelay(Device):
 
         return length * 1000    # Convert to mm
 
-    def energy(self, E, **kwargs):
+    @property
+    def energy(self):
+        """
+        Returns the energy the system is currently set to.
+
+        Returns
+        -------
+        E1, E2 : tuple
+        	Energy for the delay line and channel cut line.
+        """
+        return self.energy1, self.energy2
+
+    @energy.setter
+    def energy(self, E):
         """
         Sets the energy for both the delay line and the channe cut line of the
         system.
@@ -273,11 +290,23 @@ class SplitAndDelay(Device):
         E : float
         	Energy to use for the system.
         """
-        status_e1 = self.energy1(E, **kwargs)
-        status_e2 = self.energy2(E, **kwargs)
-        return status_e1, status_e2    
+        self.energy1 = E
+        self.energy2 = E
 
-    def energy1(self, E1, wait=False, **kwargs):
+    @property
+    def energy1(self):
+        """
+        Sets angle of the delay line according to the inputted energy.
+
+        Returns
+        -------
+        E1 : float
+        	Energy of the delay line.
+        """
+        return bragg_energy(self.t1.tth.position)
+
+    @energy1.setter
+    def energy1(self, E1):
         """
         Sets the angles of the crystals in the delay line to maximize the
         inputted energy.        
@@ -289,7 +318,7 @@ class SplitAndDelay(Device):
         """
         # Convert to theta1
         # TODO: Error handling here
-        self.theta1 = self.e1_to_theta1(E1, **kwargs)
+        self.theta1 = self.e1_to_theta1(E1)
 
         logger.debug("Input E1: {0}. \nMoving t1.tth to {1} \nMoving t1.th1 "
                      "and t1.th2 to {2} \nMoving t4.tth to {3} \nMoving t4.th1 "
@@ -298,25 +327,38 @@ class SplitAndDelay(Device):
                                                 self.theta1, self.theta1))
 
         # Set the position of the motors on tower 1
-        status_t1_tth = t1.tth.move(2*self.theta1, wait=False)
-        status_t1_th1 = t1.th1.move(self.theta1, wait=False)
-        status_t1_th2 = t1.th2.move(self.theta1, wait=False)
+        status_t1_tth = t1.tth.move(self.theta1, wait=False)
+        status_t1_th1 = t1.th1.move(self.theta1/2, wait=False)
+        status_t1_th2 = t1.th2.move(self.theta1/2, wait=False)
 
         # Set the positions of the motors on tower 4
-        status_t4_tth = t4.tth.move(2*self.theta1, wait=False)
-        status_t4_th1 = t4.th1.move(self.theta1, wait=False)
-        status_t4_th2 = t4.th2.move(self.theta1, wait=False)
+        status_t4_tth = t4.tth.move(self.theta1, wait=False)
+        status_t4_th1 = t4.th1.move(self.theta1/2, wait=False)
+        status_t4_th2 = t4.th2.move(self.theta1/2, wait=False)
 
-        # Wait for the status objects to register the moves as complete
-        if wait:
-            logger.info("Waiting for {} to finish move ...".format(self.name))
-            # TODO: Wait on the composite status
-            # status_wait(status_composite)
+        # # Wait for the status objects to register the moves as complete
+        # if wait:
+        #     logger.info("Waiting for {} to finish move ...".format(self.name))
+        #     # TODO: Wait on the composite status
+        #     # status_wait(status_composite)
 
         # TODO: Find a way to create composite statuses
         # return status_composite
 
-    def energy2(self, E2, wait=False, **kwargs):
+    @property
+    def energy2(self):
+        """
+        Sets angle of the channel cut line according to the inputted energy.
+
+        Returns
+        -------
+        E2 : float
+        	Energy of the channel cut line.
+        """
+        return bragg_energy(2*self.t2.th.position)        
+
+    @energy2.setter
+    def energy2(self, E2):
         """
         Sets the angles of the crystals in the channel cut line to maximize the
         inputted energy.        
@@ -328,27 +370,41 @@ class SplitAndDelay(Device):
         """
         # Convert to theta2
         # TODO: Error handling here
-        self.theta2 = self.e2_to_theta2(E2, **kwargs)
+        self.theta2 = self.e2_to_theta2(E2)
 
         logger.debug("Input E2: {0}. \nMoving t2.th and t3.th to {1}".format(
             E2, self.theta2))
 
         # Set the position of the motors on tower 2
-        status_t2_th = t2.th.move(self.theta2, wait=False)
+        status_t2_th = t2.th.move(self.theta2/2, wait=False)
         
         # Set the positions of the motors on tower 3
-        status_t3_th = t3.th.move(self.theta2, wait=False)
+        status_t3_th = t3.th.move(self.theta2/2, wait=False)
 
-        # Wait for the status objects to register the moves as complete
-        if wait:
-            logger.info("Waiting for {} to finish move ...".format(self.name))
-            # TODO: Wait on the composite status
-            # status_wait(status_composite)        
+        # # Wait for the status objects to register the moves as complete
+        # if wait:
+        #     logger.info("Waiting for {} to finish move ...".format(self.name))
+        #     # TODO: Wait on the composite status
+        #     # status_wait(status_composite)        
         
         # TODO: Find a way to create composite statuses
         # return status_composite
+
+    @property
+    def delay(self):
+        """
+        Returns the current expected delay of the system.
+
+        Returns
+        -------
+        t : float
+        	Expected delay in picoseconds
+        """
+        # TODO: Replace with delay calculation.
+        return self.t
         
-    def delay(self, t, wait=True, **kwargs):
+    @delay.setter 
+    def delay(self, t):
         """
         Sets the linear stages on the delay line to be the correct length
         according to desired delay and current theta positions.
@@ -366,11 +422,11 @@ class SplitAndDelay(Device):
         status_t1_L = self.t1.L.move(self.length, wait=False)
         status_t4_L = self.t4.L.move(self.length, wait=False)
 
-        # Wait for the status objects to register the moves as complete
-        if wait:
-            logger.info("Waiting for {} to finish move ...".format(self.name))
-            # TODO: Wait on the composite status
-            # status_wait(status_composite)
+        # # Wait for the status objects to register the moves as complete
+        # if wait:
+        #     logger.info("Waiting for {} to finish move ...".format(self.name))
+        #     # TODO: Wait on the composite status
+        #     # status_wait(status_composite)
         
         # TODO: Find a way to create composite statuses
         # return status_composite
