@@ -38,7 +38,61 @@ class TowerBase(Device):
     """
     Base tower class.
     """
-    pass
+    def E_to_theta(self, E, ID="Si", hkl=(2,2,0)):
+        """
+        Computes theta1 based on the inputted energy. This should function
+        as a lookup table.
+        
+        Parmeters
+        ---------
+        E : float
+        	Energy to convert to theta1
+
+        ID : str, optional
+            Chemical fomula : 'Si'
+
+        hkl : tuple, optional
+            The reflection : (2,2,0)
+
+        Returns
+        -------
+        theta1 : float
+            Expected bragg angle for E
+        """
+        self.E = E
+        return bragg_angle(E=E, ID=ID, hkl=hkl)
+
+    def __init__(self, prefix, **kwargs):
+        super().__init__(prefix, **kwargs)
+        self.theta = self.position
+
+    @property
+    def energy(self):
+        """
+        Sets angle of the tower according to the inputted energy.
+
+        Returns
+        -------
+        E : float
+        	Energy of the delay line.
+        """
+        return bragg_energy(self.position)
+
+    @energy.setter
+    def energy(self, E):
+        """
+        Placeholder for the energy setter. Implement for each TowerBase
+        subclass.
+        """
+        pass
+    
+    @property
+    def position(self):
+        """
+        Current position of the tower. Implment this for each TowerBase
+        subclass.
+        """
+        return None
 
 
 class DelayTower(TowerBase):
@@ -110,6 +164,43 @@ class DelayTower(TowerBase):
 
     # Temperature monitor
     temp = Component(OmegaRTD, ":TEMP")
+
+    @property
+    def position(self):
+        """
+        Returns the theta position of the arm (tth) in degrees.
+
+        Returns
+        -------
+        position : float
+        	Position of the arm in degrees.
+        """
+        return self.tth.position
+
+    @TowerBase.energy.setter
+    def energy(self, E):
+        """
+        Sets the angles of the crystals in the delay line to maximize the
+        inputted energy.        
+    
+        Parmeters
+        ---------
+        E : float
+        	Energy to use for the system.
+        """
+        # Convert to theta1
+        # TODO: Error handling here
+        self.theta = self.E_to_theta(E)
+
+        logger.debug("\nMoving {tth} to {theta1} \nMoving {th1} and {th2} to "
+                     "{half_theta1}.".format(
+                         tth=self.tth.name, th1=self.th1.name, th2=self.th2.name,
+                         theta1=self.theta1, half_theta1=self.theta1/2))
+
+        # Set the position of the motors
+        status_tth = self.tth.move(self.theta, wait=False)
+        status_th1 = self.th1.move(self.theta/2, wait=False)
+        status_th2 = self.th2.move(self.theta/2, wait=False)
     
 
 class ChannelCutTower(TowerBase):
@@ -130,7 +221,40 @@ class ChannelCutTower(TowerBase):
     # Translation
     x = Component(LinearAero, ":X")
 
+    @property
+    def position(self):
+        """
+        Returns the theta position of the crystal (th) in degrees.
 
+        Returns
+        -------
+        position : float
+        	Position of the arm in degrees.
+        """
+        return self.th.position
+
+    @TowerBase.energy.setter
+    def energy(self, E):
+        """
+        Sets the angles of the crystals in the channel cut line to maximize the
+        inputted energy.        
+    
+        Parmeters
+        ---------
+        E : float
+        	Energy to use for the system.
+        """
+        # Convert to theta
+        # TODO: Error handling here
+        self.theta = self.E_to_theta(E)
+
+        logger.debug("\nMoving {th} to {theta}".format(
+            th=self.th.name, theta=self.theta))
+
+        # Set the position of the motors on tower 2
+        status_t2_th = t2.th.move(self.theta/2, wait=False)
+
+        
 class SplitAndDelay(Device):
     """
     Hard X-Ray Split and Delay System.
@@ -190,57 +314,6 @@ class SplitAndDelay(Device):
     gap = 0.055                 # m
     min_dist = 0.105            # m
 
-    def __init__(self, prefix, **kwargs):
-        super().__init__(prefix, **kwargs)
-
-    def e1_to_theta1(self, E1, ID="Si", hkl=(2,2,0)):
-        """
-        Computes theta1 based on the inputted energy. This should function
-        as a lookup table.
-        
-        Parmeters
-        ---------
-        E1 : float
-        	Energy to convert to theta1
-
-        ID : str, optional
-            Chemical fomula : 'Si'
-
-        hkl : tuple, optional
-            The reflection : (2,2,0)
-
-        Returns
-        -------
-        theta1 : float
-            Expected bragg angle for E1
-        """
-        self.E1 = E1
-        return bragg_angle(E=E1, ID=ID, hkl=hkl)
-
-    def e2_to_theta2(self, E2, ID="Si", hkl=(2,2,0)):
-        """
-        Computes theta2 based on the inputted energy. This should function
-        as a lookup table.
-        
-        Parmeters
-        ---------
-        E2 : float
-        	Energy to convert to theta2
-
-        ID : str, optional
-            Chemical fomula : 'Si'
-
-        hkl : tuple, optional
-            The reflection : (2,2,0)
-
-        Returns
-        -------
-        theta2 : float
-            Expected bragg angle for E1
-        """
-        self.E2 = E2
-        return bragg_angle(E=E2, ID=ID, hkl=hkl)
-
     def t_to_length(self, t, **kwargs):
         """
         Converts the inputted delay to the lengths on the delay arm linear
@@ -277,7 +350,7 @@ class SplitAndDelay(Device):
         E1, E2 : tuple
         	Energy for the delay line and channel cut line.
         """
-        return self.energy1, self.energy2
+        return self.t1.energy, self.t2.energy
 
     @energy.setter
     def energy(self, E):
@@ -290,106 +363,64 @@ class SplitAndDelay(Device):
         E : float
         	Energy to use for the system.
         """
-        self.energy1 = E
-        self.energy2 = E
+        self.t1.energy = E
+        self.t2.energy = E
+        self.t3.energy = E
+        self.t4.energy = E
 
     @property
     def energy1(self):
         """
-        Sets angle of the delay line according to the inputted energy.
+        Returns the calculated energy based on the angle of the delay line
 
         Returns
         -------
         E1 : float
         	Energy of the delay line.
         """
-        return bragg_energy(self.t1.tth.position)
+        return self.t1.energy
 
     @energy1.setter
-    def energy1(self, E1):
+    def energy1(self, E):
         """
         Sets the angles of the crystals in the delay line to maximize the
         inputted energy.        
     
         Parmeters
         ---------
-        E1 : float
+        E : float
         	Energy to use for the system.
         """
-        # Convert to theta1
-        # TODO: Error handling here
-        self.theta1 = self.e1_to_theta1(E1)
-
-        logger.debug("Input E1: {0}. \nMoving t1.tth to {1} \nMoving t1.th1 "
-                     "and t1.th2 to {2} \nMoving t4.tth to {3} \nMoving t4.th1 "
-                     "and t4.th2 to {4}".format(E1, 2*self.theta1, self.theta1,
-                                                self.theta1, 2*self.theta1,
-                                                self.theta1, self.theta1))
-
-        # Set the position of the motors on tower 1
-        status_t1_tth = t1.tth.move(self.theta1, wait=False)
-        status_t1_th1 = t1.th1.move(self.theta1/2, wait=False)
-        status_t1_th2 = t1.th2.move(self.theta1/2, wait=False)
-
-        # Set the positions of the motors on tower 4
-        status_t4_tth = t4.tth.move(self.theta1, wait=False)
-        status_t4_th1 = t4.th1.move(self.theta1/2, wait=False)
-        status_t4_th2 = t4.th2.move(self.theta1/2, wait=False)
-
-        # # Wait for the status objects to register the moves as complete
-        # if wait:
-        #     logger.info("Waiting for {} to finish move ...".format(self.name))
-        #     # TODO: Wait on the composite status
-        #     # status_wait(status_composite)
-
-        # TODO: Find a way to create composite statuses
-        # return status_composite
-
+        self.t1.energy = E
+        self.t4.energy = E
+        
     @property
     def energy2(self):
         """
-        Sets angle of the channel cut line according to the inputted energy.
+        Returns the calculated energy based on the angle of the channel cut
+        line.
 
         Returns
         -------
-        E2 : float
+        E : float
         	Energy of the channel cut line.
         """
-        return bragg_energy(2*self.t2.th.position)        
+        return self.t2.energy
 
     @energy2.setter
-    def energy2(self, E2):
+    def energy2(self, E):
         """
         Sets the angles of the crystals in the channel cut line to maximize the
         inputted energy.        
     
         Parmeters
         ---------
-        E2 : float
+        E : float
         	Energy to use for the system.
         """
-        # Convert to theta2
-        # TODO: Error handling here
-        self.theta2 = self.e2_to_theta2(E2)
-
-        logger.debug("Input E2: {0}. \nMoving t2.th and t3.th to {1}".format(
-            E2, self.theta2))
-
-        # Set the position of the motors on tower 2
-        status_t2_th = t2.th.move(self.theta2/2, wait=False)
+        self.t2.energy = E
+        self.t3.energy = E
         
-        # Set the positions of the motors on tower 3
-        status_t3_th = t3.th.move(self.theta2/2, wait=False)
-
-        # # Wait for the status objects to register the moves as complete
-        # if wait:
-        #     logger.info("Waiting for {} to finish move ...".format(self.name))
-        #     # TODO: Wait on the composite status
-        #     # status_wait(status_composite)        
-        
-        # TODO: Find a way to create composite statuses
-        # return status_composite
-
     @property
     def delay(self):
         """
