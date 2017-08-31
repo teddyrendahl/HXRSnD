@@ -3,6 +3,7 @@ source =
     hxrsnd
 [report]
 omit =
+    attocube_testing
     #tests
     */tests/*
     *test*

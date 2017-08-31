@@ -33,6 +33,7 @@ class PuckStateMachine(StateMachine):
             return [state.value for state in cls]
 
     class Meta:
+        initial_state = 'landed'
         transitions = {
                 'locked'  : ['landed'],
                 'landed'  : ['locked', 'flying'],
