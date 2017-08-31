@@ -3,3 +3,7 @@ git+https://github.com/slaclab/pcds-devices#egg=pcds-devices
 git+https://github.com/slaclab/pswalker#egg=pswalker
 super_state_machine
 ophyd 
+lmfit
+numpy
+simplejson
+pandas
