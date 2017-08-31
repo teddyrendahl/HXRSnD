@@ -10,5 +10,9 @@ autodetect: true
 ignore-paths:
   - docs
   - attocube_testing
+  - notebooks
+  - __init__.py
+  - hxrsnd/_version.py
+  - versioneer.py
 python-targets:
   - 3
