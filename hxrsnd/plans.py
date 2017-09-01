@@ -41,10 +41,8 @@ def maximize_lorentz(detector, motor, read_field, nsteps=10,
 
     The following plan does a linear step scan through the parameter space
     while collecting information to create a Lorentzian model. After the scan
-    has linear scan has completed, the created model will be queried to find
-    the estimated motor position that will yield the absolute maximum of the
-    Lorentz equation
-
+    has completed, the created model will be queried to find the estimated
+    motor position that will yield the absolute maximum of the Lorentz equation
 
     Parameters
     ----------
