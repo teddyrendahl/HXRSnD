@@ -20,7 +20,7 @@ from ophyd.status import wait as status_wait
 from pcdsdevices.device import Device
 from pcdsdevices.component import Component
 from pcdsdevices.epics.rtd import OmegaRTD
-from pcdsdevices.epics.aerotech import (RotationAero, LinearAero)
+from pcdsdevices.epics.aerotech import (AeroBase, RotationAero, LinearAero)
 from pcdsdevices.epics.attocube import (TranslationEcc, GoniometerEcc, DiodeEcc)
 from pcdsdevices.epics.diode import (HamamatsuDiode, HamamatsuXMotionDiode,
                                      HamamatsuXYMotionCamDiode)
@@ -41,7 +41,8 @@ class TowerBase(Device):
     def __init__(self, prefix, pos_inserted=None, pos_removed=None,
                  *args, **kwargs):
         self.pos_inserted = pos_inserted
-        self.pos_removed = pos_removed        
+        self.pos_removed = pos_removed
+        
         super().__init__(prefix, *args, **kwargs)
         
     def E_to_theta(self, E, ID="Si", hkl=(2,2,0)):
@@ -78,7 +79,7 @@ class TowerBase(Device):
         E : float
         	Energy of the delay line.
         """
-        return bragg_energy(self.position)
+        return bragg_energy(self.theta)
 
     @energy.setter
     def energy(self, E):
@@ -99,7 +100,7 @@ class TowerBase(Device):
     @property
     def theta(self):
         """
-        Current position of the tower. Alias for `position`.
+        Bragg angle the tower is currently set to maximize.
 
         Returns
         -------
@@ -116,7 +117,14 @@ class TowerBase(Device):
         -------
         status : MoveStatus
         	Status of the move.
+
+        Raises
+        ------
+        ValueError
+        	If pos_inserted is set to None and insert() is called.
         """
+        if self.pos_inserted is None:
+            raise ValueError("Must set pos_inserted to use insert method.")
         return self.x.move(self.pos_inserted, *args, **kwargs)
 
     def remove(self, *args, **kwargs):
@@ -127,7 +135,14 @@ class TowerBase(Device):
         -------
         status : MoveStatus
         	Status of the move.
+
+        Raises
+        ------
+        ValueError
+        	If pos_removed is set to None and remove() is called.
         """
+        if self.pos_removed is None:
+            raise ValueError("Must set pos_removed to use remove method.")        
         return self.x.move(self.pos_removed, *args, **kwargs)
 
     @property
@@ -139,10 +154,70 @@ class TowerBase(Device):
         -------
         inserted : bool
         	Whether the tower is inserted or not.
-        """
-        return np.isclose(self.pos_inserted, self.position, atol=0.1))
 
+        Raises
+        ------
+        ValueError
+        	If pos_inserted is set to None and inserted is called.        
+        """
+        if self.pos_inserted is None:
+            raise ValueError("Must set pos_inserted to check if inserted.")
+        return np.isclose(self.pos_inserted, self.position, atol=0.1)
+
+    def _apply_all(self, method, subclass=object, method_args=None,
+                   method_kwargs=None):
+        """
+        Runs the method for all devices that are of the inputted subclass. All
+        additional arguments and key word arguments are passed as inputs to the
+        method.
+
+        Parameters
+        ----------
+        method : str
+        	Method of each device to run.
+
+        subclass : class
+        	Subclass to run the methods for.
+
+        method_args : tuple, optional
+        	Positional arguments to pass to the method
+
+        method_kwargs : dict, optional
+        	Key word arguments to pass to the method
+        """
+        # Replace method_args and method_kwargs with an empty tuple and dict
+        if method_args is None:
+            method_args = ()
+        if method_kwargs is None:
+            method_kwargs = {}
+
+        ret = []
+        # Check if each signal is a subclass of subclass then run the method
+        for sig_name in self.signal_names:
+            signal = getattr(self, sig_name)
+            if issubclass(type(signal), subclass):
+                ret.append(getattr(signal, method)(*method_args,
+                                                   **method_kwargs))
+        return ret            
     
+    def enable_all(self):
+        """
+        Enables all the aerotech motors.
+        """
+        self._apply_all("enable", AeroBase)
+
+    def disable_all(self):
+        """
+        Disables all the aerotech motors.
+        """
+        self._apply_all("disable", AeroBase)
+
+    def clear_all(self):
+        """
+        Disables all the aerotech motors.
+        """
+        self._apply_all("clear", AeroBase)
+        
 class DelayTower(TowerBase):
     """
     Delay Tower
@@ -305,6 +380,18 @@ class ChannelCutTower(TowerBase):
         """
         return self.th.position
 
+    @property
+    def theta(self):
+        """
+        Bragg angle the tower is currently set to maximize.
+
+        Returns
+        -------
+        position : float
+        	Current position of the tower.
+        """
+        return 2*self.position    
+
     @TowerBase.energy.setter
     def energy(self, E):
         """
@@ -407,8 +494,8 @@ class SplitAndDelay(Device):
 
         # TODO : Double check that this is correct
         length = ((self.t*self.c + 2*self.gap * (1 - np.cos(
-            2*self.t1.th1.theta))/np.sin(self.t1.th1.theta))/
-                  (2*(1 - np.cos(2*self.t3.th.theta))))
+            2*self.t1.theta))/np.sin(self.t1.theta))/
+                  (2*(1 - np.cos(2*self.t3.theta))))
 
         return length * 1000    # Convert to mm
 
