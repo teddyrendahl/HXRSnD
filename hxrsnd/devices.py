@@ -38,6 +38,12 @@ class TowerBase(Device):
     """
     Base tower class.
     """
+    def __init__(self, prefix, pos_inserted=None, pos_removed=None,
+                 *args, **kwargs):
+        self.pos_inserted = pos_inserted
+        self.pos_removed = pos_removed        
+        super().__init__(prefix, *args, **kwargs)
+        
     def E_to_theta(self, E, ID="Si", hkl=(2,2,0)):
         """
         Computes theta1 based on the inputted energy. This should function
@@ -61,10 +67,6 @@ class TowerBase(Device):
         """
         self.E = E
         return bragg_angle(E=E, ID=ID, hkl=hkl)
-
-    def __init__(self, prefix, **kwargs):
-        super().__init__(prefix, **kwargs)
-        self.theta = self.position
 
     @property
     def energy(self):
@@ -94,7 +96,53 @@ class TowerBase(Device):
         """
         return None
 
+    @property
+    def theta(self):
+        """
+        Current position of the tower. Alias for `position`.
 
+        Returns
+        -------
+        position : float
+        	Current position of the tower.
+        """
+        return self.position
+
+    def insert(self, *args, **kwargs):
+        """
+        Moves the tower x motor to `self.pos_inserted`.
+
+        Returns
+        -------
+        status : MoveStatus
+        	Status of the move.
+        """
+        return self.x.move(self.pos_inserted, *args, **kwargs)
+
+    def remove(self, *args, **kwargs):
+        """
+        Moves the tower x motor to `self.pos_removed`.
+
+        Returns
+        -------
+        status : MoveStatus
+        	Status of the move.
+        """
+        return self.x.move(self.pos_removed, *args, **kwargs)
+
+    @property
+    def inserted(self):
+        """
+        Returns whether the tower is in the inserted position (or close to it).
+
+        Returns
+        -------
+        inserted : bool
+        	Whether the tower is inserted or not.
+        """
+        return np.isclose(self.pos_inserted, self.position, atol=0.1))
+
+    
 class DelayTower(TowerBase):
     """
     Delay Tower
@@ -190,18 +238,42 @@ class DelayTower(TowerBase):
         """
         # Convert to theta1
         # TODO: Error handling here
-        self.theta = self.E_to_theta(E)
+        theta = self.E_to_theta(E)
 
-        logger.debug("\nMoving {tth} to {theta1} \nMoving {th1} and {th2} to "
-                     "{half_theta1}.".format(
-                         tth=self.tth.name, th1=self.th1.name, th2=self.th2.name,
-                         theta1=self.theta1, half_theta1=self.theta1/2))
+        logger.debug("\nMoving {tth} to {theta} \nMoving {th1} and {th2} to "
+                     "{half_theta}.".format(
+                         tth=self.tth.name, th1=self.th1.name,
+                         th2=self.th2.name, theta=theta, half_theta=theta/2))
 
         # Set the position of the motors
-        status_tth = self.tth.move(self.theta, wait=False)
-        status_th1 = self.th1.move(self.theta/2, wait=False)
-        status_th2 = self.th2.move(self.theta/2, wait=False)
-    
+        status_tth = self.tth.move(theta, wait=False)
+        status_th1 = self.th1.move(theta/2, wait=False)
+        status_th2 = self.th2.move(theta/2, wait=False)
+
+    @property
+    def delay(self):
+        """
+        Returns the position of the linear delay stage (L) in mm.
+
+        Returns
+        -------
+        position : float
+        	Position in mm of the linear delay stage.
+        """
+        return self.L.position
+
+    @delay.setter
+    def delay(self, position):
+        """
+        Sets the position of the linear delay stage in mm.
+
+        Parameters
+        ----------
+        position : float
+        	Position to move the delay motor to.
+        """
+        self.L.move(position, wait=False)
+        
 
 class ChannelCutTower(TowerBase):
     """
@@ -246,13 +318,13 @@ class ChannelCutTower(TowerBase):
         """
         # Convert to theta
         # TODO: Error handling here
-        self.theta = self.E_to_theta(E)
+        theta = self.E_to_theta(E)
 
-        logger.debug("\nMoving {th} to {theta}".format(
-            th=self.th.name, theta=self.theta))
+        logger.debug("\nMoving {th} to {theta}".format(th=self.th.name,
+                                                       theta=theta))
 
         # Set the position of the motors on tower 2
-        status_t2_th = t2.th.move(self.theta/2, wait=False)
+        status_t2_th = t2.th.move(theta/2, wait=False)
 
         
 class SplitAndDelay(Device):
@@ -300,14 +372,14 @@ class SplitAndDelay(Device):
     t3 = Component(ChannelCutTower, ":T3")
 
     # SnD and Delay line diodes
-    di = Component(HamamatsuXYMotionCamDiode, ":DI")
-    dd = Component(HamamatsuXYMotionCamDiode, ":DD")
-    do = Component(HamamatsuXYMotionCamDiode, ":DO")
+    di = Component(HamamatsuXYMotionCamDiode, ":DIA:DI")
+    dd = Component(HamamatsuXYMotionCamDiode, ":DIA:DD")
+    do = Component(HamamatsuXYMotionCamDiode, ":DIA:DO")
 
     # Channel Cut Diodes
-    dci = Component(HamamatsuXMotionDiode, ":DCI")
-    dcc = Component(HamamatsuXMotionDiode, ":DCC")
-    dco = Component(HamamatsuXMotionDiode, ":DCO")
+    dci = Component(HamamatsuXMotionDiode, ":DIA:DCI")
+    dcc = Component(HamamatsuXMotionDiode, ":DIA:DCC")
+    dco = Component(HamamatsuXMotionDiode, ":DIA:DCO")
     
     # Constants
     c = 299792458               # m/s
@@ -335,15 +407,15 @@ class SplitAndDelay(Device):
 
         # TODO : Double check that this is correct
         length = ((self.t*self.c + 2*self.gap * (1 - np.cos(
-            2*self.t1.th1.position))/np.sin(self.t1.th1.position))/
-                  (2*(1 - np.cos(2*self.t3.th.position))))
+            2*self.t1.th1.theta))/np.sin(self.t1.th1.theta))/
+                  (2*(1 - np.cos(2*self.t3.th.theta))))
 
         return length * 1000    # Convert to mm
 
     @property
     def energy(self):
         """
-        Returns the energy the system is currently set to.
+        Returns the energy the whole system is currently set to in eV
 
         Returns
         -------
