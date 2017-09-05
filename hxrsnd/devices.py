@@ -343,12 +343,13 @@ class DelayTower(TowerBase):
     # # Temperature monitor
     # temp = Component(OmegaRTD, ":TEMP", desc="Tower RTD")
 
-    def __init__(self, prefix, y1, y2, chi1, chi2, dh, *args, **kwargs):
-        self._y1 = y1
-        self._y2 = y2
-        self._chi1 = chi1
-        self._chi2 = chi2
-        self._dh = dh
+    def __init__(self, prefix, y1=None, y2=None, chi1=None, chi2=None, dh=None,
+                 *args, **kwargs):
+        self._y1 = y1 or "Y1"
+        self._y2 = y2 or "Y2"
+        self._chi1 = chi1 or "CHI1"
+        self._chi2 = chi2 or "CHI2"
+        self._dh = dh or "DH"
         self._prefix = prefix[:-3]
         super().__init__(prefix, *args, **kwargs)
 
