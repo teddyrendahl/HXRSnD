@@ -18,17 +18,18 @@ from ophyd.status import wait as status_wait
 # SLAC #
 ########
 from pcdsdevices.device import Device
-from pcdsdevices.component import Component
+from pcdsdevices.component import (Component, FormattedComponent)
 from pcdsdevices.epics.rtd import OmegaRTD
 from pcdsdevices.epics.aerotech import (AeroBase, RotationAero, LinearAero)
-from pcdsdevices.epics.attocube import (TranslationEcc, GoniometerEcc, DiodeEcc)
+from pcdsdevices.epics.attocube import (EccBase, TranslationEcc, GoniometerEcc, 
+                                        DiodeEcc)
 from pcdsdevices.epics.diode import (HamamatsuDiode, HamamatsuXMotionDiode,
                                      HamamatsuXYMotionCamDiode)
 
 ##########
 # Module #
 ##########
-from .bragg import bragg_angle
+from .bragg import (bragg_angle, bragg_energy)
 from .state import OphydMachine
 
 logger = logging.getLogger(__name__)
@@ -38,12 +39,14 @@ class TowerBase(Device):
     """
     Base tower class.
     """
-    def __init__(self, prefix, pos_inserted=None, pos_removed=None,
+    def __init__(self, prefix, desc=None, pos_inserted=None, pos_removed=None,
                  *args, **kwargs):
         self.pos_inserted = pos_inserted
         self.pos_removed = pos_removed
-        
+        self.desc=desc
         super().__init__(prefix, *args, **kwargs)
+        if desc is None:
+            self.desc = self.name
         
     def E_to_theta(self, E, ID="Si", hkl=(2,2,0)):
         """
@@ -53,7 +56,7 @@ class TowerBase(Device):
         Parmeters
         ---------
         E : float
-        	Energy to convert to theta1
+            Energy to convert to theta1
 
         ID : str, optional
             Chemical fomula : 'Si'
@@ -77,7 +80,7 @@ class TowerBase(Device):
         Returns
         -------
         E : float
-        	Energy of the delay line.
+            Energy of the delay line.
         """
         return bragg_energy(self.theta)
 
@@ -105,7 +108,7 @@ class TowerBase(Device):
         Returns
         -------
         position : float
-        	Current position of the tower.
+            Current position of the tower.
         """
         return self.position
 
@@ -116,12 +119,12 @@ class TowerBase(Device):
         Returns
         -------
         status : MoveStatus
-        	Status of the move.
+            Status of the move.
 
         Raises
         ------
         ValueError
-        	If pos_inserted is set to None and insert() is called.
+            If pos_inserted is set to None and insert() is called.
         """
         if self.pos_inserted is None:
             raise ValueError("Must set pos_inserted to use insert method.")
@@ -134,12 +137,12 @@ class TowerBase(Device):
         Returns
         -------
         status : MoveStatus
-        	Status of the move.
+            Status of the move.
 
         Raises
         ------
         ValueError
-        	If pos_removed is set to None and remove() is called.
+            If pos_removed is set to None and remove() is called.
         """
         if self.pos_removed is None:
             raise ValueError("Must set pos_removed to use remove method.")        
@@ -153,12 +156,12 @@ class TowerBase(Device):
         Returns
         -------
         inserted : bool
-        	Whether the tower is inserted or not.
+            Whether the tower is inserted or not.
 
         Raises
         ------
         ValueError
-        	If pos_inserted is set to None and inserted is called.        
+            If pos_inserted is set to None and inserted is called.        
         """
         if self.pos_inserted is None:
             raise ValueError("Must set pos_inserted to check if inserted.")
@@ -174,16 +177,16 @@ class TowerBase(Device):
         Parameters
         ----------
         method : str
-        	Method of each device to run.
+            Method of each device to run.
 
         subclass : class
-        	Subclass to run the methods for.
+            Subclass to run the methods for.
 
         method_args : tuple, optional
-        	Positional arguments to pass to the method
+            Positional arguments to pass to the method
 
         method_kwargs : dict, optional
-        	Key word arguments to pass to the method
+            Key word arguments to pass to the method
         """
         # Replace method_args and method_kwargs with an empty tuple and dict
         if method_args is None:
@@ -217,76 +220,137 @@ class TowerBase(Device):
         Disables all the aerotech motors.
         """
         self._apply_all("clear", AeroBase)
+
+    def status(self, status="", offset=0, print_status=True, newline=False):
+        """
+        Returns the status of the tower.
+        
+        Parameters
+        ----------
+        status : str, optional
+            The string to append the status to.
+            
+        offset : int, optional
+            Amount to offset each line of the status.
+
+        print_status : bool, optional
+            Determines whether the string is printed or returned.
+
+        newline : bool, optional
+            Adds a new line to the end of the string.
+
+        Returns
+        -------
+        status : str
+            Status string.
+        """
+        status += "{0}{1}:\n{2}{3}\n".format(" "*offset, self.desc,
+                                             " "*offset, "-"*(len(self.desc)+1))
+        status_list = self._apply_all("status", (AeroBase, EccBase),
+                                      method_kwargs={"offset":offset+2,
+                                                     "print_status":False})
+        status += "".join(status_list)
+        if newline:
+            status += "\n"
+
+        if print_status is True:
+            print(status)
+        else:
+            return status
+
+    def __repr__(self):
+        """
+        Returns the status of the tower. Alias for status().
+
+        Returns
+        -------
+        status : str
+            Status string.
+        """
+        return self.status(print_status=False)
+
         
 class DelayTower(TowerBase):
     """
     Delay Tower
-
-    # TODO: Fully fill in components
     
     Components
     ----------
     tth : RotationAero
-    	Rotation axis of the entire delay arm
+        Rotation axis of the entire delay arm
 
     th1 : RotationAero
-    	Rotation axis of the static crystal
+        Rotation axis of the static crystal
 
     th2 : RotationAero
-    	Rotation axis of the delay crystal
+        Rotation axis of the delay crystal
 
     x : LinearAero
-    	Linear stage for insertion/bypass of the tower
+        Linear stage for insertion/bypass of the tower
 
     L : LinearAero
-    	Linear stage for the delay crystal
+        Linear stage for the delay crystal
 
     y1 : TranslationEcc
-    	Y translation for the static crystal
+        Y translation for the static crystal
 
     y2 : TranslationEcc
-    	Y translation for the delay crystal
+        Y translation for the delay crystal
 
     chi1 : GoniometerEcc
-    	Goniometer on static crystal
+        Goniometer on static crystal
 
     chi2 : GoniometerEcc
-    	Goniometer on delay crystal
+        Goniometer on delay crystal
 
     dh : DiodeEcc
-    	Diode insertion motor
+        Diode insertion motor
 
     diode : HamamatsuDiode
-    	Diode between the static and delay crystals
+        Diode between the static and delay crystals
 
     temp : OmegaRTD
-    	RTD temperature sensor for the nitrogen.    
+        RTD temperature sensor for the nitrogen.    
     """
     # Rotation stages
-    tth = Component(RotationAero, ":TTH")
-    th1 = Component(RotationAero, ":TH1")
-    th2 = Component(RotationAero, ":TH2")
+    tth = Component(RotationAero, ":TTH", desc="Two Theta")
+    th1 = Component(RotationAero, ":TH1", desc="Theta 1")
+    th2 = Component(RotationAero, ":TH2", desc="Theta 2")
 
     # Linear stages
-    x = Component(LinearAero, ":X")
-    L = Component(LinearAero, ":L")
+    x = Component(LinearAero, ":X", desc="Tower X")
+    L = Component(LinearAero, ":L", desc="Delay Stage")
 
     # Y Crystal motion
-    y1 = Component(TranslationEcc, ":Y1")
-    y2 = Component(TranslationEcc, ":Y2")
+    y1 = FormattedComponent(TranslationEcc, "{self._prefix}:ECC:{self._y1}",
+                            desc="Crystal 1 Y")
+    y2 = FormattedComponent(TranslationEcc, "{self._prefix}:ECC:{self._y2}",
+                            desc="Crystal 2 Y")
 
     # Chi motion
-    chi1 = Component(GoniometerEcc, ":CHI1")
-    chi2 = Component(GoniometerEcc, ":CHI2")
+    chi1 = FormattedComponent(GoniometerEcc, "{self._prefix}:ECC:{self._chi1}",
+                              desc="Crystal 1 Chi")
+    chi2 = FormattedComponent(GoniometerEcc, "{self._prefix}:ECC:{self._chi2}",
+                              desc="Crystal 2 Chi")
 
     # Diode motion
-    dh = Component(DiodeEcc, ":DH")
+    dh = FormattedComponent(DiodeEcc, "{self._prefix}:ECC:{self._dh}",
+                            desc="Diode Motor")
 
-    # Diode
-    diode = Component(HamamatsuDiode, ":DIODE")
+    # # Diode
+    # diode = Component(HamamatsuDiode, ":DIODE", desc="Tower Diode")
 
-    # Temperature monitor
-    temp = Component(OmegaRTD, ":TEMP")
+    # # Temperature monitor
+    # temp = Component(OmegaRTD, ":TEMP", desc="Tower RTD")
+
+    def __init__(self, prefix, y1, y2, chi1, chi2, dh, *args, **kwargs):
+        self._y1 = y1
+        self._y2 = y2
+        self._chi1 = chi1
+        self._chi2 = chi2
+        self._dh = dh
+        self._prefix = prefix[:-3]
+        super().__init__(prefix, *args, **kwargs)
 
     @property
     def position(self):
@@ -296,7 +360,7 @@ class DelayTower(TowerBase):
         Returns
         -------
         position : float
-        	Position of the arm in degrees.
+            Position of the arm in degrees.
         """
         return self.tth.position
 
@@ -309,7 +373,7 @@ class DelayTower(TowerBase):
         Parmeters
         ---------
         E : float
-        	Energy to use for the system.
+            Energy to use for the system.
         """
         # Convert to theta1
         # TODO: Error handling here
@@ -333,7 +397,7 @@ class DelayTower(TowerBase):
         Returns
         -------
         position : float
-        	Position in mm of the linear delay stage.
+            Position in mm of the linear delay stage.
         """
         return self.L.position
 
@@ -345,7 +409,7 @@ class DelayTower(TowerBase):
         Parameters
         ----------
         position : float
-        	Position to move the delay motor to.
+            Position to move the delay motor to.
         """
         self.L.move(position, wait=False)
         
@@ -357,16 +421,16 @@ class ChannelCutTower(TowerBase):
     Components
     ----------
     th : RotationAero
-    	Rotation stage of the channel cut crystal
+        Rotation stage of the channel cut crystal
 
     x : LinearAero
-    	Translation stage of the tower
+        Translation stage of the tower
     """
     # Rotation
-    th = Component(RotationAero, ":TH")
+    th = Component(RotationAero, ":TH", desc="Theta")
 
     # Translation
-    x = Component(LinearAero, ":X")
+    x = Component(LinearAero, ":X", desc="Tower X")
 
     @property
     def position(self):
@@ -376,7 +440,7 @@ class ChannelCutTower(TowerBase):
         Returns
         -------
         position : float
-        	Position of the arm in degrees.
+            Position of the arm in degrees.
         """
         return self.th.position
 
@@ -388,7 +452,7 @@ class ChannelCutTower(TowerBase):
         Returns
         -------
         position : float
-        	Current position of the tower.
+            Current position of the tower.
         """
         return 2*self.position    
 
@@ -401,7 +465,7 @@ class ChannelCutTower(TowerBase):
         Parmeters
         ---------
         E : float
-        	Energy to use for the system.
+            Energy to use for the system.
         """
         # Convert to theta
         # TODO: Error handling here
@@ -411,7 +475,7 @@ class ChannelCutTower(TowerBase):
                                                        theta=theta))
 
         # Set the position of the motors on tower 2
-        status_t2_th = t2.th.move(theta/2, wait=False)
+        status_th = self.th.move(theta/2, wait=False)
 
         
 class SplitAndDelay(Device):
@@ -421,42 +485,48 @@ class SplitAndDelay(Device):
     Components
     ----------
     t1 : DelayTower
-    	Tower 1 in the split and delay system
+        Tower 1 in the split and delay system
 
     t4 : DelayTower
-    	Tower 4 in the split and delay system
+        Tower 4 in the split and delay system
 
     t2 : ChannelCutTower
-    	Tower 2 in the split and delay system
+        Tower 2 in the split and delay system
 
     t3 : ChannelCutTower
-    	Tower 3 in the split and delay system
+        Tower 3 in the split and delay system
 
     di : HamamatsuXYMotionCamDiode
-    	Input diode for the system
+        Input diode for the system
     
     dd : HamamatsuXYMotionCamDiode
-    	Diode between the two delay towers
+        Diode between the two delay towers
 
     do : HamamatsuXYMotionCamDiode
-    	Output diode for the system
+        Output diode for the system
 
     dci : HamamatsuXMotionDiode
-    	Input diode for the channel cut line
+        Input diode for the channel cut line
     
     dcc : HamamatsuXMotionDiode
-    	Diode between the two channel cut towers
+        Diode between the two channel cut towers
     
     dco : HamamatsuXMotionDiode
-    	Input diode for the channel cut line
+        Input diode for the channel cut line
     """
     # Delay Towers
-    t1 = Component(DelayTower, ":T1")
-    t4 = Component(DelayTower, ":T4")
+    t1 = Component(DelayTower, ":T1", y1="A:ACT0", y2="A:ACT1",
+                   chi1="A:ACT2", chi2="B:ACT0", dh="B:ACT1",
+                   pos_inserted=21.1, pos_removed=0, desc="Tower 1")
+    t4 = Component(DelayTower, ":T4", y1="C:ACT0", y2="C:ACT1",
+                   chi1="C:ACT2", chi2="D:ACT0", dh="D:ACT1",
+                   pos_inserted=21.1, pos_removed=0, desc="Tower 4")
 
     # Channel Cut Towers
-    t2 = Component(ChannelCutTower, ":T2")
-    t3 = Component(ChannelCutTower, ":T3")
+    t2 = Component(ChannelCutTower, ":T2", pos_inserted=None, 
+                   pos_removed=0, desc="Tower 2")
+    t3 = Component(ChannelCutTower, ":T3", pos_inserted=None, 
+                   pos_removed=0, desc="Tower 3")
 
     # SnD and Delay line diodes
     di = Component(HamamatsuXYMotionCamDiode, ":DIA:DI")
@@ -473,6 +543,9 @@ class SplitAndDelay(Device):
     gap = 0.055                 # m
     min_dist = 0.105            # m
 
+    # TEMP
+    t = 0
+
     def t_to_length(self, t, **kwargs):
         """
         Converts the inputted delay to the lengths on the delay arm linear
@@ -481,13 +554,13 @@ class SplitAndDelay(Device):
         Parameters
         ----------
         t : float
-        	The desired delay from the system in picoseconds
+            The desired delay from the system in picoseconds
 
         Returns
         -------
         length : float
-        	The distance between the delay crystal and the splitting or
-        	recombining crystal.
+            The distance between the delay crystal and the splitting or
+            recombining crystal.
         """
         # Lets internally keep track of this
         self.t = t * 1e-12      # Convert to seconds
@@ -507,7 +580,7 @@ class SplitAndDelay(Device):
         Returns
         -------
         E1, E2 : tuple
-        	Energy for the delay line and channel cut line.
+            Energy for the delay line and channel cut line.
         """
         return self.t1.energy, self.t2.energy
 
@@ -520,7 +593,7 @@ class SplitAndDelay(Device):
         Parmeters
         ---------
         E : float
-        	Energy to use for the system.
+            Energy to use for the system.
         """
         self.t1.energy = E
         self.t2.energy = E
@@ -535,7 +608,7 @@ class SplitAndDelay(Device):
         Returns
         -------
         E1 : float
-        	Energy of the delay line.
+            Energy of the delay line.
         """
         return self.t1.energy
 
@@ -548,7 +621,7 @@ class SplitAndDelay(Device):
         Parmeters
         ---------
         E : float
-        	Energy to use for the system.
+            Energy to use for the system.
         """
         self.t1.energy = E
         self.t4.energy = E
@@ -562,7 +635,7 @@ class SplitAndDelay(Device):
         Returns
         -------
         E : float
-        	Energy of the channel cut line.
+            Energy of the channel cut line.
         """
         return self.t2.energy
 
@@ -575,7 +648,7 @@ class SplitAndDelay(Device):
         Parmeters
         ---------
         E : float
-        	Energy to use for the system.
+            Energy to use for the system.
         """
         self.t2.energy = E
         self.t3.energy = E
@@ -588,7 +661,7 @@ class SplitAndDelay(Device):
         Returns
         -------
         t : float
-        	Expected delay in picoseconds
+            Expected delay in picoseconds
         """
         # TODO: Replace with delay calculation.
         return self.t
@@ -602,7 +675,7 @@ class SplitAndDelay(Device):
         Parameters
         ----------
         t : float
-        	The desired delay from the system.
+            The desired delay from the system.
         """
         self.length = self.t_to_length(t)
 
@@ -621,10 +694,32 @@ class SplitAndDelay(Device):
         # TODO: Find a way to create composite statuses
         # return status_composite
 
-# Notes :
-# - What is the gap?
-# - How does the eq for t1.L and t4.L change for the correct system
-
-
-
+    def status(self):
+        """
+        Returns the status of the split and delay system.
         
+        Returns
+        -------
+        status : str            
+        """
+        status =  "Split and Delay System Status\n"
+        status += "-----------------------------\n"
+        status += "  Energy 1: {0}\n".format(np.round(self.energy1))
+        status += "  Energy 2: {0}\n".format(np.round(self.energy2))
+        status += "  Delay: {0}\n\n".format(self.delay)
+        status = self.t1.status(status, 0, print_status=False, newline=True)
+        status = self.t2.status(status, 0, print_status=False, newline=True)
+        status = self.t3.status(status, 0, print_status=False, newline=True)
+        status = self.t4.status(status, 0, print_status=False, newline=False)
+        print(status)
+
+    def __repr__(self):
+        """
+        Returns the status of the system. Alias for status().
+
+        Returns
+        -------
+        status : str
+            Status string.
+        """
+        return self.status(print_status=False)
