@@ -1,13 +1,15 @@
 ############
 # Standard #
 ############
+import asyncio
 import logging
 
 ###############
 # Third Party #
 ###############
 import pytest
-
+from bluesky.run_engine import RunEngine
+from bluesky.tests.conftest import fresh_RE as RE
 ##########
 # Module #
 ##########
@@ -33,3 +35,6 @@ def set_level(pytestconfig):
     logging.basicConfig(level=log_level,
                         filename=pytestconfig.getoption('--logfile'))
 
+@pytest.fixture(scope='function')
+def fresh_RE(request):
+    return RE(request)

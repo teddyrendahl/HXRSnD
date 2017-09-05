@@ -1,17 +1,5 @@
-############
-# Standard #
-############
 import logging
-
-###############
-# Third Party #
-###############
-
-
-##########
-# Module #
-##########
-
+from .plans import maximize_lorentz
 
 from ._version import get_versions
 __version__ = get_versions()['version']
