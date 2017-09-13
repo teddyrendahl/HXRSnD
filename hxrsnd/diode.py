@@ -18,12 +18,12 @@ import logging
 ########
 from pcdsdevices.device import Device
 from pcdsdevices.component import Component
-from pcdsdevices.epics.areadetector.detectors import GigeDetector
 
 ##########
 # Module #
 ##########
 from .aerotech import DiodeAero
+from .detectors import GigeDetector
 
 logger = logging.getLogger(__name__)
 
