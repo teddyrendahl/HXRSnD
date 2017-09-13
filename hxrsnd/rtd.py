@@ -12,10 +12,14 @@ import logging
 # Third Party #
 ###############
 
+########
+# SLAC #
+########
+from pcdsdevices.device import Device
+
 ##########
 # Module #
 ##########
-from .device import Device
 
 logger = logging.getLogger(__name__)
 

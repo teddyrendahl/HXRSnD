@@ -19,18 +19,18 @@ from ophyd.status import wait as status_wait
 ########
 from pcdsdevices.device import Device
 from pcdsdevices.component import (Component, FormattedComponent)
-from pcdsdevices.epics.rtd import OmegaRTD
-from pcdsdevices.epics.aerotech import (AeroBase, RotationAero, LinearAero)
-from pcdsdevices.epics.attocube import (EccBase, TranslationEcc, GoniometerEcc, 
-                                        DiodeEcc)
-from pcdsdevices.epics.diode import (HamamatsuDiode, HamamatsuXMotionDiode,
-                                     HamamatsuXYMotionCamDiode)
 
 ##########
 # Module #
 ##########
 from .bragg import (bragg_angle, bragg_energy)
 from .state import OphydMachine
+from .rtd import OmegaRTD
+from .aerotech import (AeroBase, RotationAero, LinearAero)
+from .attocube import (EccBase, TranslationEcc, GoniometerEcc, 
+                                        DiodeEcc)
+from .diode import (HamamatsuDiode, HamamatsuXMotionDiode,
+                                     HamamatsuXYMotionCamDiode)
 
 logger = logging.getLogger(__name__)
 

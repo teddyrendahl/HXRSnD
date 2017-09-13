@@ -17,13 +17,17 @@ from ophyd import PositionerBase
 from ophyd.utils import LimitError
 from ophyd.status import wait as status_wait
 
+########
+# SLAC #
+########
+from pcdsdevices.device import Device
+from pcdsdevices.component import Component
+from pcdsdevices.epics.signal import (EpicsSignal, EpicsSignalRO)
+from pcdsdevices.epics.epicsmotor import EpicsMotor
+
 ##########
 # Module #
 ##########
-from .device import Device
-from .component import Component
-from .epicsmotor import EpicsMotor
-from .signal import (EpicsSignal, EpicsSignalRO)
 
 logger = logging.getLogger(__name__)
 

@@ -14,12 +14,16 @@ import os
 ###############
 import numpy as np
 
+########
+# SLAC #
+########
+from pcdsdevices.epics.epicsmotor import EpicsMotor
+from pcdsdevices.component import Component
+from pcdsdevices.epics.signal import (EpicsSignal, EpicsSignalRO, FakeSignal)
+
 ##########
 # Module #
 ##########
-from .epicsmotor import EpicsMotor
-from .component import Component
-from .signal import (EpicsSignal, EpicsSignalRO, FakeSignal)
 
 logger = logging.getLogger(__name__)
 

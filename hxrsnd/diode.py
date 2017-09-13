@@ -12,13 +12,18 @@ import logging
 # Third Party #
 ###############
 
+
+########
+# SLAC #
+########
+from pcdsdevices.device import Device
+from pcdsdevices.component import Component
+from pcdsdevices.epics.areadetector.detectors import GigeDetector
+
 ##########
 # Module #
 ##########
 from .aerotech import DiodeAero
-from .device import Device
-from .component import Component
-from .areadetector.detectors import GigeDetector
 
 logger = logging.getLogger(__name__)
 
