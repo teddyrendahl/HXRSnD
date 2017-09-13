@@ -17,12 +17,13 @@ from ophyd.device import Device
 ########
 # SLAC #
 ########
+from pcdsdevices.sim.pv import using_fake_epics_pv
 
 ##########
 # Module #
 ##########
 from hxrsnd import devices
-from .conftest import (using_fake_epics_pv, get_classes_in_module)
+from .conftest import get_classes_in_module
 
 logger = logging.getLogger(__name__)
 
