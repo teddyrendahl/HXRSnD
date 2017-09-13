@@ -22,13 +22,13 @@ from pcdsdevices.sim.pv import using_fake_epics_pv
 ##########
 # Module #
 ##########
-from hxrsnd import devices
+from hxrsnd import sndsystem
 from .conftest import get_classes_in_module
 
 logger = logging.getLogger(__name__)
 
 @using_fake_epics_pv
-@pytest.mark.parametrize("dev", get_classes_in_module(devices, Device))
+@pytest.mark.parametrize("dev", get_classes_in_module(sndsystem, Device))
 def test_devices_instantiate_and_run_ophyd_functions(dev):
     device = dev("TEST")
     assert(isinstance(device.read(), OrderedDict))
