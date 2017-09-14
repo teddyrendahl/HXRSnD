@@ -24,15 +24,31 @@ from pcdsdevices.sim.pv import  using_fake_epics_pv
 ##########
 from .conftest import get_classes_in_module
 from hxrsnd import attocube
+from hxrsnd.attocube import (EccBase, MotorDisabled, MotorError)
 
 logger = logging.getLogger(__name__)
 
 @using_fake_epics_pv
 @pytest.mark.parametrize("dev", get_classes_in_module(attocube, Device))
 def test_attocube_devices_instantiate_and_run_ophyd_functions(dev):
-    device = dev("TEST")
-    assert(isinstance(device.read(), OrderedDict))
-    assert(isinstance(device.describe(), OrderedDict))
-    assert(isinstance(device.describe_configuration(), OrderedDict))
-    assert(isinstance(device.read_configuration(), OrderedDict))
-    
+    motor = dev("TEST")
+    assert(isinstance(motor.read(), OrderedDict))
+    assert(isinstance(motor.describe(), OrderedDict))
+    assert(isinstance(motor.describe_configuration(), OrderedDict))
+    assert(isinstance(motor.read_configuration(), OrderedDict))    
+
+@using_fake_epics_pv
+def test_EccBase_raises_MotorDisabled_if_moved_while_disabled():
+    motor = EccBase("TEST")
+    motor.disable()
+    with pytest.raises(MotorDisabled):
+        motor.move(10)
+
+@using_fake_epics_pv
+def test_EccBase_raises_MotorError_if_moved_while_faulted():
+    motor = EccBase("TEST")
+    motor.enable()
+    time.sleep(.1)
+    motor.motor_error._read_pv._value = True
+    with pytest.raises(MotorError):
+        motor.move(10)
