@@ -17,19 +17,19 @@ from ophyd.device import Device
 ########
 # SLAC #
 ########
-from pcdsdevices.sim.pv import using_fake_epics_pv
+from pcdsdevices.sim.pv import  using_fake_epics_pv
 
 ##########
 # Module #
 ##########
-from hxrsnd import devices
 from .conftest import get_classes_in_module
+from hxrsnd import diode
 
 logger = logging.getLogger(__name__)
 
 @using_fake_epics_pv
-@pytest.mark.parametrize("dev", get_classes_in_module(devices, Device))
-def test_devices_instantiate_and_run_ophyd_functions(dev):
+@pytest.mark.parametrize("dev", get_classes_in_module(diode, Device))
+def test_diode_devices_instantiate_and_run_ophyd_functions(dev):
     device = dev("TEST")
     assert(isinstance(device.read(), OrderedDict))
     assert(isinstance(device.describe(), OrderedDict))
