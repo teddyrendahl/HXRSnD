@@ -28,6 +28,7 @@ from pcdsdevices.epics.epicsmotor import EpicsMotor
 ##########
 # Module #
 ##########
+from .exceptions import MotorDisabled, MotorError
 
 logger = logging.getLogger(__name__)
 
@@ -520,28 +521,5 @@ class GoniometerEcc(EccBase):
 class DiodeEcc(EccBase):
     """
     Class for the diode insertion ecc motor
-    """
-    pass
-
-
-# Exceptions
-
-class AttocubeException(Exception):
-    """
-    Base attocube motor exceptions.
-    """
-    pass
-
-
-class MotorDisabled(AttocubeException):
-    """
-    Exception raised when an action requiring the motor be enabled is requested.
-    """
-    pass
-
-
-class MotorError(AttocubeException):
-    """
-    Exception raised when an action requiring the motor not have an error is requested.
     """
     pass

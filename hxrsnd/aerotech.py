@@ -24,6 +24,7 @@ from pcdsdevices.epics.signal import (EpicsSignal, EpicsSignalRO, FakeSignal)
 ##########
 # Module #
 ##########
+from .exceptions import MotorDisabled, MotorFaulted
 
 logger = logging.getLogger(__name__)
 
@@ -341,27 +342,5 @@ class LinearAero(AeroBase):
 class DiodeAero(AeroBase):
     """
     VT50 Micronix Motor of the diodes
-    """
-    pass
-
-
-# Exceptions
-
-class AerotechException(Exception):
-    """
-    Base aerotech motor exceptions.
-    """
-    pass
-
-
-class MotorDisabled(AerotechException):
-    """
-    Exception raised when an action requiring the motor be enabled is requested.
-    """
-    pass
-
-class MotorFaulted(AerotechException):
-    """
-    Exception raised when an action requiring the motor not be faulted is requested.
     """
     pass
