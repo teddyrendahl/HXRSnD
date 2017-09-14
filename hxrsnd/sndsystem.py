@@ -203,19 +203,19 @@ class TowerBase(Device):
                                                    **method_kwargs))
         return ret            
     
-    def enable_all(self):
+    def enable(self):
         """
         Enables all the aerotech motors.
         """
-        self._apply_all("enable", AeroBase)
+        self._apply_all("enable", (AeroBase, EccBase))
 
-    def disable_all(self):
+    def disable(self):
         """
         Disables all the aerotech motors.
         """
-        self._apply_all("disable", AeroBase)
+        self._apply_all("disable", (AeroBase, EccBase))
 
-    def clear_all(self):
+    def clear(self):
         """
         Disables all the aerotech motors.
         """
@@ -395,7 +395,7 @@ class DelayTower(TowerBase):
             except Exception as e:
                 err = "Motor {0} got an exception: {1}".format(motor.name, e)
                 logger.error(err)
-                return
+                raise e
 
         status = [motor.move(pos) for move, pos in zip(motors, move_pos)]
 
