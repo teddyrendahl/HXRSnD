@@ -385,10 +385,19 @@ class DelayTower(TowerBase):
                          tth=self.tth.name, th1=self.th1.name,
                          th2=self.th2.name, theta=theta, half_theta=theta/2))
 
-        # Set the position of the motors
-        status_tth = self.tth.move(theta, wait=False)
-        status_th1 = self.th1.move(theta/2, wait=False)
-        status_th2 = self.th2.move(theta/2, wait=False)
+        motors = [self.tth, self.th1, self.th2]
+        move_pos = [theta, theta/2, theta/2]
+
+        # Check that we can move all the motors
+        for motor in motors:
+            try:
+                motor.check_status()
+            except Exception as e:
+                err = "Motor {0} got an exception: {1}".format(motor.name, e)
+                logger.error(err)
+                return
+
+        status = [motor.move(pos) for move, pos in zip(motors, move_pos)]
 
     @property
     def delay(self):
