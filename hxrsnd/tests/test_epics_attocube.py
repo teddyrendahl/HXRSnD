@@ -49,6 +49,6 @@ def test_EccBase_raises_MotorError_if_moved_while_faulted():
     motor = EccBase("TEST")
     motor.enable()
     time.sleep(.1)
-    motor.motor_error._read_pv._value = True
+    motor.motor_error._read_pv._value = 1
     with pytest.raises(MotorError):
         motor.move(10)

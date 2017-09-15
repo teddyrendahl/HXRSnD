@@ -49,7 +49,7 @@ def test_AeroBase_raises_MotorFaulted_if_moved_while_faulted():
     motor = AeroBase("TEST")
     motor.enable()
     time.sleep(.1)
-    motor.axis_fault._read_pv._value = True
+    motor.axis_fault._read_pv._value = 1
     with pytest.raises(MotorFaulted):
         motor.move(10)
         
