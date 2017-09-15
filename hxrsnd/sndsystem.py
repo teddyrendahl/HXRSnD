@@ -23,6 +23,7 @@ from pcdsdevices.component import (Component, FormattedComponent)
 ##########
 # Module #
 ##########
+from .utils import flatten
 from .bragg import (bragg_angle, bragg_energy)
 from .state import OphydMachine
 from .rtd import OmegaRTD
@@ -214,7 +215,13 @@ class TowerBase(Device):
             if issubclass(type(signal), subclass):
                 ret.append(getattr(signal, method)(*method_args,
                                                    **method_kwargs))
-        return ret            
+        return ret
+
+    def stop(self):
+        """
+        Stops the motions of all the motors.
+        """
+        self._apply_all("stop", (AeroBase, EccBase))
     
     def enable(self):
         """
@@ -412,7 +419,14 @@ class DelayTower(TowerBase):
                 logger.error(err)
                 raise e
 
-        status = [motor.move(pos, wait=wait) for move, pos in zip(motors, move_pos)]
+        status = [motor.move(pos, wait=False) for move, pos in zip(motors, move_pos)]
+
+        # Wait for the motions to finish
+        if wait:
+            for motor, s in zip(motors, status):
+                logger.info("Waiting for {} to finish move ...".format(motor.name))
+                status_wait(s)
+                
         return status
 
     def set_delay(self, position, wait=False, *args, **kwargs):
@@ -427,7 +441,7 @@ class DelayTower(TowerBase):
         wait : bool, optional
             Wait for motion to complete before returning the console.
         """
-        return self.L.move(position, wait=False, *args, **kwargs)
+        return self.L.move(position, wait=wait, *args, **kwargs)
 
     @property
     def delay(self):
@@ -589,9 +603,9 @@ class SplitAndDelay(Device):
 
     def __init__(self, prefix, *args, **kwargs):
         super().__init__(prefix, *args, **kwargs)
-        self.towers = [self.t1, self.t2, self.t3, self.t4]
         self.delay_towers = [self.t1, self.t4]
         self.channelcut_towers = [self.t2, self.t3]
+        self.towers = self.delay_towers + self.channelcut_towers
 
     def t_to_length(self, t, **kwargs):
         """
@@ -644,6 +658,39 @@ class SplitAndDelay(Device):
         """
         status = self.set_energy(E)
 
+    def _apply_tower_move_method(self, position, towers, move_method, wait=False,
+                                 *args, **kwargs):
+        """
+        Runs the inputted aggregate move method on each tower and then optionally
+        waits for the move to complete. A move method is defined as being a method
+        that returns a status object, or list of status objects.
+
+        Any additional arguments or keyword arguments will be passed to move_method.
+
+        Parmeters
+        ---------
+        position : float
+            Position to pass to the move method.
+
+        towers : list
+            List of towers to set the energy for.
+
+        move_method : str
+            Method of each tower to run.
+
+        wait : bool, optional
+            Wait for each tower to complete the motion.
+        """
+        status = [getattr(t, move_method)(position, *args, **kwargs) for t in towers]
+
+        # Wait for the motions to finish
+        if wait:
+            for s in flatten(status):
+                logger.info("Waiting for {} to finish move ...".format(s.device.name))
+                status_wait(s)
+
+        return status
+
     def set_energy(self, E, wait=False):
         """
         Sets the energy for both the delay line and the channe cut line of the
@@ -655,10 +702,9 @@ class SplitAndDelay(Device):
             Energy to use for the system.
 
         wait : bool, optional
-            Wait for each motor to complete the motion.
+            Wait for each tower to complete the motion.
         """
-        status = [tower.set_energy(E, wait=wait) for tower in self.towers]
-        return status
+        return self._set_tower_energy(E, self.towers, "set_energy", wait=wait)
 
     @property
     def energy1(self):
@@ -697,9 +743,8 @@ class SplitAndDelay(Device):
         wait : bool, optional
             Wait for each motor to complete the motion.
         """
-        status = [tower.set_energy(E, wait=wait) for tower in self.delay_towers]
-        return status
-
+        return self._set_tower_energy(E, self.delay_towers, "set_energy", wait=wait)
+        
     @property
     def energy2(self):
         """
@@ -738,8 +783,8 @@ class SplitAndDelay(Device):
         wait : bool, optional
             Wait for each motor to complete the motion.
         """
-        status = [tower.set_energy(E, wait=wait) for tower in self.channelcut_towers]
-        return status        
+        return self._set_tower_energy(E, self.channelcut_towers, "set_energy",
+                                      wait=wait)
         
     @property
     def delay(self):
@@ -783,8 +828,8 @@ class SplitAndDelay(Device):
         logger.debug("Input delay: {0}. \nMoving t1.L and t2.L to {1}".format(
             t, self.length))
 
-        status = [tower.set_delay(t, wait=wait) for tower in self.delay_towers]
-        return status
+        return self._set_tower_energy(self.length, self.delay_towers, "set_delay",
+                                      wait=wait)
 
     def status(self):
         """
