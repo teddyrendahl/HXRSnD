@@ -555,19 +555,19 @@ class Vacuum(SndDevice):
     Components
     ----------
     t1_valve : ProportionalValve
-        Proportional valve on T1
+        Proportional valve on T1.
 
     t4_valve : ProportionalValve
-        Proportional valve on T4
+        Proportional valve on T4.
 
     vac_valve : ProportionalValve
         Proportional valve on the overall system.
 
     t1_pressure : PressureSwitch
-        Pressure switch on T1
+        Pressure switch on T1.
 
     t4_pressure : PressureSwitch
-        Pressure switch on T4
+        Pressure switch on T4.
 
     vac_pressure : PressureSwitch
         Pressure switch on the overall system.
@@ -603,7 +603,7 @@ class Vacuum(SndDevice):
         status : str
             Status string.
         """
-        status += "{0}Vacuum\n{1}{2}".format(" "*offset, " "*offset, "-"*6)
+        status += "{0}Vacuum\n{1}{2}\n".format(" "*offset, " "*offset, "-"*6)
         status += self.t1_valve.status(status, offset+2, print_status=False,
                                        newline=True)
         status += self.t4_valve.status(status, offset+2, print_status=False,
@@ -615,8 +615,14 @@ class Vacuum(SndDevice):
         status += self.t4_pressure.status(status, offset+2, print_status=False,
                                           newline=True)
         status += self.vac_pressure.status(status, offset+2, print_status=False,
-                                           newline=True)
-    
+                                           newline=False)
+        
+        if newline:
+            status += "\n"
+        if print_status is True:
+            print(status)
+        else:
+            return status
 
 class SplitAndDelay(SndDevice):
     """
