@@ -120,6 +120,8 @@ class ProportionalValve(PneuBase):
             return "OPEN"
         elif self.valve.value == 0:
             return "CLOSED"
+        else:
+            return "UNKNOWN"
 
     @property
     def opened(self):
@@ -172,6 +174,8 @@ class PressureSwitch(PneuBase):
             return "GOOD"
         elif self.pressure.value == 1:
             return "BAD"
+        else:
+            return "UNKNOWN"
 
     @property
     def good(self):
