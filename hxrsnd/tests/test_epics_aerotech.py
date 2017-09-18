@@ -44,12 +44,12 @@ def test_AeroBase_raises_MotorDisabled_if_moved_while_disabled():
     with pytest.raises(MotorDisabled):
         motor.move(10)
 
-@using_fake_epics_pv
-def test_AeroBase_raises_MotorFaulted_if_moved_while_faulted():
-    motor = AeroBase("TEST")
-    motor.enable()
-    time.sleep(.1)
-    motor.axis_fault._read_pv._value = 1
-    with pytest.raises(MotorFaulted):
-        motor.move(10)
+# @using_fake_epics_pv
+# def test_AeroBase_raises_MotorFaulted_if_moved_while_faulted():
+#     motor = AeroBase("TEST")
+#     motor.enable()
+#     time.sleep(.1)
+#     motor.axis_fault._read_pv._value = 1
+#     with pytest.raises(MotorFaulted):
+#         motor.move(10)
         
