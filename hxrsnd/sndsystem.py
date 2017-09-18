@@ -36,19 +36,44 @@ from .pneumatic import (ProportionalValve, PressureSwitch)
 
 logger = logging.getLogger(__name__)
 
+class SndDevice(Device):
+    """
+    Base Split and Delay device class.
+    """
 
-class TowerBase(Device):
-    """
-    Base tower class.
-    """
-    def __init__(self, prefix, desc=None, pos_inserted=None, pos_removed=None,
-                 *args, **kwargs):
-        self.pos_inserted = pos_inserted
-        self.pos_removed = pos_removed
+    def __init__(self, prefix, desc=None, *args, **kwargs):
         self.desc=desc
         super().__init__(prefix, *args, **kwargs)
         if desc is None:
             self.desc = self.name
+
+    def status(self, *args, **kwargs):
+        """
+        Status of the device. To be filled in by subclasses.
+        """
+        pass
+
+    def __repr__(self):
+        """
+        Returns the status of the device. Alias for status().
+
+        Returns
+        -------
+        status : str
+            Status string.
+        """
+        return self.status(print_status=False)
+            
+    
+class TowerBase(SndDevice):
+    """
+    Base tower class.
+    """
+    def __init__(self, prefix, pos_inserted=None, pos_removed=None,
+                 *args, **kwargs):
+        self.pos_inserted = pos_inserted
+        self.pos_removed = pos_removed
+        super().__init__(prefix, *args, **kwargs)
         
     def E_to_theta(self, E, ID="Si", hkl=(2,2,0)):
         """
@@ -278,17 +303,6 @@ class TowerBase(Device):
             print(status)
         else:
             return status
-
-    def __repr__(self):
-        """
-        Returns the status of the tower. Alias for status().
-
-        Returns
-        -------
-        status : str
-            Status string.
-        """
-        return self.status(print_status=False)
 
         
 class DelayTower(TowerBase):
@@ -534,25 +548,77 @@ class ChannelCutTower(TowerBase):
         return status
 
 
-class Vacuum(Device):
+class Vacuum(SndDevice):
     """
     Class that contains the various pneumatic components of the system.
+
+    Components
+    ----------
+    t1_valve : ProportionalValve
+        Proportional valve on T1
+
+    t4_valve : ProportionalValve
+        Proportional valve on T4
+
+    vac_valve : ProportionalValve
+        Proportional valve on the overall system.
+
+    t1_pressure : PressureSwitch
+        Pressure switch on T1
+
+    t4_pressure : PressureSwitch
+        Pressure switch on T4
+
+    vac_pressure : PressureSwitch
+        Pressure switch on the overall system.
     """
     t1_valve = Component(ProportionalValve, ":N2:T1")
     t4_valve = Component(ProportionalValve, ":N2:T4")
     vac_valve = Component(ProportionalValve, ":VAC")
 
-    # t1_pressure = Component(PressureSwitch, ":N2:T1")
-    # t4_pressure = Component(PressureSwitch, ":N2:T4")
-    # vac_pressure = Component(PressureSwitch, ":VAC")
+    t1_pressure = Component(PressureSwitch, ":N2:T1")
+    t4_pressure = Component(PressureSwitch, ":N2:T4")
+    vac_pressure = Component(PressureSwitch, ":VAC")
 
-    # def status(self, status="", offset=0, print_status=True, newline=False):
-    #     """
-    #     Returns the status of the system.
-    #     """
-    #     status += "{0}Valves
+    def status(self, status="", offset=0, print_status=True, newline=False):
+        """
+        Returns the status of the vacuum system.
 
-class SplitAndDelay(Device):
+        Parameters
+        ----------
+        status : str, optional
+            The string to append the status to.
+            
+        offset : int, optional
+            Amount to offset each line of the status.
+
+        print_status : bool, optional
+            Determines whether the string is printed or returned.
+
+        newline : bool, optional
+            Adds a new line to the end of the string.
+
+        Returns
+        -------
+        status : str
+            Status string.
+        """
+        status += "{0}Vacuum\n{1}{2}".format(" "*offset, " "*offset, "-"*6)
+        status += self.t1_valve.status(status, offset+2, print_status=False,
+                                       newline=True)
+        status += self.t4_valve.status(status, offset+2, print_status=False,
+                                       newline=True)
+        status += self.vac_valve.status(status, offset+2, print_status=False,
+                                        newline=True)
+        status += self.t1_pressure.status(status, offset+2, print_status=False,
+                                          newline=True)
+        status += self.t4_pressure.status(status, offset+2, print_status=False,
+                                          newline=True)
+        status += self.vac_pressure.status(status, offset+2, print_status=False,
+                                           newline=True)
+    
+
+class SplitAndDelay(SndDevice):
     """
     Hard X-Ray Split and Delay System.
 
@@ -875,14 +941,4 @@ class SplitAndDelay(Device):
         status = self.t3.status(status, 0, print_status=False, newline=True)
         status = self.t4.status(status, 0, print_status=False, newline=False)
         print(status)
-
-    def __repr__(self):
-        """
-        Returns the status of the system. Alias for status().
-
-        Returns
-        -------
-        status : str
-            Status string.
-        """
-        return self.status(print_status=False)
+ 
