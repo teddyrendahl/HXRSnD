@@ -32,6 +32,7 @@ from .attocube import (EccBase, TranslationEcc, GoniometerEcc,
                                         DiodeEcc)
 from .diode import (HamamatsuDiode, HamamatsuXMotionDiode,
                                      HamamatsuXYMotionCamDiode)
+from .pneumatic import (ProportionalValve, PressureSwitch)
 
 logger = logging.getLogger(__name__)
 
@@ -532,7 +533,25 @@ class ChannelCutTower(TowerBase):
         status = self.th.move(theta/2, wait=wait)
         return status
 
-        
+
+class Vacuum(Device):
+    """
+    Class that contains the various pneumatic components of the system.
+    """
+    t1_valve = Component(ProportionalValve, ":N2:T1")
+    t4_valve = Component(ProportionalValve, ":N2:T4")
+    vac_valve = Component(ProportionalValve, ":VAC")
+
+    # t1_pressure = Component(PressureSwitch, ":N2:T1")
+    # t4_pressure = Component(PressureSwitch, ":N2:T4")
+    # vac_pressure = Component(PressureSwitch, ":VAC")
+
+    # def status(self, status="", offset=0, print_status=True, newline=False):
+    #     """
+    #     Returns the status of the system.
+    #     """
+    #     status += "{0}Valves
+
 class SplitAndDelay(Device):
     """
     Hard X-Ray Split and Delay System.
@@ -582,6 +601,9 @@ class SplitAndDelay(Device):
                    pos_removed=0, desc="Tower 2")
     t3 = Component(ChannelCutTower, ":T3", pos_inserted=None, 
                    pos_removed=0, desc="Tower 3")
+
+    # Vacuum
+    vacuum = Component(Vacuum, "")
 
     # SnD and Delay line diodes
     di = Component(HamamatsuXYMotionCamDiode, ":DIA:DI")
@@ -841,7 +863,7 @@ class SplitAndDelay(Device):
         
         Returns
         -------
-        status : str            
+        Status : str            
         """
         status =  "Split and Delay System Status\n"
         status += "-----------------------------\n"
