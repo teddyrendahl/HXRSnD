@@ -168,9 +168,9 @@ class PressureSwitch(PneuBase):
             String saying the current position of the valve. Can be "OPEN" or
             "CLOSED". 
         """
-        if self.valve.value ==0:
+        if self.pressure.value == 0:
             return "GOOD"
-        elif self.valve.value == 1:
+        elif self.pressure.value == 1:
             return "BAD"
 
     @property
@@ -183,7 +183,7 @@ class PressureSwitch(PneuBase):
         good : bool
             True if the pressure switch is in the 'good' state.
         """
-        return (self.position == "OPEN")
+        return (self.position == "GOOD")
 
     @property
     def bad(self):
@@ -195,6 +195,6 @@ class PressureSwitch(PneuBase):
         bad : bool
             True if the pressure switch is in the 'bad' state.
         """
-        return (self.position == "OPEN")
+        return (self.position == "BAD")
 
     
