@@ -691,7 +691,7 @@ class SplitAndDelay(Device):
 
         return status
 
-    def set_energy(self, E, wait=False):
+    def set_energy(self, E, wait=False, *args, **kwargs):
         """
         Sets the energy for both the delay line and the channe cut line of the
         system.
@@ -704,7 +704,8 @@ class SplitAndDelay(Device):
         wait : bool, optional
             Wait for each tower to complete the motion.
         """
-        return self._set_tower_energy(E, self.towers, "set_energy", wait=wait)
+        return self._apply_tower_move_method(E, self.towers, "set_energy",
+                                             wait=wait, *args, **kwargs)
 
     @property
     def energy1(self):
@@ -731,7 +732,7 @@ class SplitAndDelay(Device):
         """
         status = self.set_energy1(E)
         
-    def set_energy1(self, E, wait=False):
+    def set_energy1(self, E, wait=False, *args, **kwargs):
         """
         Sets the energy for the delay line.
 
@@ -743,7 +744,8 @@ class SplitAndDelay(Device):
         wait : bool, optional
             Wait for each motor to complete the motion.
         """
-        return self._set_tower_energy(E, self.delay_towers, "set_energy", wait=wait)
+        return self._apply_tower_move_method(
+            E, self.delay_towers, "set_energy", wait=wait, *args, **kwargs)
         
     @property
     def energy2(self):
@@ -771,7 +773,7 @@ class SplitAndDelay(Device):
         """
         status = self.set_energy2(E)
 
-    def set_energy2(self, E, wait=False):
+    def set_energy2(self, E, wait=False, *args, **kwargs):
         """
         Sets the energy for the channel cut line.
 
@@ -783,8 +785,9 @@ class SplitAndDelay(Device):
         wait : bool, optional
             Wait for each motor to complete the motion.
         """
-        return self._set_tower_energy(E, self.channelcut_towers, "set_energy",
-                                      wait=wait)
+        return self._apply_tower_move_method(
+            E, self.channelcut_towers, "set_energy", wait=wait, *args,
+            **kwargs)
         
     @property
     def delay(self):
@@ -813,7 +816,7 @@ class SplitAndDelay(Device):
         """
         status = self.set_delay(t)
         
-    def set_delay(self, t, wait=False):
+    def set_delay(self, t, wait=False, *args, **kwargs):
         """
         Sets the linear stages on the delay line to be the correct length
         according to desired delay and current theta positions.
@@ -828,8 +831,9 @@ class SplitAndDelay(Device):
         logger.debug("Input delay: {0}. \nMoving t1.L and t2.L to {1}".format(
             t, self.length))
 
-        return self._set_tower_energy(self.length, self.delay_towers, "set_delay",
-                                      wait=wait)
+        return self._apply_tower_move_method(
+            self.length, self.delay_towers, "set_delay", wait=wait, *args,
+            **kwargs)
 
     def status(self):
         """
