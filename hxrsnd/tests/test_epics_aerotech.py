@@ -51,7 +51,7 @@ def test_AeroBase_callable_moves_the_motor(position):
     motor.enable()
     motor.limits = (0, 1)
     assert motor.user_setpoint.value != position
-    time.sleep(0.1)
+    time.sleep(0.25)
     motor(position)
     time.sleep(0.1)
     assert motor.user_setpoint.value == position
