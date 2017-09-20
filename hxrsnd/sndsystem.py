@@ -195,6 +195,35 @@ class TowerBase(Device):
                                                    **method_kwargs))
         return ret
 
+    def check_motors(self, energy=True, delay=False):
+        """
+        Checks to make sure that all the energy motors are not in a bad state. Will
+        include the delay motor if the delay argument is True.
+
+        Parameters
+        ----------
+        energy : bool, optional
+            Check the energy motors.
+
+        delay : bool, optional
+            Check the delay motor.
+        """
+        # Create the list of motors we will iterate through
+        motors = []
+        if energy:
+            motors += self._energy_motors
+        if delay:
+            motors += [self.L]
+        
+        # Check that we can move all the motors
+        for motor in motors:
+            try:
+                motor.check_status()
+            except Exception as e:
+                err = "Motor {0} got an exception: {1}".format(motor.name, e)
+                logger.error(err)
+                raise e    
+
     def stop(self):
         """
         Stops the motions of all the motors.
@@ -334,12 +363,13 @@ class DelayTower(TowerBase):
     # Diode motion
     dh = FormattedComponent(DiodeEcc, "{self._prefix}:ECC:{self._dh}",
                             desc="Diode Motor")
-
+    
     # # Diode
     # diode = Component(HamamatsuDiode, ":DIODE", desc="Tower Diode")
 
     # # Temperature monitor
     # temp = Component(OmegaRTD, ":TEMP", desc="Tower RTD")
+
 
     def __init__(self, prefix, y1=None, y2=None, chi1=None, chi2=None, dh=None,
                  *args, **kwargs):
@@ -350,6 +380,7 @@ class DelayTower(TowerBase):
         self._dh = dh or "DH"
         self._prefix = prefix[:-3]
         super().__init__(prefix, *args, **kwargs)
+        self._energy_motors = [self.tth, self.th1, self.th2]
 
     @property
     def position(self):
@@ -363,7 +394,7 @@ class DelayTower(TowerBase):
         """
         return self.tth.position
 
-    def set_energy(self, E, wait=False):
+    def set_energy(self, E, wait=False, check_motors=True):
         """
         Sets the angles of the crystals in the delay line to maximize the
         inputted energy.        
@@ -375,38 +406,35 @@ class DelayTower(TowerBase):
 
         wait : bool, optional
             Wait for each motor to complete the motion.
-        """
-        # Convert to theta1
-        theta = bragg_angle(E=E)
 
+        check_motors : bool, optional
+            Check if the motors are in a valid state to move.
+        """
+        # Check to make sure the motors are in a valid state to move
+        if check_motors:
+            self.check_motors()
         logger.debug("\nMoving {tth} to {theta} \nMoving {th1} and {th2} to "
                      "{half_theta}.".format(
                          tth=self.tth.name, th1=self.th1.name,
-                         th2=self.th2.name, theta=theta, half_theta=theta/2))
+                         th2=self.th2.name, theta=theta, half_theta=theta/2))            
 
-        motors = [self.tth, self.th1, self.th2]
-        move_pos = [theta, theta/2, theta/2]
+        # Convert to theta1
+        theta = bragg_angle(E=E)
 
-        # Check that we can move all the motors
-        for motor in motors:
-            try:
-                motor.check_status()
-            except Exception as e:
-                err = "Motor {0} got an exception: {1}".format(motor.name, e)
-                logger.error(err)
-                raise e
-
-        status = [motor.move(pos, wait=False) for move, pos in zip(motors, move_pos)]
+        # Do the move
+        move_pos = [theta, theta/2, theta/2]            
+        status = [motor.move(pos, wait=False, check_status=False) for
+                  move, pos in zip(motors, move_pos)]
 
         # Wait for the motions to finish
         if wait:
-            for motor, s in zip(motors, status):
-                logger.info("Waiting for {} to finish move ...".format(motor.name))
+            for s in status:
+                logger.info("Waiting for {} to finish move ...".format(s.device.name))
                 status_wait(s)
                 
         return status
 
-    def set_L(self, position, wait=False, *args, **kwargs):
+    def set_length(self, position, wait=False, *args, **kwargs):
         """
         Sets the position of the linear delay stage in mm.
 
@@ -426,7 +454,7 @@ class DelayTower(TowerBase):
         return self.L.move(position, wait=wait, *args, **kwargs)
 
     @property
-    def L(self):
+    def length(self):
         """
         Returns the position of the linear delay stage (L) in mm.
 
@@ -437,8 +465,8 @@ class DelayTower(TowerBase):
         """
         return self.L.position
 
-    @L.setter
-    def L(self, position):
+    @length.setter
+    def length(self, position):
         """
         Sets the position of the linear delay stage in mm.
 
@@ -447,7 +475,7 @@ class DelayTower(TowerBase):
         position : float
             Position to move the delay motor to.
         """
-        status = self.set_delay(position, wait=False)
+        status = self.set_length(position, wait=False)
 
 class ChannelCutTower(TowerBase):
     """
@@ -466,6 +494,10 @@ class ChannelCutTower(TowerBase):
 
     # Translation
     x = Component(LinearAero, ":X", desc="Tower X")
+
+    def __init__(self, prefix, *args, **kwargs):
+        super().__init__(prefix, *args, **kwargs)
+        self._energy_motors = [self.th]
 
     @property
     def position(self):
@@ -491,7 +523,7 @@ class ChannelCutTower(TowerBase):
         """
         return 2*self.position    
 
-    def set_energy(self, E, wait=False):
+    def set_energy(self, E, wait=False, check_motors=True):
         """
         Sets the angles of the crystals in the channel cut line to maximize the
         inputted energy.        
@@ -503,13 +535,18 @@ class ChannelCutTower(TowerBase):
 
         wait : bool, optional
             Wait for motion to complete before returning the console.
-        """
-        # Convert to theta
-        # TODO: Error handling here
-        theta = bragg_angle(E=E)
 
+        check_motors : bool, optional
+            Check if the motors are in a valid state to move.
+        """
+        # Check to make sure the motors are in a valid state to move
+        if check_motors:
+            self.check_motors()
         logger.debug("\nMoving {th} to {theta}".format(
             th=self.th.name, theta=theta))
+            
+        # Convert to theta
+        theta = bragg_angle(E=E)
 
         status = self.th.move(theta/2, wait=wait)
         return status
@@ -774,6 +811,7 @@ class SplitAndDelay(Device):
         wait : bool, optional
             Wait for each tower to complete the motion.
         """
+        # Check that there are no issues moving any of the tower motors        
         status = [getattr(t, move_method)(position, *args, **kwargs) for t in towers]
 
         # Wait for the motions to finish
@@ -796,9 +834,15 @@ class SplitAndDelay(Device):
         wait : bool, optional
             Wait for each tower to complete the motion.
         """
+        # Check that all the tower and diagnostic motors can be moved
+        for tower in self.towers:
+            tower.check_motors()
+        self.dd.x.check_status()
+        self.dcc.x.check_status()
+        
         # Move the tower motors
-        status = self._apply_tower_move_method(E, self.towers, "set_energy",
-                                               wait=False, *args, **kwargs)
+        status = self._apply_tower_move_method(
+            E, self.towers, "set_energy", wait=False, check_motors=False, *args, **kwargs)
 
         # Get the pos for the diagnostic motors and move there
         dd_x_pos = self.get_delay_diagnostic_position(E1=E, E2=E)
@@ -876,9 +920,15 @@ class SplitAndDelay(Device):
         wait : bool, optional
             Wait for each motor to complete the motion.
         """
+        # Check that all the delay tower and diagnostic motors can be moved
+        for tower in self.delay_towers:
+            tower.check_motors()
+        self.dd.x.check_status()
+        
         # Move all delay tower motors
         status = self._apply_tower_move_method(
-            E, self.delay_towers, "set_energy", wait=False, *args, **kwargs)
+            E, self.delay_towers, "set_energy", wait=False, check_motors=False,
+            *args, **kwargs)
 
         # Get the pos for the diagnostic motor and move there
         dd_x_pos = self.get_delay_diagnostic_position(E1=E, E2=E)
@@ -953,8 +1003,15 @@ class SplitAndDelay(Device):
         wait : bool, optional
             Wait for each motor to complete the motion.
         """
+        # Check that all the delay tower and diagnosic motors can be moved
+        for tower in self.channelcut_towers:
+            tower.check_motors()
+        self.dcc.x.check_status()
+
+        # Move all the channel cut tower motors
         status = self._apply_tower_move_method(
-            E, self.channelcut_towers, "set_energy", wait=wait, *args, **kwargs)
+            E, self.channelcut_towers, "set_energy", wait=False, check_motors=False
+            *args, **kwargs)
 
         # Get the pos for the diagnostic motors and move there
         dcc_x_pos = self.get_channelcut_diagnostic_position(E2=E)
@@ -1029,13 +1086,18 @@ class SplitAndDelay(Device):
         delay : float
             The desired delay of the system in picoseconds.
         """
-        length = self.delay_to_length(delay)
-
+        # Check that all the tower motors can be moved
+        for tower in self.delay_towers:
+            tower.check_motors(energy=False, delay=True)        
         logger.debug("Input delay: {0}. \nMoving t1.L and t2.L to {1}".format(
             t, self.length))
 
+        # Get the delay position to move to
+        length = self.delay_to_length(delay)
+        
+        # Move all the delay stage motors
         status = self._apply_tower_move_method(
-            length, self.delay_towers, "set_L", wait=wait, *args, **kwargs)
+            length, self.delay_towers, "set_length", wait=wait, *args, **kwargs)
         return status
     
     @property
