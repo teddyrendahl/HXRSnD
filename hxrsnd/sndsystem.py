@@ -30,11 +30,10 @@ from .bragg import (bragg_angle, bragg_energy, cosd, sind)
 from .state import OphydMachine
 from .rtd import OmegaRTD
 from .aerotech import (AeroBase, RotationAero, LinearAero)
-from .attocube import (EccBase, TranslationEcc, GoniometerEcc, 
-                                        DiodeEcc)
+from .attocube import (EccBase, TranslationEcc, GoniometerEcc, DiodeEcc)
+from .pneumatic import (ProportionalValve, PressureSwitch)
 from .diode import (HamamatsuDiode, HamamatsuXMotionDiode,
                                      HamamatsuXYMotionCamDiode)
-from .pneumatic import (ProportionalValve, PressureSwitch)
 
 logger = logging.getLogger(__name__)
 
@@ -437,7 +436,7 @@ class DelayTower(TowerBase):
         theta = bragg_angle(E=E)
 
         # Do the move
-        move_pos = [theta, theta/2, theta/2]
+        move_pos = [2*theta, theta, theta]
         status = [motor.move(pos, wait=False, check_status=False) for
                   move, pos in zip(motors, move_pos)]
 
@@ -592,19 +591,19 @@ class SndVacuum(SndDevice):
     vac_pressure : PressureSwitch
         Pressure switch on the overall system.
     """
-    t1_valve = Component(ProportionalValve, ":N2:T1")
-    t4_valve = Component(ProportionalValve, ":N2:T4")
-    vac_valve = Component(ProportionalValve, ":VAC")
+    t1_valve = Component(ProportionalValve, ":N2:T1", desc="T1 Valve")
+    t4_valve = Component(ProportionalValve, ":N2:T4", desc="T4 Valve")
+    vac_valve = Component(ProportionalValve, ":VAC", desc="System Valve")
 
-    t1_pressure = Component(PressureSwitch, ":N2:T1")
-    t4_pressure = Component(PressureSwitch, ":N2:T4")
-    vac_pressure = Component(PressureSwitch, ":VAC")
+    t1_pressure = Component(PressureSwitch, ":N2:T1", desc="T1 Pressure")
+    t4_pressure = Component(PressureSwitch, ":N2:T4", desc="T4 Pressure")
+    vac_pressure = Component(PressureSwitch, ":VAC", desc="System Pressure")
 
     def __init__(self, prefix, *args, **kwargs):
         super().__init__(prefix, *args, **kwargs)
         self._valves = [self.t1_valve, self.t4_valve, self.vac_valve]
-        self._pressure_switch = [self.t1_pressure, self.t4_pressure,
-                                self.vac_pressure]
+        self._pressure_switches = [self.t1_pressure, self.t4_pressure,
+                                   self.vac_pressure]
 
     def status(self, status="", offset=0, print_status=True, newline=False):
         """
@@ -631,9 +630,9 @@ class SndVacuum(SndDevice):
         """
         status += "{0}Vacuum\n{1}{2}\n".format(" "*offset, " "*offset, "-"*6)
         for valve in self._valves:
-            status += valve.status(status, offset+2, print_status=False)
+            status += valve.status(offset=offset+2, print_status=False)
         for pressure in self._pressure_switches:
-            status += pressure.status(status, offset+2, print_status=False)
+            status += pressure.status(offset=offset+2, print_status=False)
                     
         if newline:
             status += "\n"
@@ -663,16 +662,20 @@ class SndVacuum(SndDevice):
         """
         Prints the positions of all the valves in the system.
         """
+        status = ""
         for valve in self._valves:
-            valve.status()
+            status += valve.status(print_status=False)
+        print(status)
 
     @property
     def pressures(self):
         """
         Prints the pressures of all the pressure switches in the system.
         """
-        for valve in self._valves:
-            valve.status()
+        status = ""
+        for pressure in self._pressure_switches:
+            status += pressure.status(print_status=False)
+        print(status)
             
 
 class SplitAndDelay(SndDevice):

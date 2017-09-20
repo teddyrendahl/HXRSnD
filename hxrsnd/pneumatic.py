@@ -56,7 +56,7 @@ class PneuBase(Device):
         status : str
             Status string.
         """
-        status += "{0}{1}: {3}\n".format(" "*offset, self.desc, self.position)
+        status += "{0}{1}: {2}\n".format(" "*offset, self.desc, self.position)
         if newline:
             status += "\n"
         if print_status is True:
