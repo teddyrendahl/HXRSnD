@@ -34,22 +34,48 @@ from .attocube import (EccBase, TranslationEcc, GoniometerEcc,
                                         DiodeEcc)
 from .diode import (HamamatsuDiode, HamamatsuXMotionDiode,
                                      HamamatsuXYMotionCamDiode)
+from .pneumatic import (ProportionalValve, PressureSwitch)
 
 logger = logging.getLogger(__name__)
 
+class SndDevice(Device):
+    """
+    Base Split and Delay device class.
+    """
 
-class TowerBase(Device):
-    """
-    Base tower class.
-    """
-    def __init__(self, prefix, desc=None, pos_inserted=None, pos_removed=None,
-                 *args, **kwargs):
-        self.pos_inserted = pos_inserted
-        self.pos_removed = pos_removed
+    def __init__(self, prefix, desc=None, *args, **kwargs):
         self.desc=desc
         super().__init__(prefix, *args, **kwargs)
         if desc is None:
             self.desc = self.name
+
+    def status(self, *args, **kwargs):
+        """
+        Status of the device. To be filled in by subclasses.
+        """
+        pass
+
+    def __repr__(self):
+        """
+        Returns the status of the device. Alias for status().
+
+        Returns
+        -------
+        status : str
+            Status string.
+        """
+        return self.status(print_status=False)
+            
+    
+class TowerBase(SndDevice):
+    """
+    Base tower class.
+    """
+    def __init__(self, prefix, pos_inserted=None, pos_removed=None,
+                 *args, **kwargs):
+        self.pos_inserted = pos_inserted
+        self.pos_removed = pos_removed
+        super().__init__(prefix, *args, **kwargs)
         
     def set_energy(self, E, *args, **kwargs):
         """
@@ -284,17 +310,6 @@ class TowerBase(Device):
             print(status)
         else:
             return status
-
-    def __repr__(self):
-        """
-        Returns the status of the tower. Alias for status().
-
-        Returns
-        -------
-        status : str
-            Status string.
-        """
-        return self.status(print_status=False)
 
         
 class DelayTower(TowerBase):
@@ -551,42 +566,152 @@ class ChannelCutTower(TowerBase):
         status = self.th.move(theta/2, wait=wait)
         return status
 
-        
-class SplitAndDelay(Device):
+
+class SndVacuum(SndDevice):
+    """
+    Class that contains the various pneumatic components of the system.
+
+    Components
+    ----------
+    t1_valve : ProportionalValve
+        Proportional valve on T1.
+
+    t4_valve : ProportionalValve
+        Proportional valve on T4.
+
+    vac_valve : ProportionalValve
+        Proportional valve on the overall system.
+
+    t1_pressure : PressureSwitch
+        Pressure switch on T1.
+
+    t4_pressure : PressureSwitch
+        Pressure switch on T4.
+
+    vac_pressure : PressureSwitch
+        Pressure switch on the overall system.
+    """
+    t1_valve = Component(ProportionalValve, ":N2:T1")
+    t4_valve = Component(ProportionalValve, ":N2:T4")
+    vac_valve = Component(ProportionalValve, ":VAC")
+
+    t1_pressure = Component(PressureSwitch, ":N2:T1")
+    t4_pressure = Component(PressureSwitch, ":N2:T4")
+    vac_pressure = Component(PressureSwitch, ":VAC")
+
+    def __init__(self, prefix, *args, **kwargs):
+        super().__init__(prefix, *args, **kwargs)
+        self._valves = [self.t1_valve, self.t4_valve, self.vac_valve]
+        self._pressure_switch = [self.t1_pressure, self.t4_pressure,
+                                self.vac_pressure]
+
+    def status(self, status="", offset=0, print_status=True, newline=False):
+        """
+        Returns the status of the vacuum system.
+
+        Parameters
+        ----------
+        status : str, optional
+            The string to append the status to.
+            
+        offset : int, optional
+            Amount to offset each line of the status.
+
+        print_status : bool, optional
+            Determines whether the string is printed or returned.
+
+        newline : bool, optional
+            Adds a new line to the end of the string.
+
+        Returns
+        -------
+        status : str
+            Status string.
+        """
+        status += "{0}Vacuum\n{1}{2}\n".format(" "*offset, " "*offset, "-"*6)
+        for valve in self._valves:
+            status += valve.status(status, offset+2, print_status=False)
+        for pressure in self._pressure_switches:
+            status += pressure.status(status, offset+2, print_status=False)
+                    
+        if newline:
+            status += "\n"
+        if print_status is True:
+            print(status)
+        else:
+            return status
+
+    def open(self):
+        """
+        Opens all the valves in the vacuum system.
+        """
+        logging.info("Opening valves in SnD system.")
+        for valve in self._valves:
+            valve.open()
+
+    def close(self):
+        """
+        Opens all the valves in the vacuum system.
+        """
+        logging.info("Closing valves in SnD system.")
+        for valve in self._valves:
+            valve.close()
+
+    @property
+    def valves(self):
+        """
+        Prints the positions of all the valves in the system.
+        """
+        for valve in self._valves:
+            valve.status()
+
+    @property
+    def pressures(self):
+        """
+        Prints the pressures of all the pressure switches in the system.
+        """
+        for valve in self._valves:
+            valve.status()
+            
+
+class SplitAndDelay(SndDevice):
     """
     Hard X-Ray Split and Delay System.
 
     Components
     ----------
     t1 : DelayTower
-        Tower 1 in the split and delay system
+        Tower 1 in the split and delay system.
 
     t4 : DelayTower
-        Tower 4 in the split and delay system
+        Tower 4 in the split and delay system.
 
     t2 : ChannelCutTower
-        Tower 2 in the split and delay system
+        Tower 2 in the split and delay system.
 
     t3 : ChannelCutTower
-        Tower 3 in the split and delay system
+        Tower 3 in the split and delay system.
+
+    vacuum : SndVacuum
+        Vacuum device object for the system.
 
     di : HamamatsuXYMotionCamDiode
-        Input diode for the system
+        Input diode for the system.
     
     dd : HamamatsuXYMotionCamDiode
-        Diode between the two delay towers
+        Diode between the two delay towers.
 
     do : HamamatsuXYMotionCamDiode
-        Output diode for the system
+        Output diode for the system.
 
     dci : HamamatsuXMotionDiode
-        Input diode for the channel cut line
+        Input diode for the channel cut line.
     
     dcc : HamamatsuXMotionDiode
-        Diode between the two channel cut towers
+        Diode between the two channel cut towers.
     
     dco : HamamatsuXMotionDiode
-        Input diode for the channel cut line
+        Input diode for the channel cut line.
     """
     # Delay Towers
     t1 = Component(DelayTower, ":T1", y1="A:ACT0", y2="A:ACT1",
@@ -601,6 +726,9 @@ class SplitAndDelay(Device):
                    pos_removed=0, desc="Tower 2")
     t3 = Component(ChannelCutTower, ":T3", pos_inserted=None, 
                    pos_removed=0, desc="Tower 3")
+
+    # Vacuum
+    vacuum = Component(SndVacuum, "")
 
     # SnD and Delay line diodes
     di = Component(HamamatsuXYMotionCamDiode, ":DIA:DI")
@@ -1132,7 +1260,7 @@ class SplitAndDelay(Device):
         
         Returns
         -------
-        status : str            
+        Status : str            
         """
         status =  "Split and Delay System Status\n"
         status += "-----------------------------\n"
@@ -1144,14 +1272,4 @@ class SplitAndDelay(Device):
         status = self.t3.status(status, 0, print_status=False, newline=True)
         status = self.t4.status(status, 0, print_status=False, newline=False)
         print(status)
-
-    def __repr__(self):
-        """
-        Returns the status of the system. Alias for status().
-
-        Returns
-        -------
-        status : str
-            Status string.
-        """
-        return self.status(print_status=False)
+ 
