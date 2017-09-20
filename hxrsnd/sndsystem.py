@@ -195,7 +195,7 @@ class TowerBase(Device):
                                                    **method_kwargs))
         return ret
 
-    def check_motors(self, energy=True, delay=False):
+    def check_status(self, energy=True, delay=False):
         """
         Checks to make sure that all the energy motors are not in a bad state. Will
         include the delay motor if the delay argument is True.
@@ -280,7 +280,7 @@ class TowerBase(Device):
         if newline:
             status += "\n"
 
-        if print_status is True:
+        if print_status:
             print(status)
         else:
             return status
@@ -394,7 +394,7 @@ class DelayTower(TowerBase):
         """
         return self.tth.position
 
-    def set_energy(self, E, wait=False, check_motors=True):
+    def set_energy(self, E, wait=False, check_status=True):
         """
         Sets the angles of the crystals in the delay line to maximize the
         inputted energy.        
@@ -407,12 +407,12 @@ class DelayTower(TowerBase):
         wait : bool, optional
             Wait for each motor to complete the motion.
 
-        check_motors : bool, optional
+        check_status : bool, optional
             Check if the motors are in a valid state to move.
         """
         # Check to make sure the motors are in a valid state to move
-        if check_motors:
-            self.check_motors()
+        if check_status:
+            self.check_status()
         logger.debug("\nMoving {tth} to {theta} \nMoving {th1} and {th2} to "
                      "{half_theta}.".format(
                          tth=self.tth.name, th1=self.th1.name,
@@ -523,7 +523,7 @@ class ChannelCutTower(TowerBase):
         """
         return 2*self.position    
 
-    def set_energy(self, E, wait=False, check_motors=True):
+    def set_energy(self, E, wait=False, check_status=True):
         """
         Sets the angles of the crystals in the channel cut line to maximize the
         inputted energy.        
@@ -536,19 +536,19 @@ class ChannelCutTower(TowerBase):
         wait : bool, optional
             Wait for motion to complete before returning the console.
 
-        check_motors : bool, optional
+        check_status : bool, optional
             Check if the motors are in a valid state to move.
         """
         # Check to make sure the motors are in a valid state to move
-        if check_motors:
-            self.check_motors()
+        if check_status:
+            self.check_status()
         logger.debug("\nMoving {th} to {theta}".format(
             th=self.th.name, theta=theta))
             
         # Convert to theta
         theta = bragg_angle(E=E)
 
-        status = self.th.move(theta/2, wait=wait)
+        status = self.th.move(theta, wait=wait)
         return status
 
         
@@ -706,7 +706,7 @@ class SplitAndDelay(Device):
             The delay of the system in picoseconds.
         """
         # Check if any other inputs were used
-        L = L or self.t1.L
+        L = L or self.t1.length
         theta1 = theta1 or self.theta1
         theta2 = theta2 or self.theta2
 
@@ -748,7 +748,7 @@ class SplitAndDelay(Device):
 
         # Use current delay stage position if no delay is inputted
         if delay is None:
-            length = self.t1.L
+            length = self.t1.length
         # Calculate the expected delay position if a delay is inputted
         else:
             if E2 is None:
@@ -836,13 +836,13 @@ class SplitAndDelay(Device):
         """
         # Check that all the tower and diagnostic motors can be moved
         for tower in self.towers:
-            tower.check_motors()
+            tower.check_status()
         self.dd.x.check_status()
         self.dcc.x.check_status()
         
         # Move the tower motors
         status = self._apply_tower_move_method(
-            E, self.towers, "set_energy", wait=False, check_motors=False, *args, **kwargs)
+            E, self.towers, "set_energy", wait=False, check_status=False, *args, **kwargs)
 
         # Get the pos for the diagnostic motors and move there
         dd_x_pos = self.get_delay_diagnostic_position(E1=E, E2=E)
@@ -922,12 +922,12 @@ class SplitAndDelay(Device):
         """
         # Check that all the delay tower and diagnostic motors can be moved
         for tower in self.delay_towers:
-            tower.check_motors()
+            tower.check_status()
         self.dd.x.check_status()
         
         # Move all delay tower motors
         status = self._apply_tower_move_method(
-            E, self.delay_towers, "set_energy", wait=False, check_motors=False,
+            E, self.delay_towers, "set_energy", wait=False, check_status=False,
             *args, **kwargs)
 
         # Get the pos for the diagnostic motor and move there
@@ -1005,12 +1005,12 @@ class SplitAndDelay(Device):
         """
         # Check that all the delay tower and diagnosic motors can be moved
         for tower in self.channelcut_towers:
-            tower.check_motors()
+            tower.check_status()
         self.dcc.x.check_status()
 
         # Move all the channel cut tower motors
         status = self._apply_tower_move_method(
-            E, self.channelcut_towers, "set_energy", wait=False, check_motors=False
+            E, self.channelcut_towers, "set_energy", wait=False, check_status=False
             *args, **kwargs)
 
         # Get the pos for the diagnostic motors and move there
@@ -1088,7 +1088,7 @@ class SplitAndDelay(Device):
         """
         # Check that all the tower motors can be moved
         for tower in self.delay_towers:
-            tower.check_motors(energy=False, delay=True)        
+            tower.check_status(energy=False, delay=True)        
         logger.debug("Input delay: {0}. \nMoving t1.L and t2.L to {1}".format(
             t, self.length))
 
@@ -1126,7 +1126,7 @@ class SplitAndDelay(Device):
         """
         status = self.set_delay(delay)
         
-    def status(self):
+    def status(self, print_status=True):
         """
         Returns the status of the split and delay system.
         
@@ -1143,7 +1143,11 @@ class SplitAndDelay(Device):
         status = self.t2.status(status, 0, print_status=False, newline=True)
         status = self.t3.status(status, 0, print_status=False, newline=True)
         status = self.t4.status(status, 0, print_status=False, newline=False)
-        print(status)
+
+        if print_status:
+            print(status)
+        else:
+            return status
 
     def __repr__(self):
         """
