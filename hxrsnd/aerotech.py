@@ -24,6 +24,7 @@ from pcdsdevices.epics.signal import (EpicsSignal, EpicsSignalRO, FakeSignal)
 ##########
 # Module #
 ##########
+from .exceptions import MotorDisabled, MotorFaulted
 
 logger = logging.getLogger(__name__)
 
@@ -141,14 +142,35 @@ class AeroBase(EpicsMotor):
         """
         # Make sure the motor is enabled
         try:
-            if not self.enabled:
-                err = "Motor must be enabled before moving."
-                logger.error(err)
-                raise MotorDisabled(err)
+            # Check the motor status
+            self.check_status()
+            
             return super().move(position, *args, **kwargs)
         except KeyboardInterrupt:
             self.stop()
 
+    def check_status(self):
+        """
+        Checks the status of the motor to make sure it is ready to move.
+
+        Raises
+        ------
+        MotorDisabled
+            If the motor is disabled.
+
+        MotorFaulted
+            If the motor is faulted.
+        """
+        if not self.enabled:
+            err = "Motor must be enabled before moving."
+            logger.error(err)
+            raise MotorDisabled(err)
+
+        if self.faulted:
+            err = "Motor is currently faulted."
+            logger.error(err)
+            raise MotorFaulted(err)
+        
     def set_position(self, position_des):
         """
         Sets the current position to be the inputted position by changing the 
@@ -320,21 +342,5 @@ class LinearAero(AeroBase):
 class DiodeAero(AeroBase):
     """
     VT50 Micronix Motor of the diodes
-    """
-    pass
-
-
-# Exceptions
-
-class AerotechException(Exception):
-    """
-    Base aerotech motor exceptions.
-    """
-    pass
-
-
-class MotorDisabled(AerotechException):
-    """
-    Exception raised when an action requiring the motor be enabled is requested.
     """
     pass

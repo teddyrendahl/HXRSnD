@@ -23,6 +23,7 @@ from pcdsdevices.component import (Component, FormattedComponent)
 ##########
 # Module #
 ##########
+from .utils import flatten
 from .bragg import (bragg_angle, bragg_energy)
 from .state import OphydMachine
 from .rtd import OmegaRTD
@@ -72,10 +73,18 @@ class TowerBase(Device):
         self.E = E
         return bragg_angle(E=E, ID=ID, hkl=hkl)
 
+    def set_energy(self, E, *args, **kwargs):
+        """
+        Placeholder for the energy setter. Implement for each TowerBase
+        subclass.
+        """
+        pass
+
     @property
     def energy(self):
         """
-        Sets angle of the tower according to the inputted energy.
+        Returns the energy of the tower according to the angle of the
+        arm.
 
         Returns
         -------
@@ -87,10 +96,15 @@ class TowerBase(Device):
     @energy.setter
     def energy(self, E):
         """
-        Placeholder for the energy setter. Implement for each TowerBase
-        subclass.
+        Sets the theta of the tower to the desired energy. Alias for 
+        set_energy(E).
+
+        Parameters
+        ----------
+        E : float
+            Desired energy to set the tower to.
         """
-        pass
+        status = self.set_energy(E)
     
     @property
     def position(self):
@@ -201,21 +215,27 @@ class TowerBase(Device):
             if issubclass(type(signal), subclass):
                 ret.append(getattr(signal, method)(*method_args,
                                                    **method_kwargs))
-        return ret            
+        return ret
+
+    def stop(self):
+        """
+        Stops the motions of all the motors.
+        """
+        self._apply_all("stop", (AeroBase, EccBase))
     
-    def enable_all(self):
+    def enable(self):
         """
         Enables all the aerotech motors.
         """
-        self._apply_all("enable", AeroBase)
+        self._apply_all("enable", (AeroBase, EccBase))
 
-    def disable_all(self):
+    def disable(self):
         """
         Disables all the aerotech motors.
         """
-        self._apply_all("disable", AeroBase)
+        self._apply_all("disable", (AeroBase, EccBase))
 
-    def clear_all(self):
+    def clear(self):
         """
         Disables all the aerotech motors.
         """
@@ -365,8 +385,7 @@ class DelayTower(TowerBase):
         """
         return self.tth.position
 
-    @TowerBase.energy.setter
-    def energy(self, E):
+    def set_energy(self, E, wait=False):
         """
         Sets the angles of the crystals in the delay line to maximize the
         inputted energy.        
@@ -375,6 +394,9 @@ class DelayTower(TowerBase):
         ---------
         E : float
             Energy to use for the system.
+
+        wait : bool, optional
+            Wait for each motor to complete the motion.
         """
         # Convert to theta1
         # TODO: Error handling here
@@ -385,10 +407,41 @@ class DelayTower(TowerBase):
                          tth=self.tth.name, th1=self.th1.name,
                          th2=self.th2.name, theta=theta, half_theta=theta/2))
 
-        # Set the position of the motors
-        status_tth = self.tth.move(theta, wait=False)
-        status_th1 = self.th1.move(theta/2, wait=False)
-        status_th2 = self.th2.move(theta/2, wait=False)
+        motors = [self.tth, self.th1, self.th2]
+        move_pos = [theta, theta/2, theta/2]
+
+        # Check that we can move all the motors
+        for motor in motors:
+            try:
+                motor.check_status()
+            except Exception as e:
+                err = "Motor {0} got an exception: {1}".format(motor.name, e)
+                logger.error(err)
+                raise e
+
+        status = [motor.move(pos, wait=False) for move, pos in zip(motors, move_pos)]
+
+        # Wait for the motions to finish
+        if wait:
+            for motor, s in zip(motors, status):
+                logger.info("Waiting for {} to finish move ...".format(motor.name))
+                status_wait(s)
+                
+        return status
+
+    def set_delay(self, position, wait=False, *args, **kwargs):
+        """
+        Sets the position of the linear delay stage in mm.
+
+        Parameters
+        ----------
+        position : float
+            Position to move the delay motor to.
+
+        wait : bool, optional
+            Wait for motion to complete before returning the console.
+        """
+        return self.L.move(position, wait=wait, *args, **kwargs)
 
     @property
     def delay(self):
@@ -412,8 +465,7 @@ class DelayTower(TowerBase):
         position : float
             Position to move the delay motor to.
         """
-        self.L.move(position, wait=False)
-        
+        self.set_delay(position, wait=False)
 
 class ChannelCutTower(TowerBase):
     """
@@ -457,8 +509,7 @@ class ChannelCutTower(TowerBase):
         """
         return 2*self.position    
 
-    @TowerBase.energy.setter
-    def energy(self, E):
+    def set_energy(self, E, wait=False):
         """
         Sets the angles of the crystals in the channel cut line to maximize the
         inputted energy.        
@@ -467,16 +518,19 @@ class ChannelCutTower(TowerBase):
         ---------
         E : float
             Energy to use for the system.
+
+        wait : bool, optional
+            Wait for motion to complete before returning the console.
         """
         # Convert to theta
         # TODO: Error handling here
         theta = self.E_to_theta(E)
 
-        logger.debug("\nMoving {th} to {theta}".format(th=self.th.name,
-                                                       theta=theta))
+        logger.debug("\nMoving {th} to {theta}".format(
+            th=self.th.name, theta=theta))
 
-        # Set the position of the motors on tower 2
-        status_th = self.th.move(theta/2, wait=False)
+        status = self.th.move(theta/2, wait=wait)
+        return status
 
         
 class SplitAndDelay(Device):
@@ -543,9 +597,15 @@ class SplitAndDelay(Device):
     c = 299792458               # m/s
     gap = 0.055                 # m
     min_dist = 0.105            # m
-
+    
     # TEMP
     t = 0
+
+    def __init__(self, prefix, *args, **kwargs):
+        super().__init__(prefix, *args, **kwargs)
+        self.delay_towers = [self.t1, self.t4]
+        self.channelcut_towers = [self.t2, self.t3]
+        self.towers = self.delay_towers + self.channelcut_towers
 
     def t_to_length(self, t, **kwargs):
         """
@@ -589,17 +649,63 @@ class SplitAndDelay(Device):
     def energy(self, E):
         """
         Sets the energy for both the delay line and the channe cut line of the
-        system.
+        system. Alias for set_energy(E).
 
         Parmeters
         ---------
         E : float
             Energy to use for the system.
         """
-        self.t1.energy = E
-        self.t2.energy = E
-        self.t3.energy = E
-        self.t4.energy = E
+        status = self.set_energy(E)
+
+    def _apply_tower_move_method(self, position, towers, move_method, wait=False,
+                                 *args, **kwargs):
+        """
+        Runs the inputted aggregate move method on each tower and then optionally
+        waits for the move to complete. A move method is defined as being a method
+        that returns a status object, or list of status objects.
+
+        Any additional arguments or keyword arguments will be passed to move_method.
+
+        Parmeters
+        ---------
+        position : float
+            Position to pass to the move method.
+
+        towers : list
+            List of towers to set the energy for.
+
+        move_method : str
+            Method of each tower to run.
+
+        wait : bool, optional
+            Wait for each tower to complete the motion.
+        """
+        status = [getattr(t, move_method)(position, *args, **kwargs) for t in towers]
+
+        # Wait for the motions to finish
+        if wait:
+            for s in flatten(status):
+                logger.info("Waiting for {} to finish move ...".format(s.device.name))
+                status_wait(s)
+
+        return status
+
+    def set_energy(self, E, wait=False, *args, **kwargs):
+        """
+        Sets the energy for both the delay line and the channe cut line of the
+        system.
+
+        Parmeters
+        ---------
+        E : float
+            Energy to use for the system.
+
+        wait : bool, optional
+            Wait for each tower to complete the motion.
+        """
+        return self._apply_tower_move_method(E, self.towers, "set_energy",
+                                             wait=wait, *args, **kwargs)
 
     @property
     def energy1(self):
@@ -624,8 +730,22 @@ class SplitAndDelay(Device):
         E : float
             Energy to use for the system.
         """
-        self.t1.energy = E
-        self.t4.energy = E
+        status = self.set_energy1(E)
+        
+    def set_energy1(self, E, wait=False, *args, **kwargs):
+        """
+        Sets the energy for the delay line.
+
+        Parmeters
+        ---------
+        E : float
+            Energy to use for the system.
+
+        wait : bool, optional
+            Wait for each motor to complete the motion.
+        """
+        return self._apply_tower_move_method(
+            E, self.delay_towers, "set_energy", wait=wait, *args, **kwargs)
         
     @property
     def energy2(self):
@@ -651,8 +771,23 @@ class SplitAndDelay(Device):
         E : float
             Energy to use for the system.
         """
-        self.t2.energy = E
-        self.t3.energy = E
+        status = self.set_energy2(E)
+
+    def set_energy2(self, E, wait=False, *args, **kwargs):
+        """
+        Sets the energy for the channel cut line.
+
+        Parmeters
+        ---------
+        E : float
+            Energy to use for the system.
+
+        wait : bool, optional
+            Wait for each motor to complete the motion.
+        """
+        return self._apply_tower_move_method(
+            E, self.channelcut_towers, "set_energy", wait=wait, *args,
+            **kwargs)
         
     @property
     def delay(self):
@@ -667,8 +802,21 @@ class SplitAndDelay(Device):
         # TODO: Replace with delay calculation.
         return self.t
         
-    @delay.setter 
+    @delay.setter
     def delay(self, t):
+        """
+        Sets the linear stages on the delay line to be the correct length
+        according to desired delay and current theta positions. Alias for
+        set_delay(t).
+
+        Parameters
+        ----------
+        t : float
+            The desired delay from the system.
+        """
+        status = self.set_delay(t)
+        
+    def set_delay(self, t, wait=False, *args, **kwargs):
         """
         Sets the linear stages on the delay line to be the correct length
         according to desired delay and current theta positions.
@@ -683,17 +831,9 @@ class SplitAndDelay(Device):
         logger.debug("Input delay: {0}. \nMoving t1.L and t2.L to {1}".format(
             t, self.length))
 
-        status_t1_L = self.t1.L.move(self.length, wait=False)
-        status_t4_L = self.t4.L.move(self.length, wait=False)
-
-        # # Wait for the status objects to register the moves as complete
-        # if wait:
-        #     logger.info("Waiting for {} to finish move ...".format(self.name))
-        #     # TODO: Wait on the composite status
-        #     # status_wait(status_composite)
-        
-        # TODO: Find a way to create composite statuses
-        # return status_composite
+        return self._apply_tower_move_method(
+            self.length, self.delay_towers, "set_delay", wait=wait, *args,
+            **kwargs)
 
     def status(self):
         """

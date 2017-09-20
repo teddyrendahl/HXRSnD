@@ -28,6 +28,7 @@ from pcdsdevices.epics.epicsmotor import EpicsMotor
 ##########
 # Module #
 ##########
+from .exceptions import MotorDisabled, MotorError
 
 logger = logging.getLogger(__name__)
 
@@ -237,11 +238,8 @@ class EccBase(Device, PositionerBase):
             If motion fails other than timing out
         """
         try:
-            # Make sure the motor is enabled
-            if not self.enabled:
-                err = "Motor must be enabled before moving."
-                logger.error(err)
-                raise MotorDisabled(err)
+            # Check the motor status
+            self.check_status()
 
             logger.debug("Moving {} to {}".format(self.name, position))
             # Check if the move is valid
@@ -253,6 +251,28 @@ class EccBase(Device, PositionerBase):
 
         except KeyboardInterrupt:
             self.stop()
+
+    def check_status(self):
+        """
+        Checks the status of the motor to make sure it is ready to move.
+
+        Raises
+        ------
+        MotorDisabled
+            If the motor is disabled.
+
+        MotorError
+            If the motor has an error.
+        """
+        if not self.enabled:
+            err = "Motor must be enabled before moving."
+            logger.error(err)
+            raise MotorDisabled(err)
+
+        if self.error:
+            err = "Motor currently has an error."
+            logger.error(err)
+            raise MotorError(err)        
 
     def _check_value(self, position):
         """
@@ -501,21 +521,5 @@ class GoniometerEcc(EccBase):
 class DiodeEcc(EccBase):
     """
     Class for the diode insertion ecc motor
-    """
-    pass
-
-
-# Exceptions
-
-class AttocubeException(Exception):
-    """
-    Base attocube motor exceptions.
-    """
-    pass
-
-
-class MotorDisabled(AttocubeException):
-    """
-    Exception raised when an action requiring the motor be enabled is requested.
     """
     pass
