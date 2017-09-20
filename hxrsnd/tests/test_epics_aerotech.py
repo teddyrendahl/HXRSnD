@@ -44,6 +44,19 @@ def test_AeroBase_raises_MotorDisabled_if_moved_while_disabled():
     with pytest.raises(MotorDisabled):
         motor.move(10)
 
+@using_fake_epics_pv
+@pytest.mark.parametrize("position", [1])
+def test_AeroBase_callable_moves_the_motor(position):
+    motor = AeroBase("TEST")
+    motor.enable()
+    motor.limits = (0, 1)
+    assert motor.user_setpoint.value != position
+    time.sleep(0.1)
+    motor(position)
+    time.sleep(0.1)
+    assert motor.user_setpoint.value == position
+
+# Commented out for now because it causes travis to seg fault sometimes
 # @using_fake_epics_pv
 # def test_AeroBase_raises_MotorFaulted_if_moved_while_faulted():
 #     motor = AeroBase("TEST")
