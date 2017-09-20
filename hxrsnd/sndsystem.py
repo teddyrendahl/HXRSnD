@@ -197,8 +197,8 @@ class TowerBase(Device):
 
     def check_status(self, energy=True, delay=False):
         """
-        Checks to make sure that all the energy motors are not in a bad state. Will
-        include the delay motor if the delay argument is True.
+        Checks to make sure that all the energy motors are not in a bad state. 
+        Will include the delay motor if the delay argument is True.
 
         Parameters
         ----------
@@ -413,23 +413,24 @@ class DelayTower(TowerBase):
         # Check to make sure the motors are in a valid state to move
         if check_status:
             self.check_status()
-        logger.debug("\nMoving {tth} to {theta} \nMoving {th1} and {th2} to "
-                     "{half_theta}.".format(
-                         tth=self.tth.name, th1=self.th1.name,
-                         th2=self.th2.name, theta=theta, half_theta=theta/2))            
+        logger.debug("\nMoving {tth} to {tth_theta} \nMoving {th1} and {th2} to"
+                     " {th_theta}.".format(tth=self.tth.name, th1=self.th1.name, 
+                                           th2=self.th2.name, tth_theta=2*theta,
+                                           th_theta=theta))
 
         # Convert to theta1
         theta = bragg_angle(E=E)
 
         # Do the move
-        move_pos = [theta, theta/2, theta/2]            
+        move_pos = [theta, theta/2, theta/2]
         status = [motor.move(pos, wait=False, check_status=False) for
                   move, pos in zip(motors, move_pos)]
 
         # Wait for the motions to finish
         if wait:
             for s in status:
-                logger.info("Waiting for {} to finish move ...".format(s.device.name))
+                logger.info("Waiting for {} to finish move ...".format(
+                    s.device.name))
                 status_wait(s)
                 
         return status
@@ -717,28 +718,29 @@ class SplitAndDelay(Device):
 
     def get_delay_diagnostic_position(self, E1=None, E2=None, delay=None):
         """
-        Gets the position the delay diagnostic needs to move to based on the inputted
-        energies and delay or the current bragg angles and current delay of the system.
+        Gets the position the delay diagnostic needs to move to based on the 
+        inputted energies and delay or the current bragg angles and current 
+        delay of the system.
 
         Parameters
         ----------
         E1 : float or None, optional
-            Energy in eV to use for the delay line. Uses the current energy if None is
-            inputted
+            Energy in eV to use for the delay line. Uses the current energy if 
+            None is inputted.
 
         E2 : float or None, optional
-            Energy in eV to use for the channel cut line. Uses the current energy if 
-            None is inputted.
+            Energy in eV to use for the channel cut line. Uses the current 
+            energy if None is inputted.
         
         delay : float or None, optional
-            Delay in picoseconds to use for the calculation. Uses current delay if
-            None is inputted.
+            Delay in picoseconds to use for the calculation. Uses current delay
+            if None is inputted.
 
         Returns
         -------
         position : float
-            Position in mm the delay diagnostic should move to given the inputted
-            parameters.
+            Position in mm the delay diagnostic should move to given the 
+            inputted parameters.
         """
         # Use current bragg angle
         if E1 is None:
@@ -763,20 +765,20 @@ class SplitAndDelay(Device):
 
     def get_channelcut_diagnostic_position(self, E2=None):
         """
-        Gets the position the channel cut diagnostic needs to move to based on the
-        inputted energy or the current energy of the channel cut line.
+        Gets the position the channel cut diagnostic needs to move to based on 
+        the inputted energy or the current energy of the channel cut line.
 
         Parameters
         ----------
         E2 : float or None, optional
-            Energy in eV to use for the channel cut line. Uses the current energy if 
-            None is inputted.
+            Energy in eV to use for the channel cut line. Uses the current 
+            energy if None is inputted.
 
         Returns
         -------
         position : float
-            Position in mm the delay diagnostic should move to given the inputted
-            parameters.
+            Position in mm the delay diagnostic should move to given the 
+            inputted parameters.
         """
         # Use the current theta2 of the system or calc based on inputted energy
         if E2 is None:
@@ -788,14 +790,15 @@ class SplitAndDelay(Device):
         position = 2*cosd(theta2)*self.gap
         return position
         
-    def _apply_tower_move_method(self, position, towers, move_method, wait=False,
-                                 *args, **kwargs):
+    def _apply_tower_move_method(self, position, towers, move_method, 
+                                 wait=False, *args, **kwargs):
         """
-        Runs the inputted aggregate move method on each tower and then optionally
-        waits for the move to complete. A move method is defined as being a method
-        that returns a status object, or list of status objects.
+        Runs the inputted aggregate move method on each tower and then 
+        optionally waits for the move to complete. A move method is defined as
+        being a method that returns a status object, or list of status objects.
 
-        Any additional arguments or keyword arguments will be passed to move_method.
+        Any additional arguments or keyword arguments will be passed to 
+        move_method.
 
         Parmeters
         ---------
@@ -812,12 +815,14 @@ class SplitAndDelay(Device):
             Wait for each tower to complete the motion.
         """
         # Check that there are no issues moving any of the tower motors        
-        status = [getattr(t, move_method)(position, *args, **kwargs) for t in towers]
+        status = [getattr(t, move_method)(position, *args, **kwargs) 
+                  for t in towers]
 
         # Wait for the motions to finish
         if wait:
             for s in flatten(status):
-                logger.info("Waiting for {} to finish move ...".format(s.device.name))
+                logger.info("Waiting for {} to finish move ...".format(
+                    s.device.name))
                 status_wait(s)
         return status
 
@@ -842,7 +847,8 @@ class SplitAndDelay(Device):
         
         # Move the tower motors
         status = self._apply_tower_move_method(
-            E, self.towers, "set_energy", wait=False, check_status=False, *args, **kwargs)
+            E, self.towers, "set_energy", wait=False, check_status=False, 
+            *args, **kwargs)
 
         # Get the pos for the diagnostic motors and move there
         dd_x_pos = self.get_delay_diagnostic_position(E1=E, E2=E)
@@ -853,7 +859,8 @@ class SplitAndDelay(Device):
         # Optionally wait for all the moves to complete
         if wait:
             for s in flatten(status):
-                logger.info("Waiting for {} to finish move ...".format(s.device.name))
+                logger.info("Waiting for {} to finish move ...".format(
+                    s.device.name))
                 status_wait(s)
         return status
     
@@ -937,7 +944,8 @@ class SplitAndDelay(Device):
         # Optionally wait for all the moves to complete
         if wait:
             for s in flatten(status):
-                logger.info("Waiting for {} to finish move ...".format(s.device.name))
+                logger.info("Waiting for {} to finish move ...".format(
+                    s.device.name))
                 status_wait(s)
         return status    
 
@@ -1010,8 +1018,8 @@ class SplitAndDelay(Device):
 
         # Move all the channel cut tower motors
         status = self._apply_tower_move_method(
-            E, self.channelcut_towers, "set_energy", wait=False, check_status=False
-            *args, **kwargs)
+            E, self.channelcut_towers, "set_energy", wait=False, 
+            check_status=False, *args, **kwargs)
 
         # Get the pos for the diagnostic motors and move there
         dcc_x_pos = self.get_channelcut_diagnostic_position(E2=E)
@@ -1020,7 +1028,8 @@ class SplitAndDelay(Device):
         # Optionally wait for all the moves to complete
         if wait:
             for s in flatten(status):
-                logger.info("Waiting for {} to finish move ...".format(s.device.name))
+                logger.info("Waiting for {} to finish move ...".format(
+                    s.device.name))
                 status_wait(s)
         return status    
         
