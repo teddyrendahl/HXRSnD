@@ -452,6 +452,22 @@ class EccBase(Device, PositionerBase):
         self.low_limit = value[0]
         self.high_limit = value[1]
 
+    def __call__(self, position, *args, **kwargs):
+        """
+        Moves the motor to the inputted position. Alias for self.move(position).
+
+        Parameters
+        ----------
+        position
+            Position to move to.
+
+        Returns
+        -------
+        status : MoveStatus        
+            Status object for the move.        
+        """
+        return self.move(position, *args, **kwargs)        
+
     def status(self, status="", offset=0, print_status=True, newline=False):
         """
         Returns the status of the device.

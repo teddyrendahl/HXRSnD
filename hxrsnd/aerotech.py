@@ -113,7 +113,7 @@ class AeroBase(EpicsMotor):
         Parameters
         ----------
         position
-            Position to move to
+            Position to move to.
 
         moved_cb : callable
             Call this callback when movement has finished. This callback must
@@ -145,7 +145,7 @@ class AeroBase(EpicsMotor):
             # Check the motor status
             self.check_status()
             
-            return super().move(position, *args, **kwargs)
+            return super().move(position, wait=False, *args, **kwargs)
         except KeyboardInterrupt:
             self.stop()
 
@@ -272,7 +272,23 @@ class AeroBase(EpicsMotor):
         """
         os.system("/reg/neh/operator/xcsopr/bin/snd/expert_screen.sh {0}"
                   "".format(self.prefix))
-        
+
+    def __call__(self, position, *args, **kwargs):
+        """
+        Moves the motor to the inputted position. Alias for self.move(position).
+
+        Parameters
+        ----------
+        position
+            Position to move to.
+
+        Returns
+        -------
+        status : MoveStatus        
+            Status object for the move.        
+        """
+        return self.move(position, *args, **kwargs)
+    
     def status(self, status="", offset=0, print_status=True, newline=False):
         """
         Returns the status of the device.
