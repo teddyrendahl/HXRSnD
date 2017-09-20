@@ -237,20 +237,16 @@ class EccBase(Device, PositionerBase):
         RuntimeError
             If motion fails other than timing out
         """
-        try:
-            # Check the motor status
-            self.check_status()
+        # Check the motor status
+        self.check_status()
 
-            logger.debug("Moving {} to {}".format(self.name, position))
-            # Check if the move is valid
-            self._check_value(position)
+        logger.debug("Moving {} to {}".format(self.name, position))
+        # Check if the move is valid
+        self._check_value(position)
 
-            # Begin the move process
-            status = self.user_setpoint.set(position)
-            return status
-
-        except KeyboardInterrupt:
-            self.stop()
+        # Begin the move process
+        status = self.user_setpoint.set(position)
+        return status
 
     def check_status(self):
         """
