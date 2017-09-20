@@ -1,5 +1,7 @@
 """
 Script to hold the split and delay devices.
+
+All units of time are in picoseconds, units of length are in mm.
 """
 ############
 # Standard #
@@ -24,7 +26,7 @@ from pcdsdevices.component import (Component, FormattedComponent)
 # Module #
 ##########
 from .utils import flatten
-from .bragg import (bragg_angle, bragg_energy)
+from .bragg import (bragg_angle, bragg_energy, cosd, sind)
 from .state import OphydMachine
 from .rtd import OmegaRTD
 from .aerotech import (AeroBase, RotationAero, LinearAero)
@@ -49,30 +51,6 @@ class TowerBase(Device):
         if desc is None:
             self.desc = self.name
         
-    def E_to_theta(self, E, ID="Si", hkl=(2,2,0)):
-        """
-        Computes theta1 based on the inputted energy. This should function
-        as a lookup table.
-        
-        Parmeters
-        ---------
-        E : float
-            Energy to convert to theta1
-
-        ID : str, optional
-            Chemical fomula : 'Si'
-
-        hkl : tuple, optional
-            The reflection : (2,2,0)
-
-        Returns
-        -------
-        theta1 : float
-            Expected bragg angle for E
-        """
-        self.E = E
-        return bragg_angle(E=E, ID=ID, hkl=hkl)
-
     def set_energy(self, E, *args, **kwargs):
         """
         Placeholder for the energy setter. Implement for each TowerBase
@@ -400,7 +378,7 @@ class DelayTower(TowerBase):
         """
         # Convert to theta1
         # TODO: Error handling here
-        theta = self.E_to_theta(E)
+        theta = bragg_angle(E)
 
         logger.debug("\nMoving {tth} to {theta} \nMoving {th1} and {th2} to "
                      "{half_theta}.".format(
@@ -429,7 +407,7 @@ class DelayTower(TowerBase):
                 
         return status
 
-    def set_delay(self, position, wait=False, *args, **kwargs):
+    def set_L(self, position, wait=False, *args, **kwargs):
         """
         Sets the position of the linear delay stage in mm.
 
@@ -440,11 +418,16 @@ class DelayTower(TowerBase):
 
         wait : bool, optional
             Wait for motion to complete before returning the console.
+
+        Returns
+        -------
+        status : MoveStatus
+            Status object of the move.
         """
         return self.L.move(position, wait=wait, *args, **kwargs)
 
     @property
-    def delay(self):
+    def L(self):
         """
         Returns the position of the linear delay stage (L) in mm.
 
@@ -455,8 +438,8 @@ class DelayTower(TowerBase):
         """
         return self.L.position
 
-    @delay.setter
-    def delay(self, position):
+    @L.setter
+    def L(self, position):
         """
         Sets the position of the linear delay stage in mm.
 
@@ -465,7 +448,7 @@ class DelayTower(TowerBase):
         position : float
             Position to move the delay motor to.
         """
-        self.set_delay(position, wait=False)
+        status = self.set_delay(position, wait=False)
 
 class ChannelCutTower(TowerBase):
     """
@@ -524,7 +507,7 @@ class ChannelCutTower(TowerBase):
         """
         # Convert to theta
         # TODO: Error handling here
-        theta = self.E_to_theta(E)
+        theta = bragg_angle(E)
 
         logger.debug("\nMoving {th} to {theta}".format(
             th=self.th.name, theta=theta))
@@ -594,28 +577,60 @@ class SplitAndDelay(Device):
     dco = Component(HamamatsuXMotionDiode, ":DIA:DCO")
     
     # Constants
-    c = 299792458               # m/s
-    gap = 0.055                 # m
-    min_dist = 0.105            # m
+    c = 0.299792458             # mm/ps
+    gap = 55                    # m
     
-    # TEMP
-    t = 0
-
     def __init__(self, prefix, *args, **kwargs):
         super().__init__(prefix, *args, **kwargs)
         self.delay_towers = [self.t1, self.t4]
         self.channelcut_towers = [self.t2, self.t3]
         self.towers = self.delay_towers + self.channelcut_towers
 
-    def t_to_length(self, t, **kwargs):
+    @property
+    def theta1(self):
+        """
+        Returns the bragg angle the the delay line is currently set to
+        maximize.
+
+        Returns
+        -------
+        theta1 : float
+            The bragg angle the delay line is currently set to maximize 
+            in degrees.
+        """
+        # Perform any other calculations here
+        return self.t1.theta
+
+    @property
+    def theta2(self):
+        """
+        Returns the bragg angle the the delay line is currently set to
+        maximize.
+
+        Returns
+        -------
+        theta2 : float
+            The bragg angle the channel cut line is currently set to maximize 
+            in degrees.
+        """
+        # Perform any other calculations here
+        return self.t2.theta    
+
+    def delay_to_length(self, delay, theta1=None, theta2=None):
         """
         Converts the inputted delay to the lengths on the delay arm linear
         stages.
 
         Parameters
         ----------
-        t : float
-            The desired delay from the system in picoseconds
+        delay : float
+            The desired delay in picoseconds.
+
+        theta1 : float or None, optional
+            Bragg angle the delay line is set to maximize.
+
+        theta2 : float or None, optional
+            Bragg angle the channel cut line is set to maximize.
 
         Returns
         -------
@@ -623,16 +638,120 @@ class SplitAndDelay(Device):
             The distance between the delay crystal and the splitting or
             recombining crystal.
         """
-        # Lets internally keep track of this
-        self.t = t * 1e-12      # Convert to seconds
+        # Check if any other inputs were used
+        theta1 = theta1 or self.theta1
+        theta2 = theta2 or self.theta2
 
-        # TODO : Double check that this is correct
-        length = ((self.t*self.c + 2*self.gap * (1 - np.cos(
-            2*self.t1.theta))/np.sin(self.t1.theta))/
-                  (2*(1 - np.cos(2*self.t3.theta))))
+        # Length calculation
+	length = ((delay*self.c/2 + self.gap*(1 - cosd(2*theta2)) /
+                   sind(theta2)) / (1 - cosd(2*theta1)))
+        return length
 
-        return length * 1000    # Convert to mm
+    def length_to_delay(self, L=None, theta1=None, theta2=None):
+        """
+        Converts the inputted L of the delay stage, theta1 and theta2 to
+        the expected delay of the system, or uses the current positions
+        as inputs.
 
+        Parameters
+        ----------
+        L : float or None, optional
+            Position of the linear delay stage.
+        
+        theta1 : float or None, optional
+            Bragg angle the delay line is set to maximize.
+
+        theta2 : float or None, optional
+            Bragg angle the channel cut line is set to maximize.
+
+        Returns
+        -------
+        delay : float
+            The delay of the system in picoseconds.
+        """
+        # Check if any other inputs were used
+        L = L or self.t1.L
+        theta1 = theta1 or self.theta1
+        theta2 = theta2 or self.theta2
+
+        # Delay calculation
+        delay = (2*(L*(1 - cosd(2*theta1)) - self.gap*(1 - cosd(2*theta2)) /
+                    sind(theta2))/self.c)
+        return delay    
+
+    def get_delay_diagnostic_position(self, E1=None, E2=None, delay=None):
+        """
+        Gets the position the delay diagnostic needs to move to based on the inputted
+        energies and delay or the current bragg angles and current delay of the system.
+
+        Parameters
+        ----------
+        E1 : float or None, optional
+            Energy in eV to use for the delay line. Uses the current energy if None is
+            inputted
+
+        E2 : float or None, optional
+            Energy in eV to use for the channel cut line. Uses the current energy if 
+            None is inputted.
+        
+        delay : float or None, optional
+            Delay in picoseconds to use for the calculation. Uses current delay if
+            None is inputted.
+
+        Returns
+        -------
+        position : float
+            Position in mm the delay diagnostic should move to given the inputted
+            parameters.
+        """
+        # Use current bragg angle
+        if E1 is None:
+            theta1 = self.theta1
+        else:
+            theta1 = bragg_angle(E1)
+
+        # Use current delay stage position if no delay is inputted
+        if delay is None:
+            length = self.t1.L
+        # Calculate the expected delay position if a delay is inputted
+        else:
+            if E2 is None:
+                theta2 = self.theta2
+            else:
+                theta2 = bragg_angle(E2)
+            length = self.delay_to_length(delay, theta1=theta1, theta2=theta2)
+            
+        # Calculate position the diagnostic needs to move to
+        position = -length*sind(2*theta1)
+        return position
+
+    def get_channelcut_diagnostic_position(self, E2=None):
+        """
+        Gets the position the channel cut diagnostic needs to move to based on the
+        inputted energy or the current energy of the channel cut line.
+
+        Parameters
+        ----------
+        E2 : float or None, optional
+            Energy in eV to use for the channel cut line. Uses the current energy if 
+            None is inputted.
+
+        Returns
+        -------
+        position : float
+            Position in mm the delay diagnostic should move to given the inputted
+            parameters.
+        """
+        # Use the current theta2 of the system or calc based on inputted energy
+        if E2 is None:
+            theta2 = self.theta2
+        else:
+            theta2 = bragg_angle(E2)
+            
+        # Calculate position the diagnostic needs to move to
+        position = 2*cosd(theta2)*self.gap
+        return position
+    
     @property
     def energy(self):
         """
@@ -657,7 +776,7 @@ class SplitAndDelay(Device):
             Energy to use for the system.
         """
         status = self.set_energy(E)
-
+        
     def _apply_tower_move_method(self, position, towers, move_method, wait=False,
                                  *args, **kwargs):
         """
@@ -704,8 +823,8 @@ class SplitAndDelay(Device):
         wait : bool, optional
             Wait for each tower to complete the motion.
         """
-        return self._apply_tower_move_method(E, self.towers, "set_energy",
-                                             wait=wait, *args, **kwargs)
+        status = self._apply_tower_move_method(E, self.towers, "set_energy",
+                                               wait=wait, *args, **kwargs)
 
     @property
     def energy1(self):
@@ -788,7 +907,7 @@ class SplitAndDelay(Device):
         return self._apply_tower_move_method(
             E, self.channelcut_towers, "set_energy", wait=wait, *args,
             **kwargs)
-        
+
     @property
     def delay(self):
         """
@@ -796,14 +915,13 @@ class SplitAndDelay(Device):
 
         Returns
         -------
-        t : float
-            Expected delay in picoseconds
+        delay : float
+            Expected delay in picoseconds.
         """
-        # TODO: Replace with delay calculation.
-        return self.t
-        
+        return self.length_to_delay()
+    
     @delay.setter
-    def delay(self, t):
+    def delay(self, delay):
         """
         Sets the linear stages on the delay line to be the correct length
         according to desired delay and current theta positions. Alias for
@@ -811,22 +929,22 @@ class SplitAndDelay(Device):
 
         Parameters
         ----------
-        t : float
+        delay : float
             The desired delay from the system.
         """
-        status = self.set_delay(t)
+        status = self.set_delay(delay)
         
-    def set_delay(self, t, wait=False, *args, **kwargs):
+    def set_delay(self, delay, wait=False, *args, **kwargs):
         """
         Sets the linear stages on the delay line to be the correct length
         according to desired delay and current theta positions.
         
         Parameters
         ----------
-        t : float
-            The desired delay from the system.
+        delay : float
+            The desired delay of the system in picoseconds.
         """
-        self.length = self.t_to_length(t)
+        self.length = self.delay_to_length(delay)
 
         logger.debug("Input delay: {0}. \nMoving t1.L and t2.L to {1}".format(
             t, self.length))
