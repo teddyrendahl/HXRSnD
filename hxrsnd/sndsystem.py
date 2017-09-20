@@ -751,31 +751,6 @@ class SplitAndDelay(Device):
         # Calculate position the diagnostic needs to move to
         position = 2*cosd(theta2)*self.gap
         return position
-    
-    @property
-    def energy(self):
-        """
-        Returns the energy the whole system is currently set to in eV
-
-        Returns
-        -------
-        E1, E2 : tuple
-            Energy for the delay line and channel cut line.
-        """
-        return self.t1.energy, self.t2.energy
-
-    @energy.setter
-    def energy(self, E):
-        """
-        Sets the energy for both the delay line and the channe cut line of the
-        system. Alias for set_energy(E).
-
-        Parmeters
-        ---------
-        E : float
-            Energy to use for the system.
-        """
-        status = self.set_energy(E)
         
     def _apply_tower_move_method(self, position, towers, move_method, wait=False,
                                  *args, **kwargs):
@@ -825,11 +800,77 @@ class SplitAndDelay(Device):
         """
         status = self._apply_tower_move_method(E, self.towers, "set_energy",
                                                wait=wait, *args, **kwargs)
+    
+    @property
+    def energy(self):
+        """
+        Returns the energy the whole system is currently set to in eV
+
+        Returns
+        -------
+        E1, E2 : tuple
+            Energy for the delay line and channel cut line.
+        """
+        return self.t1.energy, self.t2.energy
+
+    @energy.setter
+    def energy(self, E):
+        """
+        Sets the energy for both the delay line and the channe cut line of the
+        system. Alias for set_energy(E).
+
+        Parmeters
+        ---------
+        E : float
+            Energy to use for the system.
+        """
+        status = self.set_energy(E)        
+
+    @property
+    def E(self):
+        """
+        Returns the energy the whole system is currently set to in eV. Alias
+        for energy.
+
+        Returns
+        -------
+        E1, E2 : tuple
+            Energy for the delay line and channel cut line.
+        """
+        return self.energy
+
+    @E.setter
+    def E(self, E):
+        """
+        Sets the energy for both the delay line and the channe cut line of the
+        system. Alias for set_energy(E).
+
+        Parmeters
+        ---------
+        E : float
+            Energy to use for the system.
+        """
+        status = self.set_energy(E)
+        
+    def set_energy1(self, E, wait=False, *args, **kwargs):
+        """
+        Sets the energy for the delay line.
+
+        Parmeters
+        ---------
+        E : float
+            Energy to use for the delay line.
+
+        wait : bool, optional
+            Wait for each motor to complete the motion.
+        """
+        return self._apply_tower_move_method(
+            E, self.delay_towers, "set_energy", wait=wait, *args, **kwargs)        
 
     @property
     def energy1(self):
         """
-        Returns the calculated energy based on the angle of the delay line
+        Returns the calculated energy based on the angle of the tth motor.
 
         Returns
         -------
@@ -842,35 +883,61 @@ class SplitAndDelay(Device):
     def energy1(self, E):
         """
         Sets the angles of the crystals in the delay line to maximize the
-        inputted energy.        
+        inputted energy. Alias for set_energy(E).
     
         Parmeters
         ---------
         E : float
-            Energy to use for the system.
+            Energy to use for the delay line.
         """
         status = self.set_energy1(E)
-        
-    def set_energy1(self, E, wait=False, *args, **kwargs):
+
+    @property
+    def E1(self):
         """
-        Sets the energy for the delay line.
+        Returns the calculated energy based on the angle of the tth motor.
+
+        Returns
+        -------
+        E1 : float
+            Energy of the delay line.
+        """
+        return self.energy1
+
+    @E1.setter
+    def E1(self, E):
+        """
+        Sets the angles of the crystals in the delay line to maximize the
+        inputted energy. Alias for set_energy(E).
+    
+        Parmeters
+        ---------
+        E : float
+            Energy to use for the delay line.
+        """
+        self.energy1 = E
+
+    def set_energy2(self, E, wait=False, *args, **kwargs):
+        """
+        Sets the energy for the channel cut line.
 
         Parmeters
         ---------
         E : float
-            Energy to use for the system.
+            Energy to use for the channel cut line.
 
         wait : bool, optional
             Wait for each motor to complete the motion.
         """
         return self._apply_tower_move_method(
-            E, self.delay_towers, "set_energy", wait=wait, *args, **kwargs)
+            E, self.channelcut_towers, "set_energy", wait=wait, *args,
+            **kwargs)
         
     @property
     def energy2(self):
         """
-        Returns the calculated energy based on the angle of the channel cut
-        line.
+        Returns the calculated energy based on the angle of the th motor on the
+        channel cut line.
 
         Returns
         -------
@@ -883,31 +950,60 @@ class SplitAndDelay(Device):
     def energy2(self, E):
         """
         Sets the angles of the crystals in the channel cut line to maximize the
-        inputted energy.        
+        inputted energy. Alias for set_energy2(E). 
     
         Parmeters
         ---------
         E : float
-            Energy to use for the system.
+            Energy to use for the channel cut line.
         """
         status = self.set_energy2(E)
 
-    def set_energy2(self, E, wait=False, *args, **kwargs):
+    @property
+    def E2(self):
         """
-        Sets the energy for the channel cut line.
+        Returns the calculated energy based on the angle of the th motor on the
+        channel cut line.
 
+        Returns
+        -------
+        E : float
+            Energy of the channel cut line.
+        """
+        return self.energy2
+
+    @E2.setter
+    def E2(self, E):
+        """
+        Sets the angles of the crystals in the channel cut line to maximize the
+        inputted energy. Alias for set_energy2(E).
+    
         Parmeters
         ---------
         E : float
-            Energy to use for the system.
-
-        wait : bool, optional
-            Wait for each motor to complete the motion.
+            Energy to use for the channel cut line.
         """
-        return self._apply_tower_move_method(
-            E, self.channelcut_towers, "set_energy", wait=wait, *args,
-            **kwargs)
+        self.energy2 = E
 
+    def set_delay(self, delay, wait=False, *args, **kwargs):
+        """
+        Sets the linear stages on the delay line to be the correct length
+        according to desired delay and current theta positions.
+        
+        Parameters
+        ----------
+        delay : float
+            The desired delay of the system in picoseconds.
+        """
+        self.length = self.delay_to_length(delay)
+
+        logger.debug("Input delay: {0}. \nMoving t1.L and t2.L to {1}".format(
+            t, self.length))
+
+        return self._apply_tower_move_method(
+            self.length, self.delay_towers, "set_delay", wait=wait, *args,
+            **kwargs)
+    
     @property
     def delay(self):
         """
@@ -934,25 +1030,6 @@ class SplitAndDelay(Device):
         """
         status = self.set_delay(delay)
         
-    def set_delay(self, delay, wait=False, *args, **kwargs):
-        """
-        Sets the linear stages on the delay line to be the correct length
-        according to desired delay and current theta positions.
-        
-        Parameters
-        ----------
-        delay : float
-            The desired delay of the system in picoseconds.
-        """
-        self.length = self.delay_to_length(delay)
-
-        logger.debug("Input delay: {0}. \nMoving t1.L and t2.L to {1}".format(
-            t, self.length))
-
-        return self._apply_tower_move_method(
-            self.length, self.delay_towers, "set_delay", wait=wait, *args,
-            **kwargs)
-
     def status(self):
         """
         Returns the status of the split and delay system.
