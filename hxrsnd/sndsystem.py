@@ -567,7 +567,7 @@ class ChannelCutTower(TowerBase):
         return status
 
 
-class SndVacuum(SndDevice):
+class SndPneumatics(SndDevice):
     """
     Class that contains the various pneumatic components of the system.
 
@@ -593,11 +593,11 @@ class SndVacuum(SndDevice):
     """
     t1_valve = Component(ProportionalValve, ":N2:T1", desc="T1 Valve")
     t4_valve = Component(ProportionalValve, ":N2:T4", desc="T4 Valve")
-    vac_valve = Component(ProportionalValve, ":VAC", desc="System Valve")
+    vac_valve = Component(ProportionalValve, ":VAC", desc="Vacuum Valve")
 
     t1_pressure = Component(PressureSwitch, ":N2:T1", desc="T1 Pressure")
     t4_pressure = Component(PressureSwitch, ":N2:T4", desc="T4 Pressure")
-    vac_pressure = Component(PressureSwitch, ":VAC", desc="System Pressure")
+    vac_pressure = Component(PressureSwitch, ":VAC", desc="Vacuum Pressure")
 
     def __init__(self, prefix, *args, **kwargs):
         super().__init__(prefix, *args, **kwargs)
@@ -696,7 +696,7 @@ class SplitAndDelay(SndDevice):
     t3 : ChannelCutTower
         Tower 3 in the split and delay system.
 
-    vacuum : SndVacuum
+    ab : SndPneumatics
         Vacuum device object for the system.
 
     di : HamamatsuXYMotionCamDiode
@@ -732,7 +732,7 @@ class SplitAndDelay(SndDevice):
                    pos_removed=0, desc="Tower 3")
 
     # Vacuum
-    vacuum = Component(SndVacuum, "")
+    ab = Component(SndPneumatics, "")
 
     # SnD and Delay line diodes
     di = Component(HamamatsuXYMotionCamDiode, ":DIA:DI")
@@ -957,7 +957,76 @@ class SplitAndDelay(SndDevice):
                 status_wait(s)
         return status
 
-    def set_energy(self, E, wait=False, *args, **kwargs):
+    def _verify_move(self, E1=None, E2=None, delay=None):
+        """
+        Prints a summary of the current positions and the proposed positions
+        of the motors based on the inputs. It then prompts the user to confirm
+        the move.
+        
+        Parameters
+        ----------
+        E1 : float or None, optional
+            The expected E1 for the move.
+
+        E2 : float or None, optional
+            The expected E2 for the move.
+
+        delay : float or None, optional
+            The expected delay of the move.
+
+        Returns
+        -------
+        allowed : bool
+            True if the move is approved, False if the move is not.
+        """
+        string = "\n{:^15}|{:^15}|{:^15}".format("Motor", "Current", "Proposed")
+        string += "\n" + "-"*len(string)
+        if E1 is not None:
+            theta1 = bragg_angle(E=E1)
+            string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
+                "t1.tth", self.t1.tth.position, 2*theta1)
+            string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
+                "t4.tth", self.t4.tth.position, 2*theta1)
+            string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
+                "t1.th1", self.t1.th1.position, theta1)
+            string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
+                "t1.th2", self.t1.th2.position, theta1)
+            string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
+                "t4.th1", self.t4.th1.position, theta1)
+            string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
+                "t4.th2", self.t4.th2.position, theta1)
+
+        if E2 is not None:
+            theta2 = bragg_angle(E=E2)
+            string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
+                "t2.th", self.t2.th.position, theta2)
+            string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
+                "t3.th", self.t3.th.position, theta2)
+
+        if delay is not None:
+            length = self.delay_to_length(delay)
+            string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
+                "t1.L", self.t1.length, length)
+            string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
+                "t4.L", self.t4.length, length)
+
+        if E1:
+            position_dd = self.get_delay_diagnostic_position(E1, E2)
+            string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
+                "dd.x", self.dd.x.position, position_dd)
+        if E2:
+            position_dcc = self.get_channelcut_diagnostic_position(E2)
+            string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
+                "dcc.x", self.dcc.x.position, position_dcc)
+            
+        print(string)
+        response = input("\nConfirm Move [y]: ")
+        if response.lower() != "y":
+            return True
+        else:
+            return False
+
+    def set_energy(self, E, wait=False, verify_move=True, *args, **kwargs):
         """
         Sets the energy for both the delay line and the channe cut line of the
         system.
@@ -970,6 +1039,10 @@ class SplitAndDelay(SndDevice):
         wait : bool, optional
             Wait for each tower to complete the motion.
         """
+        # Prompt the user about the move before making it
+        if verify_move and self._verify_move(E, E):
+            return 
+
         # Check that all the tower and diagnostic motors can be moved
         for tower in self.towers:
             tower.check_status()
@@ -1046,7 +1119,7 @@ class SplitAndDelay(SndDevice):
         """
         status = self.set_energy(E)
         
-    def set_energy1(self, E, wait=False, *args, **kwargs):
+    def set_energy1(self, E, wait=False, verify_move=True, *args, **kwargs):
         """
         Sets the energy for the delay line.
 
@@ -1058,6 +1131,10 @@ class SplitAndDelay(SndDevice):
         wait : bool, optional
             Wait for each motor to complete the motion.
         """
+        # Prompt the user about the move before making it
+        if verify_move and self._verify_move(E1=E):
+            return 
+
         # Check that all the delay tower and diagnostic motors can be moved
         for tower in self.delay_towers:
             tower.check_status()
@@ -1130,7 +1207,7 @@ class SplitAndDelay(SndDevice):
         """
         self.energy1 = E
 
-    def set_energy2(self, E, wait=False, *args, **kwargs):
+    def set_energy2(self, E, wait=False, verify_move=True, *args, **kwargs):
         """
         Sets the energy for the channel cut line.
 
@@ -1142,6 +1219,10 @@ class SplitAndDelay(SndDevice):
         wait : bool, optional
             Wait for each motor to complete the motion.
         """
+        # Prompt the user about the move before making it
+        if verify_move and self._verify_move(E2=E):
+            return 
+
         # Check that all the delay tower and diagnosic motors can be moved
         for tower in self.channelcut_towers:
             tower.check_status()
@@ -1216,7 +1297,7 @@ class SplitAndDelay(SndDevice):
         """
         self.energy2 = E
 
-    def set_delay(self, delay, wait=False, *args, **kwargs):
+    def set_delay(self, delay, wait=False, verify_move=True, *args, **kwargs):
         """
         Sets the linear stages on the delay line to be the correct length
         according to desired delay and current theta positions.
@@ -1226,14 +1307,18 @@ class SplitAndDelay(SndDevice):
         delay : float
             The desired delay of the system in picoseconds.
         """
+        # Prompt the user about the move before making it
+        if verify_move and self._verify_move(delay=delay):
+            return 
+
         # Check that all the tower motors can be moved
         for tower in self.delay_towers:
             tower.check_status(energy=False, delay=True)        
-        logger.debug("Input delay: {0}. \nMoving t1.L and t2.L to {1}".format(
-            t, self.length))
 
         # Get the delay position to move to
         length = self.delay_to_length(delay)
+        logger.debug("Input delay: {0}. \nMoving t1.L and t2.L to {1}".format(
+            delay, self.length))
         
         # Move all the delay stage motors
         status = self._apply_tower_move_method(
@@ -1276,9 +1361,9 @@ class SplitAndDelay(SndDevice):
         """
         status =  "Split and Delay System Status\n"
         status += "-----------------------------\n"
-        status += "  Energy 1: {0}\n".format(np.round(self.energy1))
-        status += "  Energy 2: {0}\n".format(np.round(self.energy2))
-        status += "  Delay: {0}\n\n".format(self.delay)
+        status += "  Energy 1: {>8.3f}\n".format(self.energy1)
+        status += "  Energy 2: {>8.3f}\n".format(self.energy2)
+        status += "  Delay:    {>8.3f}\n\n".format(self.delay)
         status = self.t1.status(status, 0, print_status=False, newline=True)
         status = self.t2.status(status, 0, print_status=False, newline=True)
         status = self.t3.status(status, 0, print_status=False, newline=True)
