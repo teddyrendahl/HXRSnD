@@ -8,17 +8,7 @@ Exceptions for the SnD system.
 ############
 import logging
 
-###############
-# Third Party #
-###############
-
-########
-# SLAC #
-########
-
-##########
-# Module #
-##########
+logger = logging.getLogger(__name__)
 
 # Exceptions
 
