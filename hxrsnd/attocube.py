@@ -121,27 +121,76 @@ class EccBase(Device, PositionerBase):
         """
         return self.motor_egu.get()
 
-    def enable(self):
+    def _status_print(self, status, msg=None, ret_status=False, print_set=True):
+        """
+        Internal method that optionally returns the status object and optionally
+        prints a message about the set.
+
+        Parameters
+        ----------
+        status : StatusObject
+            The inputted status object.
+        
+        msg : str or None, optional
+            Message to print if print_set is True.
+
+        ret_status : bool, optional
+            Return the status object of the set.
+
+        print_move : bool, optional
+            Print a short statement about the set.
+
+        Returns
+        -------
+        Status
+            Inputted status object.        
+        """
+        if print_set and msg is not None:
+            print(msg)
+        if ret_status:
+            return status
+
+    def enable(self, ret_status=False, print_set=True):
         """
         Enables the motor power.
 
+        Parameters
+        ----------
+        ret_status : bool, optional
+            Return the status object of the set.
+
+        print_move : bool, optional
+            Print a short statement about the set.
+
         Returns
         -------
         Status
             The status object for setting the power signal.
         """
-        return self.motor_enable.set(1)
+        status = self.motor_enable.set(1)
+        return self._status_print(status, "Enabled motor '{0}'".format(
+            self.desc))
 
-    def disable(self):
+    def disable(self, ret_status=False, print_set=True):
         """
         Disables the motor power.
 
+        Parameters
+        ----------
+        ret_status : bool, optional
+            Return the status object of the set.
+
+        print_move : bool, optional
+            Print a short statement about the set.
+
         Returns
         -------
         Status
             The status object for setting the power signal.
         """
-        return self.motor_enable.set(0)
+        status = self.motor_enable.set(0)
+        return self._status_print(status, "Disabled motor '{0}'".format(
+            self.desc))
 
     @property
     def enabled(self):
@@ -191,7 +240,7 @@ class EccBase(Device, PositionerBase):
         """
         return bool(self.motor_error.value)
 
-    def reset(self):
+    def reset(self, ret_status=False, print_set=True):
         """
         Sets the current position to be the zero position of the motor.
 
@@ -200,10 +249,12 @@ class EccBase(Device, PositionerBase):
         status : StatusObject        
             Status object for the set.
         """
-        self.motor_reset.set(1)
+        status = self.motor_reset.set(1)
+        return self._status_print(status, "Reset motor '{0}'".format(
+            self.desc))
     
-    
-    def move(self, position, *args, **kwargs):
+    def move(self, position, ret_status=True, print_move=False, *args, 
+             **kwargs):
         """
         Move to a specified position.
 
@@ -212,14 +263,11 @@ class EccBase(Device, PositionerBase):
         position
             Position to move to
 
-        moved_cb : callable
-            Call this callback when movement has finished. This callback must
-            accept one keyword argument: 'obj' which will be set to this
-            positioner instance.
+        ret_status : bool, optional
+            Return the status object of the move.
 
-        timeout : float, optional
-            Maximum time to wait for the motion. If None, the default timeout
-            for this positioner is used.
+        print_move : bool, optional
+            Print a short statement about the move.
 
         Returns
         -------
@@ -246,7 +294,13 @@ class EccBase(Device, PositionerBase):
 
         # Begin the move process
         status = self.user_setpoint.set(position)
-        return status
+
+        # Notify the user that a motor has completed or the command is sent
+        if print_move:
+            print("Move command sent to '{0}'.".format(self.desc))
+        # Check if a status object is desired
+        if ret_status:
+            return status
 
     def check_status(self):
         """
@@ -297,9 +351,17 @@ class EccBase(Device, PositionerBase):
                                        self.high_limit))
             raise LimitError(err_str)
 
-    def stop(self, *, success=False):
+    def stop(self, success=False, ret_status=False, print_set=True):
         """
         Stops the motor.
+
+        Parameters
+        ----------
+        ret_status : bool, optional
+            Return the status object of the set.
+
+        print_move : bool, optional
+            Print a short statement about the set.
 
         Returns
         -------
@@ -308,7 +370,11 @@ class EccBase(Device, PositionerBase):
         """
         status = self.motor_stop.set(1, wait=False)
         super().stop(success=success)
-        return status
+
+        if print_set:
+            print("Stopped motor '{0}'.".format(self.desc))
+        if ret_status:
+            return status
         
     def move_rel(self, rel_position, *args, **kwargs):
         """
@@ -320,14 +386,11 @@ class EccBase(Device, PositionerBase):
         rel_position
             Relative position to move to
 
-        moved_cb : callable
-            Call this callback when movement has finished. This callback must
-            accept one keyword argument: 'obj' which will be set to this
-            positioner instance.
+        ret_status : bool, optional
+            Return the status object of the move.
 
-        timeout : float, optional
-            Maximum time to wait for the motion. If None, the default timeout
-            for this positioner is used.
+        print_move : bool, optional
+            Print a short statement about the move.
 
         Returns
         -------
@@ -347,29 +410,54 @@ class EccBase(Device, PositionerBase):
         """
         return self.move(rel_position + self.position, *args, **kwargs)
 
-    def mv(self, position, *args, **kwargs):
+    def mv(self, position, ret_status=False, print_move=True, *args, **kwargs):
         """
         Move to a specified position, optionally waiting for motion to
         complete. Alias for move().
 
+        Parameters
+        ----------
+        position
+            Position to move to.
+
+        ret_status : bool, optional
+            Return the status object of the move.
+
+        print_move : bool, optional
+            Print a short statement about the move.
+
         Returns
         -------
         status : MoveStatus        
             Status object for the move.
         """
-        return self.move(position, *args, **kwargs)
+        return self.move(position, ret_status=ret_status, print_move=print_move,
+                         *args, **kwargs)
 
-    def mvr(self, rel_position, *args, **kwargs):
+    def mvr(self, rel_position, ret_status=False, print_move=True, *args, 
+            **kwargs):
         """
         Move relative to the current position, optionally waiting for motion to
         complete. Alias for move_rel().
 
+        Parameters
+        ----------
+        rel_position
+            Relative position to move to.
+
+        ret_status : bool, optional
+            Return the status object of the move.
+
+        print_move : bool, optional
+            Print a short statement about the move.
+
         Returns
         -------
         status : MoveStatus        
             Status object for the move.
         """
-        return self.move_rel(rel_position, *args, **kwargs)
+        return self.move_rel(rel_position, ret_status=ret_status, 
+                             print_move=print_move, *args, **kwargs)
 
     def wm(self):
         """
@@ -392,6 +480,20 @@ class EccBase(Device, PositionerBase):
         axis = act[3:]
         os.system("/reg/neh/operator/xcsopr/bin/snd/expert_screen.sh {0} {1}"
                   "".format(p, axis))
+
+    def set_limits(self, llm, hlm):
+        """
+        Sets the limits of the motor. Alias for limits = (llm, hlm).
+        
+        Parameters
+        ----------
+        llm : float
+            Desired low limit.
+            
+        hlm : float
+            Desired low limit.
+        """        
+        self.limits = (llm, hlm)
 
     @property
     def high_limit(self):
@@ -448,7 +550,9 @@ class EccBase(Device, PositionerBase):
         self.low_limit = value[0]
         self.high_limit = value[1]
 
-    def __call__(self, position, *args, **kwargs):
+
+    def __call__(self, position, ret_status=False, print_move=True, *args, 
+                 **kwargs):
         """
         Moves the motor to the inputted position. Alias for self.move(position).
 
@@ -457,12 +561,19 @@ class EccBase(Device, PositionerBase):
         position
             Position to move to.
 
+        ret_status : bool, optional
+            Return the status object of the move.
+
+        print_move : bool, optional
+            Print a short statement about the move.
+
         Returns
         -------
-        status : MoveStatus        
-            Status object for the move.        
+        status : MoveStatus 
+            Status object for the move.
         """
-        return self.move(position, *args, **kwargs)        
+        return self.move(position, ret_status=ret_status, print_move=print_move,
+                         *args, **kwargs)
 
     def status(self, status="", offset=0, print_status=True, newline=False):
         """
