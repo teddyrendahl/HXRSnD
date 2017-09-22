@@ -105,7 +105,7 @@ class AeroBase(EpicsMotor):
         """
         return self.home_reverse.set(1)
 
-    def move(self, position, *args, **kwargs):
+    def move(self, position, wait=False, *args, **kwargs):
         """
         Move to a specified position, optionally waiting for motion to
         complete.
@@ -113,7 +113,7 @@ class AeroBase(EpicsMotor):
         Parameters
         ----------
         position
-            Position to move to
+            Position to move to.
 
         moved_cb : callable
             Call this callback when movement has finished. This callback must
@@ -123,6 +123,9 @@ class AeroBase(EpicsMotor):
         timeout : float, optional
             Maximum time to wait for the motion. If None, the default timeout
             for this positioner is used.
+
+        wait : bool, optional
+            Wait for the motor to complete the motion.
 
         Returns
         -------
@@ -140,14 +143,14 @@ class AeroBase(EpicsMotor):
         RuntimeError
             If motion fails other than timing out
         """
-        # Make sure the motor is enabled
         try:
             # Check the motor status
             self.check_status()
-            
-            return super().move(position, *args, **kwargs)
+            return super().move(position, wait=wait, *args, **kwargs)
         except KeyboardInterrupt:
             self.stop()
+            logger.info("Motor '{0}' stopped by keyboard interrupt".format(
+                self.desc))
 
     def check_status(self):
         """
@@ -272,7 +275,23 @@ class AeroBase(EpicsMotor):
         """
         os.system("/reg/neh/operator/xcsopr/bin/snd/expert_screen.sh {0}"
                   "".format(self.prefix))
-        
+
+    def __call__(self, position, *args, **kwargs):
+        """
+        Moves the motor to the inputted position. Alias for self.move(position).
+
+        Parameters
+        ----------
+        position
+            Position to move to.
+
+        Returns
+        -------
+        status : MoveStatus        
+            Status object for the move.        
+        """
+        return self.move(position, *args, **kwargs)
+    
     def status(self, status="", offset=0, print_status=True, newline=False):
         """
         Returns the status of the device.
