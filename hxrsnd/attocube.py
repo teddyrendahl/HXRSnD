@@ -203,7 +203,7 @@ class EccBase(Device, PositionerBase):
         self.motor_reset.set(1)
     
     
-    def move(self, position, *args, **kwargs):
+    def move(self, position, check_status=True, *args, **kwargs):
         """
         Move to a specified position.
 
@@ -238,7 +238,8 @@ class EccBase(Device, PositionerBase):
             If motion fails other than timing out
         """
         # Check the motor status
-        self.check_status()
+        if check_status:
+            self.check_status()
 
         logger.debug("Moving {} to {}".format(self.name, position))
         # Check if the move is valid

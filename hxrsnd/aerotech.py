@@ -68,8 +68,8 @@ class AeroBase(EpicsMotor):
     retries = Component(EpicsSignalRO, ".RCNT")
     retries_max = Component(EpicsSignal, ".RTRY")
     retries_deadband = Component(EpicsSignal, ".RDBD")
-    axis_fault = Component(EpicsSignalRO, ":AXIS_FAULT")
     axis_status = Component(EpicsSignalRO, ":AXIS_STATUS")
+    axis_fault = Component(EpicsSignalRO, ":AXIS_FAULT")
     clear_error = Component(EpicsSignal, ":CLEAR")
     config = Component(EpicsSignal, ":CONFIG")
     zero_all_proc = Component(EpicsSignal, ".ZERO_P.PROC")
@@ -105,7 +105,7 @@ class AeroBase(EpicsMotor):
         """
         return self.home_reverse.set(1)
 
-    def move(self, position, wait=False, *args, **kwargs):
+    def move(self, position, wait=False, check_status=True, *args, **kwargs):
         """
         Move to a specified position, optionally waiting for motion to
         complete.
@@ -114,6 +114,9 @@ class AeroBase(EpicsMotor):
         ----------
         position
             Position to move to.
+
+        check_motors : bool, optional
+            Check if the motors are in a valid state to move.
 
         moved_cb : callable
             Call this callback when movement has finished. This callback must
@@ -145,8 +148,10 @@ class AeroBase(EpicsMotor):
         """
         try:
             # Check the motor status
-            self.check_status()
+            if check_status:
+                self.check_status()
             return super().move(position, wait=wait, *args, **kwargs)
+
         except KeyboardInterrupt:
             self.stop()
             logger.info("Motor '{0}' stopped by keyboard interrupt".format(
@@ -160,7 +165,7 @@ class AeroBase(EpicsMotor):
         ------
         MotorDisabled
             If the motor is disabled.
-
+        
         MotorFaulted
             If the motor is faulted.
         """

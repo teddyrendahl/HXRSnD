@@ -23,7 +23,7 @@ from pcdsdevices.sim.pv import using_fake_epics_pv
 # Module #
 ##########
 from hxrsnd import sndsystem
-from hxrsnd.sndsystem import SndVacuum
+from hxrsnd.sndsystem import SndPneumatics
 from .conftest import get_classes_in_module
 from hxrsnd.sndsystem import DelayTower, ChannelCutTower
 from hxrsnd.exceptions import MotorDisabled, MotorFaulted
@@ -75,8 +75,8 @@ def test_ChannelCutTower_does_not_move_if_motors_not_ready():
         tower.energy = 10
 
 @using_fake_epics_pv    
-def test_SndVacuum_open_and_close_methods():
-    vac = SndVacuum("TEST")
+def test_SndPneumatics_open_and_close_methods():
+    vac = SndPneumatics("TEST")
     for valve in vac._valves:
         valve.close()
     vac.open()
