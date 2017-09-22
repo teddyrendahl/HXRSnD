@@ -28,9 +28,9 @@ class PneuBase(Device):
     """
 
     def __init__(self, prefix, desc=None, *args, **kwargs):
-        self.desc=desc
+        self.desc = desc
         super().__init__(prefix, *args, **kwargs)
-        if desc is None:
+        if self.desc is None:
             self.desc = self.name    
     
     def status(self, status="", offset=0, print_status=True, newline=False):
@@ -202,7 +202,7 @@ class PressureSwitch(PneuBase):
         return (self.position == "BAD")
 
 
-class SndPneumatics(SndDevice):
+class SndPneumatics(Device):
     """
     Class that contains the various pneumatic components of the system.
 

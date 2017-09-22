@@ -28,15 +28,20 @@ from .attocube import EccBase, TranslationEcc, GoniometerEcc, DiodeEcc
 from .diode import (HamamatsuDiode, HamamatsuXMotionDiode,
                                      HamamatsuXYMotionCamDiode)
 
-class TowerBase(SndDevice):
+logger = logging.getLogger(__name__)
+
+class TowerBase(Device):
     """
     Base tower class.
     """
-    def __init__(self, prefix, pos_inserted=None, pos_removed=None,
+    def __init__(self, prefix, desc=None, pos_inserted=None, pos_removed=None,
                  *args, **kwargs):
+        self.desc = desc
         self.pos_inserted = pos_inserted
         self.pos_removed = pos_removed
         super().__init__(prefix, *args, **kwargs)
+        if self.desc is None:
+            self.desc = self.name
         
     def set_energy(self, E, *args, **kwargs):
         """

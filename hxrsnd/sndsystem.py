@@ -105,11 +105,14 @@ class SplitAndDelay(Device):
     c = 0.299792458             # mm/ps
     gap = 55                    # m
     
-    def __init__(self, prefix, *args, **kwargs):
+    def __init__(self, prefix, desc=None, *args, **kwargs):
+        self.desc = desc
         super().__init__(prefix, *args, **kwargs)
         self.delay_towers = [self.t1, self.t4]
         self.channelcut_towers = [self.t2, self.t3]
         self.towers = self.delay_towers + self.channelcut_towers
+        if self.desc is None:
+            self.desc = self.name    
 
     @property
     def theta1(self):
