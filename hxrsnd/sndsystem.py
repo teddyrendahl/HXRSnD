@@ -92,13 +92,13 @@ class SplitAndDelay(Device):
     ab = Component(SndPneumatics, "")
 
     # SnD and Delay line diodes
-    di = Component(HamamatsuXYMotionCamDiode, ":DIA:DI")
+    di = Component(HamamatsuXMotionDiode, ":DIA:DI")
     dd = Component(HamamatsuXYMotionCamDiode, ":DIA:DD")
-    do = Component(HamamatsuXYMotionCamDiode, ":DIA:DO")
+    do = Component(HamamatsuXMotionDiode, ":DIA:DO")
 
     # Channel Cut Diodes
     dci = Component(HamamatsuXMotionDiode, ":DIA:DCI")
-    dcc = Component(HamamatsuXMotionDiode, ":DIA:DCC")
+    dcc = Component(HamamatsuXYMotionCamDiode, ":DIA:DCC")
     dco = Component(HamamatsuXMotionDiode, ":DIA:DCO")
     
     # Constants
