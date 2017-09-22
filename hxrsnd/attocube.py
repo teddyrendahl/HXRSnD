@@ -291,25 +291,38 @@ class EccBase(Device, PositionerBase):
         RuntimeError
             If motion fails other than timing out
         """
-        # Check the motor status
-        if check_status:
-            self.check_status()
+        try:
+            # Check the motor status
+            if check_status:
+                self.check_status()
 
-        logger.debug("Moving {} to {}".format(self.name, position))
-        # Check if the move is valid
-        self._check_value(position)
+            logger.debug("Moving {} to {}".format(self.name, position))
+            # Check if the move is valid
+            self._check_value(position)
 
-        # Begin the move process
-        status = self.user_setpoint.set(position)
+            # Begin the move process
+            status = self.user_setpoint.set(position)
 
-        # Notify the user that a motor has completed or the command is sent
-        if print_move:
-            logger.info("Move command sent to '{0}'.".format(self.desc))
-        # Check if a status object is desired
-        if ret_status:
-            return status
+            # Notify the user that a motor has completed or the command is sent
+            if print_move:
+                logger.info("Move command sent to '{0}'.".format(self.desc))
+            # Check if a status object is desired
+            if ret_status:
+                return status
 
-    def check_status(self):
+        except LimitError:
+            logger.info("Requested move '{0}' is outside the soft limits {1}."
+                        "".format(position, self.limits))
+
+    def _additional_status_checks(self, *args, **kwargs):
+        """
+        Placeholder method for any additional status checks that would need to
+        be run for this motor. It is meant to be overriden by a higher level
+        function.
+        """
+        pass
+
+    def check_status(self, *args, **kwargs):
         """
         Checks the status of the motor to make sure it is ready to move.
 
@@ -330,6 +343,9 @@ class EccBase(Device, PositionerBase):
             err = "Motor currently has an error."
             logger.error(err)
             raise MotorError(err)        
+
+        # Run any additional status checks
+        self._additional_status_checks(*args, **kwargs)
 
     def _check_value(self, position):
         """

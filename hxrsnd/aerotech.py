@@ -13,7 +13,7 @@ import os
 # Third Party #
 ###############
 import numpy as np
-
+from ophyd.utils import LimitError
 ########
 # SLAC #
 ########
@@ -228,6 +228,18 @@ class AeroBase(EpicsMotor):
             self.stop()
             logger.info("Motor '{0}' stopped by keyboard interrupt".format(
                 self.desc))
+            
+        except LimitError:
+            logger.info("Requested move '{0}' is outside the soft limits {1}."
+                        "".format(position, self.limits))
+
+    def _additional_status_checks(self, *args, **kwargs):
+        """
+        Placeholder method for any additional status checks that would need to
+        be run for this motor. It is meant to be overriden by a higher level
+        function.
+        """
+        pass
 
     def move_rel(self, rel_position, *args, **kwargs):
         """
@@ -340,7 +352,7 @@ class AeroBase(EpicsMotor):
         return self.move_rel(rel_position, wait=wait, ret_status=ret_status, 
                              print_move=print_status, *args, **kwargs)
 
-    def check_status(self):
+    def check_status(self, *args, **kwargs):
         """
         Checks the status of the motor to make sure it is ready to move.
 
@@ -361,6 +373,9 @@ class AeroBase(EpicsMotor):
             err = "Motor is currently faulted."
             logger.error(err)
             raise MotorFaulted(err)
+
+        # Run any additional status checks
+        self._additional_status_checks(*args, **kwargs)
         
     def set_position(self, position_des):
         """
