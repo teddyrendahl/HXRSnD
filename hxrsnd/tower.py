@@ -151,8 +151,8 @@ class TowerBase(Device):
             raise ValueError("Must set pos_inserted to check if inserted.")
         return np.isclose(self.pos_inserted, self.position, atol=0.1)
 
-    def _apply_all(self, method, subclass=object, method_args=None,
-                   method_kwargs=None):
+    def _apply_all(self, method, subclass=object, *method_args, 
+                   **method_kwargs):
         """
         Runs the method for all devices that are of the inputted subclass. All
         additional arguments and key word arguments are passed as inputs to the
@@ -172,12 +172,6 @@ class TowerBase(Device):
         method_kwargs : dict, optional
             Key word arguments to pass to the method
         """
-        # Replace method_args and method_kwargs with an empty tuple and dict
-        if method_args is None:
-            method_args = ()
-        if method_kwargs is None:
-            method_kwargs = {}
-
         ret = []
         # Check if each signal is a subclass of subclass then run the method
         for sig_name in self.signal_names:
@@ -220,25 +214,25 @@ class TowerBase(Device):
         """
         Stops the motions of all the motors.
         """
-        self._apply_all("stop", (AeroBase, EccBase))
+        self._apply_all("stop", (AeroBase, EccBase), print_set=False)
     
     def enable(self):
         """
         Enables all the aerotech motors.
         """
-        self._apply_all("enable", (AeroBase, EccBase))
+        self._apply_all("enable", (AeroBase, EccBase), print_set=False)
 
     def disable(self):
         """
         Disables all the aerotech motors.
         """
-        self._apply_all("disable", (AeroBase, EccBase))
+        self._apply_all("disable", (AeroBase, EccBase), print_set=False)
 
     def clear(self):
         """
         Disables all the aerotech motors.
         """
-        self._apply_all("clear", AeroBase)
+        self._apply_all("clear", AeroBase, print_set=False)
 
     def status(self, status="", offset=0, print_status=True, newline=False):
         """
@@ -427,7 +421,7 @@ class DelayTower(TowerBase):
                 
         return status
 
-    def set_length(self, position, wait=False, *args, **kwargs):
+    def set_length(self, position, wait=True, *args, **kwargs):
         """
         Sets the position of the linear delay stage in mm.
 
@@ -444,7 +438,7 @@ class DelayTower(TowerBase):
         status : MoveStatus
             Status object of the move.
         """
-        return self.L.move(position, wait=wait, *args, **kwargs)
+        return self.L.mv(position, wait=wait, *args, **kwargs)
 
     @property
     def length(self):
@@ -468,7 +462,20 @@ class DelayTower(TowerBase):
         position : float
             Position to move the delay motor to.
         """
-        status = self.set_length(position, wait=False)
+        status = self.set_length(position)
+
+    @property
+    def theta(self):
+        """
+        Bragg angle the tower is currently set to maximize.
+
+        Returns
+        -------
+        position : float
+            Current position of the tower.
+        """
+        return self.position/2    
+
 
 class ChannelCutTower(TowerBase):
     """
@@ -503,18 +510,6 @@ class ChannelCutTower(TowerBase):
             Position of the arm in degrees.
         """
         return self.th.position
-
-    @property
-    def theta(self):
-        """
-        Bragg angle the tower is currently set to maximize.
-
-        Returns
-        -------
-        position : float
-            Current position of the tower.
-        """
-        return 2*self.position    
 
     def set_energy(self, E, wait=False, check_status=True):
         """
