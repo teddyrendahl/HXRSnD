@@ -22,21 +22,21 @@ import logging
 
 # Exceptions
 
-class SnDException(Exception):
+class SndException(Exception):
     """
     Base aerotech motor exceptions.
     """
     pass
 
 
-class MotorDisabled(SnDException):
+class MotorDisabled(SndException):
     """
     Exception raised when an action requiring the motor be enabled is requested.
     """
     pass
 
 
-class MotorFaulted(SnDException):
+class MotorFaulted(SndException):
     """
     Exception raised when an action requiring the motor not be faulted is 
     requested.
@@ -44,7 +44,7 @@ class MotorFaulted(SnDException):
     pass
 
 
-class MotorError(SnDException):
+class MotorError(SndException):
     """
     Exception raised when an action requiring the motor not have an error is 
     requested.
@@ -52,7 +52,7 @@ class MotorError(SnDException):
     pass
 
 
-class BadN2Pressure(SnDException):
+class BadN2Pressure(SndException):
     """
     Exception raised when an action requiring the N2 pressure be good is 
     requested with a bad pressure.
