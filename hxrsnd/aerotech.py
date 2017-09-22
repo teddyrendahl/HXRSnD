@@ -68,8 +68,8 @@ class AeroBase(EpicsMotor):
     retries = Component(EpicsSignalRO, ".RCNT")
     retries_max = Component(EpicsSignal, ".RTRY")
     retries_deadband = Component(EpicsSignal, ".RDBD")
-    axis_fault = Component(EpicsSignalRO, ":AXIS_FAULT")
     axis_status = Component(EpicsSignalRO, ":AXIS_STATUS")
+    axis_fault = Component(EpicsSignalRO, ":AXIS_FAULT")
     clear_error = Component(EpicsSignal, ":CLEAR")
     config = Component(EpicsSignal, ":CONFIG")
     zero_all_proc = Component(EpicsSignal, ".ZERO_P.PROC")
@@ -158,8 +158,8 @@ class AeroBase(EpicsMotor):
         return self._status_print(status, "Homing '{0}' in reverse.".format(
             self.desc))
 
-    def move(self, position, wait=False, ret_status=True, print_move=False, 
-             *args, **kwargs):
+    def move(self, position, wait=False, check_status=True, ret_status=True, 
+             print_move=False, *args, **kwargs):
         """
         Move to a specified position, optionally waiting for motion to
         complete.
@@ -171,6 +171,9 @@ class AeroBase(EpicsMotor):
 
         wait : bool, optional
             Wait for the motor to complete the motion.
+
+        check_status : bool, optional
+            Check if the motors are in a valid state to move.
 
         ret_status : bool, optional
             Return the status object of the move.
@@ -205,14 +208,17 @@ class AeroBase(EpicsMotor):
         """
         try:
             # Check the motor status
-            self.check_status()
+            if check_status:
+                self.check_status()
             status =  super().move(position, wait=wait, *args, **kwargs)
+
             # Notify the user that a motor has completed or the command is sent
             if print_move:
                 if wait:
                     logger.info("Move completed for '{0}'.".format(self.desc))
                 else:
                     logger.info("Move command sent to '{0}'.".format(self.desc))
+
             # Check if a status object is desired
             if ret_status:
                 return status
@@ -235,6 +241,9 @@ class AeroBase(EpicsMotor):
 
         wait : bool, optional
             Wait for the motor to complete the motion.
+
+        check_status : bool, optional
+            Check if the motors are in a valid state to move.
 
         ret_status : bool, optional
             Return the status object of the move.
@@ -283,6 +292,9 @@ class AeroBase(EpicsMotor):
         wait : bool, optional
             Wait for the motor to complete the motion.
 
+        check_status : bool, optional
+            Check if the motors are in a valid state to move.
+
         ret_status : bool, optional
             Return the status object of the move.
 
@@ -311,6 +323,9 @@ class AeroBase(EpicsMotor):
         wait : bool, optional
             Wait for the motor to complete the motion.
 
+        check_status : bool, optional
+            Check if the motors are in a valid state to move.
+
         ret_status : bool, optional
             Return the status object of the move.
 
@@ -333,7 +348,7 @@ class AeroBase(EpicsMotor):
         ------
         MotorDisabled
             If the motor is disabled.
-
+        
         MotorFaulted
             If the motor is faulted.
         """

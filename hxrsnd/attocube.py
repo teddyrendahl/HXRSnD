@@ -256,8 +256,8 @@ class EccBase(Device, PositionerBase):
         return self._status_print(status, "Reset motor '{0}'".format(
             self.desc))
     
-    def move(self, position, ret_status=True, print_move=False, *args, 
-             **kwargs):
+    def move(self, position, check_status=True, ret_status=True, 
+             print_move=False, *args, **kwargs):
         """
         Move to a specified position.
 
@@ -265,6 +265,9 @@ class EccBase(Device, PositionerBase):
         ----------
         position
             Position to move to
+
+        check_status : bool, optional
+            Check if the motors are in a valid state to move.
 
         ret_status : bool, optional
             Return the status object of the move.
@@ -289,7 +292,8 @@ class EccBase(Device, PositionerBase):
             If motion fails other than timing out
         """
         # Check the motor status
-        self.check_status()
+        if check_status:
+            self.check_status()
 
         logger.debug("Moving {} to {}".format(self.name, position))
         # Check if the move is valid

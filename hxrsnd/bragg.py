@@ -354,14 +354,14 @@ def bragg_angle(ID="Si", hkl=(2,2,0), E=None):
     two_theta = asind(lam(E)/2/d)
     return two_theta
 
-def bragg_energy(two_theta, ID="Si", hkl=(2,2,0)):
+def bragg_energy(theta, ID="Si", hkl=(2,2,0)):
     """
     Computes the photon energy that satisfies the Bragg condition of the
-    specified material, reflection and two_theta angle.
+    specified material, reflection and theta angle.
 
     Parameters
     ----------
-    two_theta : float, optional
+    theta : float, optional
         The scattering angle in degrees
     
     ID : str, optional
@@ -377,6 +377,6 @@ def bragg_energy(two_theta, ID="Si", hkl=(2,2,0)):
     """
     ID = check_id(ID)
     d = d_space(ID, hkl)
-    l = 2*d*sind(two_theta/2.0)
+    l = 2*d*sind(theta)
     E = lam2E(l)
     return E
