@@ -237,21 +237,17 @@ class EccBase(Device, PositionerBase):
         RuntimeError
             If motion fails other than timing out
         """
-        try:
-            # Check the motor status
-            if check_status:
-                self.check_status()
+        # Check the motor status
+        if check_status:
+            self.check_status()
 
-            logger.debug("Moving {} to {}".format(self.name, position))
-            # Check if the move is valid
-            self._check_value(position)
+        logger.debug("Moving {} to {}".format(self.name, position))
+        # Check if the move is valid
+        self._check_value(position)
 
-            # Begin the move process
-            status = self.user_setpoint.set(position)
-            return status
-
-        except KeyboardInterrupt:
-            self.stop()
+        # Begin the move process
+        status = self.user_setpoint.set(position)
+        return status
 
     def check_status(self):
         """
@@ -452,6 +448,22 @@ class EccBase(Device, PositionerBase):
         """
         self.low_limit = value[0]
         self.high_limit = value[1]
+
+    def __call__(self, position, *args, **kwargs):
+        """
+        Moves the motor to the inputted position. Alias for self.move(position).
+
+        Parameters
+        ----------
+        position
+            Position to move to.
+
+        Returns
+        -------
+        status : MoveStatus        
+            Status object for the move.        
+        """
+        return self.move(position, *args, **kwargs)        
 
     def status(self, status="", offset=0, print_status=True, newline=False):
         """

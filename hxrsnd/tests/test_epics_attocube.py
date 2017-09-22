@@ -52,3 +52,15 @@ def test_EccBase_raises_MotorError_if_moved_while_faulted():
     motor.motor_error._read_pv._value = 1
     with pytest.raises(MotorError):
         motor.move(10)
+
+@using_fake_epics_pv
+@pytest.mark.parametrize("position", [1])
+def test_EccBase_callable_moves_the_motor(position):
+    motor = EccBase("TEST")
+    motor.enable()
+    motor.limits = (0, 1)
+    assert motor.user_setpoint.value != position
+    time.sleep(0.25)
+    motor(position)
+    time.sleep(0.1)
+    assert motor.user_setpoint.value == position
