@@ -61,6 +61,6 @@ def test_EccBase_callable_moves_the_motor(position):
     motor.limits = (0, 1)
     assert motor.user_setpoint.value != position
     time.sleep(0.25)
-    motor(position)
+    motor(position, wait=False)
     time.sleep(0.1)
     assert motor.user_setpoint.value == position
