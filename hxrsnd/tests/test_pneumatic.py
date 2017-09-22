@@ -22,7 +22,7 @@ from pcdsdevices.sim.pv import using_fake_epics_pv
 # Module #
 ##########
 from hxrsnd import pneumatic
-from hxrsnd.pneumatic import ProportionalValve, PressureSwitch
+from hxrsnd.pneumatic import ProportionalValve, PressureSwitch, SndPneumatics
 from .conftest import get_classes_in_module
 
 logger = logging.getLogger(__name__)
@@ -60,3 +60,15 @@ def test_PressureSwitch_reads_correctly():
     assert press.good is False
     assert press.bad is True
     
+
+@using_fake_epics_pv    
+def test_SndPneumatics_open_and_close_methods():
+    vac = SndPneumatics("TEST")
+    for valve in vac._valves:
+        valve.close()
+    vac.open()
+    for valve in vac._valves:
+        assert valve.opened
+    vac.close()
+    for valve in vac._valves:
+        assert valve.closed
