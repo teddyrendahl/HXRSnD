@@ -86,7 +86,8 @@ class AeroBase(EpicsMotor):
     def _status_print(self, status, msg=None, ret_status=False, print_set=True):
         """
         Internal method that optionally returns the status object and optionally
-        prints a message about the set.
+        prints a message about the set. If a message is passed but print_set is
+        False then the message is logged at the debug level.
 
         Parameters
         ----------
@@ -107,8 +108,11 @@ class AeroBase(EpicsMotor):
         Status
             Inputted status object.        
         """
-        if print_set and msg is not None:
-            print(msg)
+        if msg is not None:
+            if print_set:
+                logger.info(msg)
+            else:
+                logger.debug(msg)
         if ret_status:
             return status
 
@@ -206,9 +210,9 @@ class AeroBase(EpicsMotor):
             # Notify the user that a motor has completed or the command is sent
             if print_move:
                 if wait:
-                    print("Move completed for '{0}'.".format(self.desc))
+                    logger.info("Move completed for '{0}'.".format(self.desc))
                 else:
-                    print("Move command sent to '{0}'.".format(self.desc))
+                    logger.info("Move command sent to '{0}'.".format(self.desc))
             # Check if a status object is desired
             if ret_status:
                 return status
@@ -498,7 +502,7 @@ class AeroBase(EpicsMotor):
             Prints that the screen is being launched.
         """
         if print_msg:
-            print("Launching expert screen.")
+            logger.info("Launching expert screen.")
         os.system("/reg/neh/operator/xcsopr/bin/snd/expert_screen.sh {0}"
                   "".format(self.prefix))
 

@@ -145,8 +145,11 @@ class EccBase(Device, PositionerBase):
         Status
             Inputted status object.        
         """
-        if print_set and msg is not None:
-            print(msg)
+        if msg is not None:
+            if print_set:
+                logger.info(msg)
+            else:
+                logger.debug(msg)
         if ret_status:
             return status
 
@@ -297,7 +300,7 @@ class EccBase(Device, PositionerBase):
 
         # Notify the user that a motor has completed or the command is sent
         if print_move:
-            print("Move command sent to '{0}'.".format(self.desc))
+            logger.info("Move command sent to '{0}'.".format(self.desc))
         # Check if a status object is desired
         if ret_status:
             return status
@@ -370,11 +373,8 @@ class EccBase(Device, PositionerBase):
         """
         status = self.motor_stop.set(1, wait=False)
         super().stop(success=success)
-
-        if print_set:
-            print("Stopped motor '{0}'.".format(self.desc))
-        if ret_status:
-            return status
+        return self._status_print(status, "Stopped motor '{0}'".format(
+            self.desc))
         
     def move_rel(self, rel_position, *args, **kwargs):
         """
