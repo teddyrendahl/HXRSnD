@@ -475,16 +475,16 @@ class EccBase(Device, PositionerBase):
             Status object for the move.
         """
         try:
-            return self.move(position, ret_status=ret_status, print_move=print_move,
-                             *args, **kwargs)
+            return self.move(position, ret_status=ret_status, 
+                             print_move=print_move, *args, **kwargs)
 
         # Catch all the common motor exceptions
         except LimitError:
-            logger.warning("Requested move '{0}' is outside the soft limits {1}."
-                           "".format(position, self.limits))
+            logger.warning("Requested move '{0}' is outside the soft limits "
+                           "{1}.".format(position, self.limits))
         except MotorDisabled:
-            logger.warning("Cannot move - motor is currently disabled. Try running"
-                           " 'motor.enable()'.")
+            logger.warning("Cannot move - motor is currently disabled. Try "
+                           "running 'motor.enable()'.")
         except MotorError:
             logger.warning("Cannot move - motor currently has an error. Try "
                            "running 'motor.clear()'.")

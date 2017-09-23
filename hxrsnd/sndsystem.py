@@ -19,7 +19,7 @@ from ophyd.utils.epics_pvs import raise_if_disconnected
 # SLAC #
 ########
 from pcdsdevices.device import Device
-from pcdsdevices.component import Component, FormattedComponent
+from pcdsdevices.component import Component
 
 ##########
 # Module #
@@ -475,7 +475,7 @@ class SplitAndDelay(Device):
             
         # Move the delay stages
         if delay is not None and length is not None:
-            status += [tower.set_delay(lenth, wait=False, check_status=False) 
+            status += [tower.set_delay(length, wait=False, check_status=False) 
                        for tower in self.delay_towers]
 
         return status        

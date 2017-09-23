@@ -14,6 +14,8 @@ import os
 ###############
 import numpy as np
 from ophyd.utils import LimitError
+from ophyd.status import wait as status_wait
+
 ########
 # SLAC #
 ########
@@ -25,7 +27,7 @@ from pcdsdevices.epics.signal import (EpicsSignal, EpicsSignalRO, FakeSignal)
 # Module #
 ##########
 from .pneumatic import PressureSwitch
-from .exceptions import MotorDisabled, MotorFaulted
+from .exceptions import MotorDisabled, MotorFaulted, BadN2Pressure
 
 logger = logging.getLogger(__name__)
 
@@ -329,14 +331,14 @@ class AeroBase(EpicsMotor):
 
         # Catch all the common motor exceptions        
         except LimitError:
-            logger.warning("Requested move '{0}' is outside the soft limits {1}."
-                           "".format(position, self.limits))
+            logger.warning("Requested move '{0}' is outside the soft limits "
+                           "{1}.".format(position, self.limits))
         except MotorDisabled:
-            logger.warning("Cannot move - motor is currently disabled. Try running"
-                           " 'motor.enable()'.")
+            logger.warning("Cannot move - motor is currently disabled. Try "
+                           "running 'motor.enable()'.")
         except MotorFaulted:
-            logger.warning("Cannot move - motor is currently faulted. Try running "
-                           "'motor.clear()'.")
+            logger.warning("Cannot move - motor is currently faulted. Try "
+                           "running 'motor.clear()'.")
 
     def mvr(self, rel_position, wait=True, ret_status=False, print_move=True, 
             *args, **kwargs):
@@ -635,7 +637,8 @@ class AeroBase(EpicsMotor):
             status += "{0}Position: {1:>19}\n".format(" "*(offset+2), 
                                                       np.round(self.wm(), 6))
             status += "{0}Limits: {1:>21}\n".format(
-                " "*(offset+2), str((int(self.low_limit), int(self.high_limit))))
+                " "*(offset+2), str((int(self.low_limit), 
+                                     int(self.high_limit))))
 
         if newline:
             status += "\n"
@@ -663,8 +666,7 @@ class InterlockedAero(AeroBase):
     # To do the internel pressure check
     _pressure = FormattedComponent(PressureSwitch,
                                    "{self._prefix}:N2:{self._tower}")
-    def __init__(self, prefix, y1=None, y2=None, chi1=None, chi2=None, dh=None,
-                 *args, **kwargs):
+    def __init__(self, prefix, *args, **kwargs):
         self._tower = prefix.split(":")[-1]
         self._prefix = ":".join(prefix.split(":")[:1])
         super().__init__(prefix, *args, **kwargs)

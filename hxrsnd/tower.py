@@ -1,3 +1,6 @@
+"""
+Script for the various tower classes.
+"""
 ############
 # Standard #
 ############
@@ -7,7 +10,6 @@ import logging
 # Third Party #
 ###############
 import numpy as np
-from ophyd.utils.epics_pvs import raise_if_disconnected
 from ophyd.status import wait as status_wait
 
 ########
@@ -20,14 +22,11 @@ from pcdsdevices.component import Component, FormattedComponent
 # Module #
 ##########
 from .rtd import OmegaRTD
-from .utils import flatten
-from .state import OphydMachine
+from .diode import HamamatsuDiode
 from .bragg import bragg_angle, bragg_energy
+from .attocube import EccBase, TranslationEcc, GoniometerEcc, DiodeEcc
 from .aerotech import (AeroBase, RotationAero, InterRotationAero,
                        LinearAero, InterLinearAero)
-from .attocube import EccBase, TranslationEcc, GoniometerEcc, DiodeEcc
-from .diode import (HamamatsuDiode, HamamatsuXMotionDiode,
-                                     HamamatsuXYMotionCamDiode)
 
 logger = logging.getLogger(__name__)
 
@@ -489,14 +488,11 @@ class DelayTower(TowerBase):
         # Check to make sure the motors are in a valid state to move
         if check_status:
             self.check_status(energy=E)
-        logger.debug("\nMoving {tth} to {tth_theta} \nMoving {th1} and {th2} to"
-                     " {th_theta}.".format(tth=self.tth.name, th1=self.th1.name, 
-                                           th2=self.th2.name, tth_theta=2*theta,
-                                           th_theta=theta))
         
         # Perform the move
         status = [motor.move(pos, wait=False, check_status=False) for
-                  move, pos in zip(motors, self._get_move_positions(E))]
+                  motor, pos in zip(self._energy_motors, 
+                                    self._get_move_positions(E))]
 
         # Wait for the motions to finish
         if wait:
@@ -619,10 +615,7 @@ class ChannelCutTower(TowerBase):
         # Check to make sure the motors are in a valid state to move
         if check_status:
             self.check_status(E)
-        logger.debug("\nMoving {th} to {theta}".format(
-            th=self.th.name, theta=theta))
 
         # Perform the move
         status = self.th.move(theta, wait=wait)
         return status
-

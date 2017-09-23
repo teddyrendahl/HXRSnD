@@ -56,12 +56,12 @@ def sind(A):
     Parameters
     ----------
     A : float
-    	Angle in degrees.
+        Angle in degrees.
 
     Returns
     -------
     x : float
-    	Sin of the angle.
+        Sin of the angle.
     """
     Arad = np.deg2rad(A)
     x = np.sin(Arad) 
@@ -74,12 +74,12 @@ def cosd(A):
     Parameters
     ----------
     A : float
-    	Angle in degrees.
+        Angle in degrees.
 
     Returns
     -------
     x : float
-    	Cos of the angle.
+        Cos of the angle.
     """
     Arad = np.deg2rad(A)
     x = np.cos(Arad) 
@@ -92,12 +92,12 @@ def tand(A):
     Parameters
     ----------
     A : float
-    	Angle in degrees.
+        Angle in degrees.
 
     Returns
     -------
     x : float
-    	Tan of the angle.
+        Tan of the angle.
     """
     Arad = np.deg2rad(A)
     x = np.tan(Arad) 
@@ -110,12 +110,12 @@ def asind(x):
     Parameters
     ----------
     x : float
-    	Value to calculate arcsin of.
+        Value to calculate arcsin of.
 
     Returns
     -------
     A : float
-    	Arcsin of the value in degrees.
+        Arcsin of the value in degrees.
     """
     A = np.arcsin(x)
     A = np.rad2deg(A) 
@@ -128,12 +128,12 @@ def acosd(x):
     Parameters
     ----------
     x : float
-    	Value to calculate arccos of.
+        Value to calculate arccos of.
 
     Returns
     -------
     A : float
-    	Arccos of the value in degrees.
+        Arccos of the value in degrees.
     """    
     A = np.arccos(x)
     A = np.rad2deg(A) 
@@ -146,12 +146,12 @@ def atand(x):
     Parameters
     ----------
     x : float
-    	Value to calculate arctan of.
+        Value to calculate arctan of.
 
     Returns
     -------
     A : float
-    	Arctan of the value in degrees.
+        Arctan of the value in degrees.
     """    
     A = np.arctan(x)
     A = np.rad2deg(A) 
@@ -190,12 +190,12 @@ def lam2E(l):
     Parameters
     ----------    
     l : float
-    	Photon wavelength in m
+        Photon wavelength in m
     
     Returns
     -------
     E : float
-    	Energy in eV
+        Energy in eV
     """
     E = 12398.4/(l*u['ang'])
     return E
@@ -207,14 +207,14 @@ def lam2f(l):
     Parameters
     ----------    
     l : float
-    	Photon wavelength in m
+        Photon wavelength in m
     
     Returns
     -------
     f : float
-    	Frequency in Hz
+        Frequency in Hz
     """
-    f = c['c']/l
+    f = 299792458/l
     return f    
 
 # Higher level functions
