@@ -85,6 +85,7 @@ class EccBase(Device, PositionerBase):
     motor_done_move = Component(EpicsSignalRO, ":RD_INRANGE")
     high_limit_switch = Component(EpicsSignal, ":ST_EOT_FWD")
     low_limit_switch = Component(EpicsSignal, ":ST_EOT_BWD")
+    motor_reference_position = Component(EpicsSignalRO, ":REF_POSITION")
 
     # commands
     motor_stop = Component(EpicsSignal, ":CMD:STOP")
@@ -108,6 +109,18 @@ class EccBase(Device, PositionerBase):
             Current position of the motor.
         """
         return self.user_readback.value
+
+    @property
+    def reference(self):
+        """
+        Returns the reference position of the motor.
+        
+        Returns
+        -------
+        position : float
+            Reference position of the motor.
+        """
+        return self.motor_reference_position.value
 
     @property
     def egu(self):
@@ -629,7 +642,8 @@ class EccBase(Device, PositionerBase):
         return self.move(position, ret_status=ret_status, print_move=print_move,
                          *args, **kwargs)
 
-    def status(self, status="", offset=0, print_status=True, newline=False):
+    def status(self, status="", offset=0, print_status=True, newline=False, 
+               short=False):
         """
         Returns the status of the device.
         
@@ -652,16 +666,20 @@ class EccBase(Device, PositionerBase):
         status : str
             Status string.
         """
-        status += "{0}{1}\n".format(" "*offset, self.desc)
-        status += "{0}PV: {1:>25}\n".format(" "*(offset+2), self.prefix)
-        status += "{0}Enabled: {1:>20}\n".format(" "*(offset+2), 
-                                                 str(self.enabled))
-        status += "{0}Faulted: {1:>20}\n".format(" "*(offset+2), 
-                                                 str(self.error))
-        status += "{0}Position: {1:>19}\n".format(" "*(offset+2), 
-                                                  np.round(self.wm(), 6))
-        status += "{0}Limits: {1:>21}\n".format(
-            " "*(offset+2), str((int(self.low_limit), int(self.high_limit))))
+        if short:
+            status += "\n{0}{1:<16}|{2:^16.3f}|{3:^16.3f}".format(
+                " "*offset, self.desc, self.position, self.reference)
+        else:
+            status += "{0}{1}\n".format(" "*offset, self.desc)
+            status += "{0}PV: {1:>25}\n".format(" "*(offset+2), self.prefix)
+            status += "{0}Enabled: {1:>20}\n".format(" "*(offset+2), 
+                                                     str(self.enabled))
+            status += "{0}Faulted: {1:>20}\n".format(" "*(offset+2), 
+                                                     str(self.error))
+            status += "{0}Position: {1:>19}\n".format(" "*(offset+2), 
+                                                      np.round(self.wm(), 6))
+            status += "{0}Limits: {1:>21}\n".format(
+                " "*(offset+2), str((int(self.low_limit), int(self.high_limit))))
         if newline:
             status += "\n"
         if print_status is True:

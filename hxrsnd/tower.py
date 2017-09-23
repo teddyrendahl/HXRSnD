@@ -268,7 +268,8 @@ class TowerBase(Device):
         """
         self._apply_all("clear", AeroBase, print_set=False)
 
-    def status(self, status="", offset=0, print_status=True, newline=False):
+    def status(self, status="", offset=0, print_status=True, newline=False, 
+               short=True):
         """
         Returns the status of the tower.
         
@@ -291,14 +292,42 @@ class TowerBase(Device):
         status : str
             Status string.
         """
-        status += "{0}{1}:\n{2}{3}\n".format(" "*offset, self.desc,
-                                             " "*offset, "-"*(len(self.desc)+1))
-        status_list = self._apply_all("status", (AeroBase, EccBase), 
-                                      offset=offset+2, print_status=False)
-        status += "".join(status_list)
+        if short:
+            # Header
+            status += "\n{0}{1}\n{2}{3}".format(
+                " "*offset, self.desc, " "*(offset+2), "-"*50)
+
+            # Aerotech body
+            status_list_aero = self._apply_all(
+                "status", AeroBase, offset=offset+2, print_status=False, 
+                short=True)
+            if status_list_aero:
+                # Aerotech header
+                status += "\n{0}{1:<16}|{2:^16}|{3:^16}\n{4}{5}".format(
+                    " "*(offset+2), "Motor", "Position", "Dial", " "*(offset+2), 
+                    "-"*50)
+                status += "".join(status_list_aero)
+
+            # Attocube body
+            status_list_atto = self._apply_all(
+                "status", EccBase, offset=offset+2, print_status=False, 
+                short=True)
+            if status_list_atto:
+                # Attocube Header
+                status += "\n{0}{1}\n{2}{3:<16}|{4:^16}|{5:^16}\n{6}{7}".format(
+                    " "*(offset+2), "-"*50, " "*(offset+2), "Motor", "Position",
+                    "Reference", " "*(offset+2), "-"*50)
+                status += "".join(status_list_atto)
+
+        else:
+            status += "{0}{1}:\n{2}{3}\n".format(
+                " "*offset, self.desc, " "*offset, "-"*(len(self.desc)+1))
+            status_list = self._apply_all("status", (AeroBase, EccBase), 
+                                          offset=offset+2, print_status=False)
+            status += "".join(status_list)
+
         if newline:
             status += "\n"
-
         if print_status:
             print(status)
         else:

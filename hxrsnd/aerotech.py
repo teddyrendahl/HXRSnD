@@ -76,6 +76,7 @@ class AeroBase(EpicsMotor):
     zero_all_proc = Component(EpicsSignal, ".ZERO_P.PROC")
     home_forward = Component(EpicsSignal, ".HOMF")
     home_reverse = Component(EpicsSignal, ".HOMR")
+    dial = Component(EpicsSignalRO, ".DRBV")
 
     def __init__(self, prefix, desc=None, *args, **kwargs):
         self.desc=desc
@@ -597,7 +598,8 @@ class AeroBase(EpicsMotor):
         return self.move(position, wait=wait, ret_status=ret_status,
                          print_move=print_move, *args, **kwargs)
     
-    def status(self, status="", offset=0, print_status=True, newline=False):
+    def status(self, status="", offset=0, print_status=True, newline=False, 
+               short=False):
         """
         Returns the status of the device.
         
@@ -620,16 +622,21 @@ class AeroBase(EpicsMotor):
         status : str
             Status string.
         """
-        status += "{0}{1}\n".format(" "*offset, self.desc)
-        status += "{0}PV: {1:>25}\n".format(" "*(offset+2), self.prefix)
-        status += "{0}Enabled: {1:>20}\n".format(" "*(offset+2), 
-                                                 str(self.enabled))
-        status += "{0}Faulted: {1:>20}\n".format(" "*(offset+2), 
-                                                 str(self.faulted))
-        status += "{0}Position: {1:>19}\n".format(" "*(offset+2), 
-                                                  np.round(self.wm(), 6))
-        status += "{0}Limits: {1:>21}\n".format(
-            " "*(offset+2), str((int(self.low_limit), int(self.high_limit))))
+        if short:
+            status += "\n{0}{1:<16}|{2:^16.3f}|{3:^16.3f}".format(
+                " "*offset, self.desc, self.position, self.dial.value)
+        else:
+            status += "{0}{1}\n".format(" "*offset, self.desc)
+            status += "{0}PV: {1:>25}\n".format(" "*(offset+2), self.prefix)
+            status += "{0}Enabled: {1:>20}\n".format(" "*(offset+2), 
+                                                     str(self.enabled))
+            status += "{0}Faulted: {1:>20}\n".format(" "*(offset+2), 
+                                                     str(self.faulted))
+            status += "{0}Position: {1:>19}\n".format(" "*(offset+2), 
+                                                      np.round(self.wm(), 6))
+            status += "{0}Limits: {1:>21}\n".format(
+                " "*(offset+2), str((int(self.low_limit), int(self.high_limit))))
+
         if newline:
             status += "\n"
         if print_status is True:

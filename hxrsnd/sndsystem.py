@@ -29,8 +29,7 @@ from .bragg import bragg_angle, cosd, sind
 from .state import OphydMachine
 from .pneumatic import SndPneumatics
 from .tower import DelayTower, ChannelCutTower
-from .diode import (HamamatsuDiode, HamamatsuXMotionDiode,
-                                     HamamatsuXYMotionCamDiode)
+from .diode import HamamatsuXMotionDiode, HamamatsuXYMotionCamDiode
 
 logger = logging.getLogger(__name__)
             
@@ -88,7 +87,7 @@ class SplitAndDelay(Device):
     t3 = Component(ChannelCutTower, ":T3", pos_inserted=None, 
                    pos_removed=0, desc="Tower 3")
 
-    # Vacuum
+    # Pneumatic Air Bearings
     ab = Component(SndPneumatics, "")
 
     # SnD and Delay line diodes
@@ -724,13 +723,14 @@ class SplitAndDelay(Device):
         """
         status =  "Split and Delay System Status\n"
         status += "-----------------------------\n"
-        status += "  Energy 1: {:>8.3f}\n".format(self.energy1)
-        status += "  Energy 2: {:>8.3f}\n".format(self.energy2)
-        status += "  Delay:    {:>8.3f}\n\n".format(self.delay)
+        status += "  Energy 1: {:>10.3f}\n".format(self.energy1)
+        status += "  Energy 2: {:>10.3f}\n".format(self.energy2)
+        status += "  Delay:    {:>10.3f}\n".format(self.delay)
         status = self.t1.status(status, 0, print_status=False, newline=True)
         status = self.t2.status(status, 0, print_status=False, newline=True)
         status = self.t3.status(status, 0, print_status=False, newline=True)
-        status = self.t4.status(status, 0, print_status=False, newline=False)
+        status = self.t4.status(status, 0, print_status=False, newline=True)
+        status = self.ab.status(status, 0, print_status=False, newline=False)
 
         if print_status:
             print(status)
