@@ -19,10 +19,11 @@ from pcdsdevices.component import Component, FormattedComponent
 ##########
 # Module #
 ##########
-from .utils import flatten
-from .bragg import bragg_angle, bragg_energy
-from .state import OphydMachine
 from .rtd import OmegaRTD
+from .utils import flatten
+from .state import OphydMachine
+from .pneumatic import PressureSwitch
+from .bragg import bragg_angle, bragg_energy
 from .aerotech import AeroBase, RotationAero, LinearAero
 from .attocube import EccBase, TranslationEcc, GoniometerEcc, DiodeEcc
 from .diode import (HamamatsuDiode, HamamatsuXMotionDiode,
@@ -349,6 +350,10 @@ class DelayTower(TowerBase):
     # Diode motion
     dh = FormattedComponent(DiodeEcc, "{self._prefix}:ECC:{self._dh}",
                             desc="Diode Motor")
+
+    # To do the internel pressure check
+    _pressure = FormattedComponent(PressureSwitch, 
+                                   "{self._prefix}:N2:{self._tower}")
     
     # # Diode
     # diode = Component(HamamatsuDiode, ":DIODE", desc="Tower Diode")
@@ -356,7 +361,7 @@ class DelayTower(TowerBase):
     # # Temperature monitor
     # temp = Component(OmegaRTD, ":TEMP", desc="Tower RTD")
 
-
+    
     def __init__(self, prefix, y1=None, y2=None, chi1=None, chi2=None, dh=None,
                  *args, **kwargs):
         self._y1 = y1 or "Y1"
@@ -364,9 +369,14 @@ class DelayTower(TowerBase):
         self._chi1 = chi1 or "CHI1"
         self._chi2 = chi2 or "CHI2"
         self._dh = dh or "DH"
-        self._prefix = prefix[:-3]
+        self._tower = prefix.split(":")[-1]
+        self._prefix = ":".join(prefix.split(":")[:1])
         super().__init__(prefix, *args, **kwargs)
-        self._energy_motors = [self.tth, self.th1, self.th2]
+        self._energy_motors = [self.tth, self.th1, self.th2]        
+
+        # Interlock tth, x and L
+        for motor in [self.tth, self.x, self.L]:
+            motor.additional_status_check = self._check_pressure
 
     @property
     def position(self):
@@ -476,6 +486,19 @@ class DelayTower(TowerBase):
         """
         return self.position/2    
 
+    def _check_pressure(self):
+        """
+        Checks to make sure the tower N2 pressure is good and raises an
+        exception if not.
+        
+        Raises
+        ------
+        BadN2Pressure
+            Raised if the pressure of the N2 is bad for this tower.
+        """
+        if self._pressure.bad:
+            raise BadN2Pressure("Pressure in {0} is bad.".format(self._tower))
+        
 
 class ChannelCutTower(TowerBase):
     """
