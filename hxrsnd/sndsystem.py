@@ -347,43 +347,7 @@ class SplitAndDelay(Device):
         if response.lower() != "y":
             return True
         else:
-            return False    
-        
-    def _apply_tower_move_method(self, position, towers, move_method, 
-                                 wait=False, *args, **kwargs):
-        """
-        Runs the inputted aggregate move method on each tower and then 
-        optionally waits for the move to complete. A move method is defined as
-        being a method that returns a status object, or list of status objects.
-
-        Any additional arguments or keyword arguments will be passed to 
-        move_method.
-
-        Parmeters
-        ---------
-        position : float
-            Position to pass to the move method.
-
-        towers : list
-            List of towers to set the energy for.
-
-        move_method : str
-            Method of each tower to run.
-
-        wait : bool, optional
-            Wait for each tower to complete the motion.
-        """
-        # Check that there are no issues moving any of the tower motors        
-        status = [getattr(t, move_method)(position, *args, **kwargs) 
-                  for t in towers]
-
-        # Wait for the motions to finish
-        if wait:
-            for s in flatten(status):
-                logger.info("Waiting for {} to finish move ...".format(
-                    s.device.name))
-                status_wait(s)
-        return status
+            return False            
 
     def _check_towers_and_diagnostics(self, E1=None, E2=None, delay=None):
         """
