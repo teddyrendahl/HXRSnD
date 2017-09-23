@@ -268,8 +268,8 @@ class SndPneumatics(Device):
             Status string.
         """
         status += "\n{0}Pneumatics".format(" "*offset)
-        status += "\n{1}{2}\n{3:^15}|{4:^15}\n{1}{2}".format(
-            " "*(offset+2), "-"*34, "Device", "State", " "*(offset+2), "-"*34)
+        status += "\n{0}{1}\n{0}{2:^16}|{3:^16}\n{0}{4}\n".format(
+            " "*(offset+2), "-"*34, "Device", "State", "-"*34)
         for valve in self._valves:
             status += valve.status(offset=offset+2, print_status=False)
         for pressure in self._pressure_switches:
