@@ -28,9 +28,9 @@ class PneuBase(Device):
     """
 
     def __init__(self, prefix, desc=None, *args, **kwargs):
-        self.desc=desc
+        self.desc = desc
         super().__init__(prefix, *args, **kwargs)
-        if desc is None:
+        if self.desc is None:
             self.desc = self.name    
     
     def status(self, status="", offset=0, print_status=True, newline=False):
@@ -201,4 +201,128 @@ class PressureSwitch(PneuBase):
         """
         return (self.position == "BAD")
 
-    
+
+class SndPneumatics(Device):
+    """
+    Class that contains the various pneumatic components of the system.
+
+    Components
+    ----------
+    t1_valve : ProportionalValve
+        Proportional valve on T1.
+
+    t4_valve : ProportionalValve
+        Proportional valve on T4.
+
+    vac_valve : ProportionalValve
+        Proportional valve on the overall system.
+
+    t1_pressure : PressureSwitch
+        Pressure switch on T1.
+
+    t4_pressure : PressureSwitch
+        Pressure switch on T4.
+
+    vac_pressure : PressureSwitch
+        Pressure switch on the overall system.
+    """
+    t1_valve = Component(ProportionalValve, ":N2:T1", desc="T1 Valve")
+    t4_valve = Component(ProportionalValve, ":N2:T4", desc="T4 Valve")
+    vac_valve = Component(ProportionalValve, ":VAC", desc="Vacuum Valve")
+
+    t1_pressure = Component(PressureSwitch, ":N2:T1", desc="T1 Pressure")
+    t4_pressure = Component(PressureSwitch, ":N2:T4", desc="T4 Pressure")
+    vac_pressure = Component(PressureSwitch, ":VAC", desc="Vacuum Pressure")
+
+    def __init__(self, prefix, desc=None, *args, **kwargs):
+        self.desc = desc
+        super().__init__(prefix, *args, **kwargs)
+        self._valves = [self.t1_valve, self.t4_valve, self.vac_valve]
+        self._pressure_switches = [self.t1_pressure, self.t4_pressure,
+                                   self.vac_pressure]
+        if self.desc is None:
+            self.desc = self.name
+
+
+    def status(self, status="", offset=0, print_status=True, newline=False):
+        """
+        Returns the status of the vacuum system.
+
+        Parameters
+        ----------
+        status : str, optional
+            The string to append the status to.
+            
+        offset : int, optional
+            Amount to offset each line of the status.
+
+        print_status : bool, optional
+            Determines whether the string is printed or returned.
+
+        newline : bool, optional
+            Adds a new line to the end of the string.
+
+        Returns
+        -------
+        status : str
+            Status string.
+        """
+        status += "{0}Vacuum\n{1}{2}\n".format(" "*offset, " "*offset, "-"*6)
+        for valve in self._valves:
+            status += valve.status(offset=offset+2, print_status=False)
+        for pressure in self._pressure_switches:
+            status += pressure.status(offset=offset+2, print_status=False)
+                    
+        if newline:
+            status += "\n"
+        if print_status is True:
+            print(status)
+        else:
+            return status
+
+    def open(self):
+        """
+        Opens all the valves in the vacuum system.
+        """
+        logging.info("Opening valves in SnD system.")
+        for valve in self._valves:
+            valve.open()
+
+    def close(self):
+        """
+        Opens all the valves in the vacuum system.
+        """
+        logging.info("Closing valves in SnD system.")
+        for valve in self._valves:
+            valve.close()
+
+    @property
+    def valves(self):
+        """
+        Prints the positions of all the valves in the system.
+        """
+        status = ""
+        for valve in self._valves:
+            status += valve.status(print_status=False)
+        print(status)
+
+    @property
+    def pressures(self):
+        """
+        Prints the pressures of all the pressure switches in the system.
+        """
+        status = ""
+        for pressure in self._pressure_switches:
+            status += pressure.status(print_status=False)
+        print(status)
+
+    def __repr__(self):
+        """
+        Returns the status of the device. Alias for status().
+
+        Returns
+        -------
+        status : str
+            Status string.
+        """
+        return self.status(print_status=False)
