@@ -724,9 +724,9 @@ class SplitAndDelay(Device):
         """
         status =  "Split and Delay System Status\n"
         status += "-----------------------------\n"
-        status += "  Energy 1: {>8.3f}\n".format(self.energy1)
-        status += "  Energy 2: {>8.3f}\n".format(self.energy2)
-        status += "  Delay:    {>8.3f}\n\n".format(self.delay)
+        status += "  Energy 1: {:>8.3f}\n".format(self.energy1)
+        status += "  Energy 2: {:>8.3f}\n".format(self.energy2)
+        status += "  Delay:    {:>8.3f}\n\n".format(self.delay)
         status = self.t1.status(status, 0, print_status=False, newline=True)
         status = self.t2.status(status, 0, print_status=False, newline=True)
         status = self.t3.status(status, 0, print_status=False, newline=True)

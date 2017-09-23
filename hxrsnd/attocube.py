@@ -89,7 +89,7 @@ class EccBase(Device, PositionerBase):
     # commands
     motor_stop = Component(EpicsSignal, ":CMD:STOP")
     motor_reset = Component(EpicsSignal, ":CMD:RESET.PROC")
-    motor_enable = Component(EpicsSignal, ":CMD:EOT")
+    motor_enable = Component(EpicsSignal, ":CMD:ENABLE")
 
     def __init__(self, prefix, desc=None, *args, **kwargs):
         self.desc=desc

@@ -293,9 +293,8 @@ class TowerBase(Device):
         """
         status += "{0}{1}:\n{2}{3}\n".format(" "*offset, self.desc,
                                              " "*offset, "-"*(len(self.desc)+1))
-        status_list = self._apply_all("status", (AeroBase, EccBase),
-                                      method_kwargs={"offset":offset+2,
-                                                     "print_status":False})
+        status_list = self._apply_all("status", (AeroBase, EccBase), 
+                                      offset=offset+2, print_status=False)
         status += "".join(status_list)
         if newline:
             status += "\n"
@@ -398,7 +397,7 @@ class DelayTower(TowerBase):
         self._chi1 = chi1 or "CHI1"
         self._chi2 = chi2 or "CHI2"
         self._dh = dh or "DH"
-        self._prefix = ":".join(prefix.split(":")[:1])
+        self._prefix = ":".join(prefix.split(":")[:2])
         super().__init__(prefix, *args, **kwargs)
         self._energy_motors = [self.tth, self.th1, self.th2]
 
