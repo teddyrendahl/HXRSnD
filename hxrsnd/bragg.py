@@ -327,21 +327,21 @@ def d_space(ID, hkl):
     d = invdsqr**-0.5
     return d
 
-def bragg_angle(ID="Si", hkl=(2,2,0), E=None):
+def bragg_angle(E=None, ID="Si", hkl=(2,2,0)):
     """
     Computes the Bragg angle (deg) of the specified material, reflection and
     photon energy.
 
     Parameters
     ----------
+    E : float, optional
+        Photon energy in eV or keV (default is LCLS value)
+
     ID : str, optional
         Chemical fomula : 'Si'
 
     hlk : tuple, optional
         The reflection : (2,2,0)
-
-    E : float, optional
-        Photon energy in eV or keV (default is LCLS value)
 
     Returns
     -------
