@@ -280,42 +280,6 @@ class SplitAndDelay(Device):
         # Calculate position the diagnostic needs to move to
         position = 2*cosd(theta2)*self.gap
         return position
-        
-    def _apply_tower_move_method(self, position, towers, move_method, 
-                                 wait=False, *args, **kwargs):
-        """
-        Runs the inputted aggregate move method on each tower and then 
-        optionally waits for the move to complete. A move method is defined as
-        being a method that returns a status object, or list of status objects.
-
-        Any additional arguments or keyword arguments will be passed to 
-        move_method.
-
-        Parmeters
-        ---------
-        position : float
-            Position to pass to the move method.
-
-        towers : list
-            List of towers to set the energy for.
-
-        move_method : str
-            Method of each tower to run.
-
-        wait : bool, optional
-            Wait for each tower to complete the motion.
-        """
-        # Check that there are no issues moving any of the tower motors        
-        status = [getattr(t, move_method)(position, *args, **kwargs) 
-                  for t in towers]
-
-        # Wait for the motions to finish
-        if wait:
-            for s in flatten(status):
-                logger.info("Waiting for {} to finish move ...".format(
-                    s.device.name))
-                status_wait(s)
-        return status
 
     def _verify_move(self, E1=None, E2=None, delay=None):
         """
@@ -384,7 +348,134 @@ class SplitAndDelay(Device):
         if response.lower() != "y":
             return True
         else:
-            return False
+            return False    
+        
+    def _apply_tower_move_method(self, position, towers, move_method, 
+                                 wait=False, *args, **kwargs):
+        """
+        Runs the inputted aggregate move method on each tower and then 
+        optionally waits for the move to complete. A move method is defined as
+        being a method that returns a status object, or list of status objects.
+
+        Any additional arguments or keyword arguments will be passed to 
+        move_method.
+
+        Parmeters
+        ---------
+        position : float
+            Position to pass to the move method.
+
+        towers : list
+            List of towers to set the energy for.
+
+        move_method : str
+            Method of each tower to run.
+
+        wait : bool, optional
+            Wait for each tower to complete the motion.
+        """
+        # Check that there are no issues moving any of the tower motors        
+        status = [getattr(t, move_method)(position, *args, **kwargs) 
+                  for t in towers]
+
+        # Wait for the motions to finish
+        if wait:
+            for s in flatten(status):
+                logger.info("Waiting for {} to finish move ...".format(
+                    s.device.name))
+                status_wait(s)
+        return status
+
+    def _check_towers_and_diagnostics(self, E1=None, E2=None, delay=None):
+        """
+        Checks the towers in the delay line and the channel cut line to make sure they
+        can be moved.
+        """
+        length, position_dd, position_dcc = None, None, None
+        
+        # Check delay line
+        if E1 or delay:
+            # Get the desired length for the delay stage
+            if delay is not None:
+                length = self.delay_to_length(delay)
+
+            # Check each of the delay towers
+            for tower in self.delay_towers:
+                tower.check_status(energy=E1, delay=delay)
+
+            # Check the delay diagnostic position
+            position_dd = self.get_delay_diagnostic_position(E1=E1, E2=E2, delay=delay)
+            self.dd.x.check_status(position_dd)
+            
+        # Check channel cut line
+        if E2:
+            # Check each of the channel cut towers
+            for tower in self.channelcut_towers:
+                tower.check_status(energy=E2)
+
+            # Check the channel cut diagnostic position
+            position_dcc = self.get_channelcut_diagnostic_position(E2=E2)
+            self.dcc.x.check_status(position_dcc)
+
+        return length, position_dd, position_dcc
+
+    def _move_towers_and_diagnostics(self, length=None, position_dd=None,
+                                     position_dcc=None, E1=None, E2=None, delay=None):
+        """
+        Moves all the tower and diagnostic motors.
+        """
+        status = []
+        # Move the delay line
+        if E1 is not None and position_dd is not None:
+            # Move the towers to the specified energy
+            status += self._apply_tower_move_method(
+                E1, self.delay_towers, "set_energy", wait=False, check_status=False, 
+                *args, **kwargs)
+
+            # Move the delay diagnostic to the inputted position
+            status += self.dd.x.move(position_dd, wait=False)
+            
+        # Move the channel cut line
+        if E2 is not None and position_dcc is not None:
+            # Move the channel cut towers
+            status += self._apply_tower_move_method(
+                E1, self.delay_towers, "set_energy", wait=False, check_status=False, 
+                *args, **kwargs)
+
+            # Move the channel cut diagnostics
+            status += self.dcc.x.move(position_dcc, wait=False)
+            
+        # Move the delay stages
+        if delay is not None and length is not None:
+            status += self._apply_tower_move_method(
+                length, self.delay_towers, "set_length", wait=False, *args, **kwargs)
+
+        return status        
+
+    def _set_system(self, E1=None, E2=None, delay=None, wait=False, verify_move=True):
+        """
+        Generic energy setter method
+        """
+        # Prompt the user about the move before making it
+        if verify_move and self._verify_move(E1=E1, E2=E2, delay=delay):
+            return
+
+        # Check the towers and diagnostics
+        length, position_dd, position_dcc = self._check_towers_and_diagnostics(
+            E1, E2, delay)
+
+        # Send the move commands to all the motors
+        status = flatten(self._move_tower_and_diagnostics(
+            length, position_dd, position_dcc, E1, E2, delay))
+            
+        # Wait for all the motors to finish moving
+        if wait:
+            for s in status:
+                logger.info("Waiting for {} to finish move ...".format(
+                    s.device.name))
+                status_wait(s)
+            
+        return status
 
     def set_energy(self, E, wait=False, verify_move=True, *args, **kwargs):
         """
@@ -399,35 +490,8 @@ class SplitAndDelay(Device):
         wait : bool, optional
             Wait for each tower to complete the motion.
         """
-        # Prompt the user about the move before making it
-        if verify_move and self._verify_move(E, E):
-            return 
-
-        # Check that all the tower and diagnostic motors can be moved
-        for tower in self.towers:
-            tower.check_status()
-        self.dd.x.check_status()
-        self.dcc.x.check_status()
-        
-        # Move the tower motors
-        status = self._apply_tower_move_method(
-            E, self.towers, "set_energy", wait=False, check_status=False, 
-            *args, **kwargs)
-
-        # Get the pos for the diagnostic motors and move there
-        dd_x_pos = self.get_delay_diagnostic_position(E1=E, E2=E)
-        dcc_x_pos = self.get_channelcut_diagnostic_position(E2=E)
-        status.append(self.dd.x.move(dd_x_pos, wait=False))
-        status.append(self.dcc.x.move(dcc_x_pos, wait=False))
-
-        # Optionally wait for all the moves to complete
-        if wait:
-            for s in flatten(status):
-                logger.info("Waiting for {} to finish move ...".format(
-                    s.device.name))
-                status_wait(s)
-        return status
-    
+        return self._set_system(E1=E, E2=E)
+            
     @property
     def energy(self):
         """
@@ -491,31 +555,8 @@ class SplitAndDelay(Device):
         wait : bool, optional
             Wait for each motor to complete the motion.
         """
-        # Prompt the user about the move before making it
-        if verify_move and self._verify_move(E1=E):
-            return 
-
-        # Check that all the delay tower and diagnostic motors can be moved
-        for tower in self.delay_towers:
-            tower.check_status()
-        self.dd.x.check_status()
-        
-        # Move all delay tower motors
-        status = self._apply_tower_move_method(
-            E, self.delay_towers, "set_energy", wait=False, check_status=False,
-            *args, **kwargs)
-
-        # Get the pos for the diagnostic motor and move there
-        dd_x_pos = self.get_delay_diagnostic_position(E1=E, E2=E)
-        status.append(self.dd.x.move(dd_x_pos, wait=False))
-
-        # Optionally wait for all the moves to complete
-        if wait:
-            for s in flatten(status):
-                logger.info("Waiting for {} to finish move ...".format(
-                    s.device.name))
-                status_wait(s)
-        return status    
+        return self._set_system(E1=E, wait=wait, verify_move=verify_move, *args,
+                                **kwargs)
 
     @property
     def energy1(self):
@@ -579,31 +620,8 @@ class SplitAndDelay(Device):
         wait : bool, optional
             Wait for each motor to complete the motion.
         """
-        # Prompt the user about the move before making it
-        if verify_move and self._verify_move(E2=E):
-            return 
-
-        # Check that all the delay tower and diagnosic motors can be moved
-        for tower in self.channelcut_towers:
-            tower.check_status()
-        self.dcc.x.check_status()
-
-        # Move all the channel cut tower motors
-        status = self._apply_tower_move_method(
-            E, self.channelcut_towers, "set_energy", wait=False, 
-            check_status=False, *args, **kwargs)
-
-        # Get the pos for the diagnostic motors and move there
-        dcc_x_pos = self.get_channelcut_diagnostic_position(E2=E)
-        status.append(self.dcc.x.move(dcc_x_pos, wait=False))
-
-        # Optionally wait for all the moves to complete
-        if wait:
-            for s in flatten(status):
-                logger.info("Waiting for {} to finish move ...".format(
-                    s.device.name))
-                status_wait(s)
-        return status    
+        return self._set_system(E2=E, wait=wait, verify_move=verify_move, *args,
+                                **kwargs)
         
     @property
     def energy2(self):
@@ -667,23 +685,8 @@ class SplitAndDelay(Device):
         delay : float
             The desired delay of the system in picoseconds.
         """
-        # Prompt the user about the move before making it
-        if verify_move and self._verify_move(delay=delay):
-            return 
-
-        # Check that all the tower motors can be moved
-        for tower in self.delay_towers:
-            tower.check_status(energy=False, delay=True)        
-
-        # Get the delay position to move to
-        length = self.delay_to_length(delay)
-        logger.debug("Input delay: {0}. \nMoving t1.L and t2.L to {1}".format(
-            delay, self.length))
-        
-        # Move all the delay stage motors
-        status = self._apply_tower_move_method(
-            length, self.delay_towers, "set_length", wait=wait, *args, **kwargs)
-        return status
+        return self._set_system(delay=delay, wait=wait, verify_move=verify_move,
+                                *args, **kwargs)
     
     @property
     def delay(self):
