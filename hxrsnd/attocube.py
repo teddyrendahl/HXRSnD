@@ -294,11 +294,9 @@ class EccBase(Device, PositionerBase):
         try:
             # Check the motor status
             if check_status:
-                self.check_status()
+                self.check_status(position)
 
             logger.debug("Moving {} to {}".format(self.name, position))
-            # Check if the move is valid
-            self._check_value(position)
 
             # Begin the move process
             status = self.user_setpoint.set(position)
@@ -314,17 +312,14 @@ class EccBase(Device, PositionerBase):
             logger.info("Requested move '{0}' is outside the soft limits {1}."
                         "".format(position, self.limits))
 
-    def _additional_status_checks(self, *args, **kwargs):
-        """
-        Placeholder method for any additional status checks that would need to
-        be run for this motor. It is meant to be overriden by a higher level
-        function.
-        """
-        pass
-
-    def check_status(self, *args, **kwargs):
+    def check_status(self, position, *args, **kwargs):
         """
         Checks the status of the motor to make sure it is ready to move.
+
+        Parameters
+        ----------
+        position : float
+            Position to check for validity.
 
         Raises
         ------
@@ -342,12 +337,12 @@ class EccBase(Device, PositionerBase):
         if self.error:
             err = "Motor currently has an error."
             logger.error(err)
-            raise MotorError(err)        
+            raise MotorError(err)
 
-        # Run any additional status checks
-        self._additional_status_checks(*args, **kwargs)
+        # Check that position is valid
+        self.check_value(position)
 
-    def _check_value(self, position):
+    def check_value(self, position):
         """
         Checks to make sure the inputted value is valid.
 
@@ -433,7 +428,11 @@ class EccBase(Device, PositionerBase):
     def mv(self, position, ret_status=False, print_move=True, *args, **kwargs):
         """
         Move to a specified position, optionally waiting for motion to
-        complete. Alias for move().
+        complete. mv() is different from move() by catching all the common
+        exceptions that this motor can raise and just raises a logger
+        warning. Therefore if building higher level functionality, do not
+        use this method and use move() instead otherwise none of these
+        exceptions will propagate to it.
 
         Parameters
         ----------
@@ -446,19 +445,43 @@ class EccBase(Device, PositionerBase):
         print_move : bool, optional
             Print a short statement about the move.
 
+        Exceptions Caught
+        -----------------
+        LimitError
+            Error raised when the inputted position is beyond the soft limits.
+        
+        MotorDisabled
+            Error raised if the motor is disabled and move is requested.
+
+        MotorFaulted
+            Error raised if the motor is disabled and the move is requested.
+
         Returns
         -------
         status : MoveStatus        
             Status object for the move.
         """
-        return self.move(position, ret_status=ret_status, print_move=print_move,
-                         *args, **kwargs)
+        try:
+            return self.move(position, ret_status=ret_status, print_move=print_move,
+                             *args, **kwargs)
+
+        # Catch all the common motor exceptions
+        except LimitError:
+            logger.warning("Requested move '{0}' is outside the soft limits {1}."
+                           "".format(position, self.limits))
+        except MotorDisabled:
+            logger.warning("Cannot move - motor is currently disabled. Try running"
+                           " 'motor.enable()'.")
+        except MotorError:
+            logger.warning("Cannot move - motor currently has an error. Try "
+                           "running 'motor.clear()'.")
 
     def mvr(self, rel_position, ret_status=False, print_move=True, *args, 
             **kwargs):
         """
         Move relative to the current position, optionally waiting for motion to
-        complete. Alias for move_rel().
+        complete. Catches all the same exceptions that mv() does. If a relative
+        move is needed for higher level functions use move_rel() instead.
 
         Parameters
         ----------
@@ -471,13 +494,24 @@ class EccBase(Device, PositionerBase):
         print_move : bool, optional
             Print a short statement about the move.
 
+        Exceptions Caught
+        -----------------
+        LimitError
+            Error raised when the inputted position is beyond the soft limits.
+        
+        MotorDisabled
+            Error raised if the motor is disabled and move is requested.
+
+        MotorFaulted
+            Error raised if the motor is disabled and the move is requested.
+
         Returns
         -------
         status : MoveStatus        
             Status object for the move.
         """
-        return self.move_rel(rel_position, ret_status=ret_status, 
-                             print_move=print_move, *args, **kwargs)
+        return self.mv(rel_position + self.position, ret_status=ret_status, 
+                       print_move=print_move, *args, **kwargs)
 
     def wm(self):
         """
