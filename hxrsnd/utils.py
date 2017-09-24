@@ -5,9 +5,57 @@ Script for small utility functions used in HXRSnD
 # Standard #
 ############
 import logging
+from pathlib import Path
 from collections.abc import Iterable
+from logging.handlers import RotatingFileHandler
 
-logger = logging.getLogger(__name__)
+def get_logger(name, stream_level=logging.INFO, log_file=True, 
+               log_dir=Path("."), max_bytes=10*1024*1024):
+    """
+    Returns a properly configured logger that has a stream handler and a file
+    handler.
+    """
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+    
+    # One format to display the user and another for debugging
+    format_stream = "%(message)4s"
+    format_debug = "%(asctime)s:%(filename)s:%(lineno)4s - " \
+      "%(funcName)s():    %(levelname)-8s %(message)4s"
+    # Prevent logging from propagating to the root logger
+    logger.propagate = 0
+
+    # Setup the stream logger
+    console = logging.StreamHandler()
+    console.setLevel(stream_level)
+
+    # Print log messages nicely if we arent in debug mode
+    if stream_level >= logging.INFO:
+        stream_formatter = logging.Formatter(format_stream)
+    else:
+        stream_formatter = logging.Formatter(format_debug)
+    console.setFormatter(stream_formatter)
+    logger.addHandler(console)
+    
+    # Log to a file
+    if log_file:
+        log_file = log_dir / "log.txt"
+        # Create the file if it doesnt already exist
+        if not log_file.exists():
+            log_file.touch()
+
+        # Setup the file handler
+        file_handler = RotatingFileHandler(
+            str(log_file), mode='a', maxBytes=max_bytes, backupCount=2,
+            encoding=None, delay=0)
+        file_formatter = logging.Formatter(format_debug)
+        file_handler.setFormatter(file_formatter)
+
+        # Always save everything
+        file_handler.setLevel(logging.DEBUG)
+        logger.addHandler(file_handler)
+
+    return logger
 
 def isiterable(obj):
     """
