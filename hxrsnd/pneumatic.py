@@ -20,7 +20,12 @@ from pcdsdevices.device import Device
 from pcdsdevices.component import Component
 from pcdsdevices.epics.signal import EpicsSignal, EpicsSignalRO
 
-logger = logging.getLogger(__name__)
+##########
+# Module #
+##########
+from .utils import get_logger
+
+logger = get_logger(__name__)
 
 class PneuBase(Device):
     """

@@ -20,8 +20,9 @@ from pcdsdevices.device import Device
 ##########
 # Module #
 ##########
+from .utils import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class RTDBase(Device):

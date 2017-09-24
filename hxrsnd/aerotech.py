@@ -26,10 +26,11 @@ from pcdsdevices.epics.signal import (EpicsSignal, EpicsSignalRO, FakeSignal)
 ##########
 # Module #
 ##########
+from .utils import get_logger
 from .pneumatic import PressureSwitch
 from .exceptions import MotorDisabled, MotorFaulted, BadN2Pressure
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class AeroBase(EpicsMotor):

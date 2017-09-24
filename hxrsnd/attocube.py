@@ -6,8 +6,8 @@ Attocube devices
 ############
 # Standard #
 ############
-import logging
 import os
+import logging
 
 ###############
 # Third Party #
@@ -28,9 +28,10 @@ from pcdsdevices.epics.epicsmotor import EpicsMotor
 ##########
 # Module #
 ##########
+from .utils import get_logger
 from .exceptions import MotorDisabled, MotorError
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class EccController(Device):

@@ -19,8 +19,9 @@ import numpy as np
 ##########
 # Module #
 ##########
+from .utils import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Globals
 

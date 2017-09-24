@@ -22,13 +22,14 @@ from pcdsdevices.component import Component, FormattedComponent
 # Module #
 ##########
 from .rtd import OmegaRTD
+from .utils import get_logger
 from .diode import HamamatsuDiode
 from .bragg import bragg_angle, bragg_energy
 from .attocube import EccBase, TranslationEcc, GoniometerEcc, DiodeEcc
 from .aerotech import (AeroBase, RotationAero, InterRotationAero,
                        LinearAero, InterLinearAero)
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class TowerBase(Device):
     """
@@ -61,7 +62,7 @@ class TowerBase(Device):
         E : float
             Energy of the delay line.
         """
-        return bragg_energy(self.theta)
+        return np.round(bragg_energy(self.theta), 3)
 
     @energy.setter
     def energy(self, E):
@@ -303,7 +304,7 @@ class TowerBase(Device):
             if status_list_aero:
                 # Aerotech header
                 status += "\n{0}{1:<16}|{2:^16}|{3:^16}\n{4}{5}".format(
-                    " "*(offset+2), "Motor", "Position", "Dial", " "*(offset+2), 
+                    " "*(offset+2), "Motor", "Position", "Dial", " "*(offset+2),
                     "-"*50)
                 status += "".join(status_list_aero)
 
