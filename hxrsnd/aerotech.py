@@ -382,7 +382,7 @@ class AeroBase(EpicsMotor):
             Status object for the move.
         """
         return self.mv(rel_position + self.position, wait=wait,
-                       ret_status=ret_status, print_move=print_status, *args,
+                       ret_status=ret_status, print_move=print_move, *args,
                        **kwargs)
 
     def check_status(self, position, *args, **kwargs):
@@ -644,7 +644,7 @@ class AeroBase(EpicsMotor):
         if newline:
             status += "\n"
         if print_status is True:
-            print(status)
+            logger.info(status)
         else:
             return status
 
@@ -668,8 +668,8 @@ class InterlockedAero(AeroBase):
     _pressure = FormattedComponent(PressureSwitch,
                                    "{self._prefix}:N2:{self._tower}")
     def __init__(self, prefix, *args, **kwargs):
-        self._tower = prefix.split(":")[-1]
-        self._prefix = ":".join(prefix.split(":")[:1])
+        self._tower = prefix.split(":")[-2]
+        self._prefix = ":".join(prefix.split(":")[:2])
         super().__init__(prefix, *args, **kwargs)
 
 

@@ -333,22 +333,26 @@ class SplitAndDelay(Device):
             string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
                 "t4.L", self.t4.length, length)
 
-        if E1:
-            position_dd = self.get_delay_diagnostic_position(E1, E2)
+        if E1 is not None or delay is not None:
+            position_dd = self.get_delay_diagnostic_position(E1, E2, delay)
             string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
                 "dd.x", self.dd.x.position, position_dd)
-        if E2:
+        if E2 is not None:
             position_dcc = self.get_channelcut_diagnostic_position(E2)
             string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
                 "dcc.x", self.dcc.x.position, position_dcc)
             
         logger.info(string)
-        response = input("\nConfirm Move [y]: ")
+        try:
+            response = input("\nConfirm Move [y]: ")
+        except:
+            response = "n"
+
         if response.lower() != "y":
-            logger.debug("Move confirmed.")
+            logger.info("\nMove cancelled.")
             return True
         else:
-            logger.info("Move cancelled.")
+            logger.debug("\nMove confirmed.")
             return False            
 
     def _check_towers_and_diagnostics(self, E1=None, E2=None, delay=None):
@@ -399,14 +403,14 @@ class SplitAndDelay(Device):
         length, position_dd, position_dcc = None, None, None
         
         # Check delay line
-        if E1 or delay:
+        if E1 is not None or delay is not None:
             # Get the desired length for the delay stage
             if delay is not None:
                 length = self.delay_to_length(delay)
 
             # Check each of the delay towers
             for tower in self.delay_towers:
-                tower.check_status(energy=E1, delay=delay)
+                tower.check_status(energy=E1, length=length)
 
             # Check the delay diagnostic position
             position_dd = self.get_delay_diagnostic_position(E1=E1, E2=E2, 
@@ -414,7 +418,7 @@ class SplitAndDelay(Device):
             self.dd.x.check_status(position_dd)
             
         # Check channel cut line
-        if E2:
+        if E2 is not None:
             # Check each of the channel cut towers
             for tower in self.channelcut_towers:
                 tower.check_status(energy=E2)
@@ -464,8 +468,6 @@ class SplitAndDelay(Device):
             # Move the towers to the specified energy
             status += [tower.set_energy(E1, wait=False, check_status=False) for
                        tower in self.delay_towers]
-            # Move the delay diagnostic to the inputted position
-            status += [self.dd.x.move(position_dd, wait=False)]
             # Log the energy change
             logger.debug("Setting E1 to {0}.".format(E1))
             
@@ -481,14 +483,20 @@ class SplitAndDelay(Device):
             
         # Move the delay stages
         if delay is not None and length is not None:
-            status += [tower.set_delay(length, wait=False, check_status=False) 
+            status += [tower.set_length(length, wait=False, check_status=False) 
                        for tower in self.delay_towers]
             # Log the delay change
             logger.debug("Setting delay to {0}.".format(delay))
 
+        
+        if ((delay is not None and length is not None) or 
+            (E1 is not None and position_dd is not None)):
+            # Move the delay diagnostic to the inputted position
+            status += [self.dd.x.move(position_dd, wait=False)]
+
         return status        
 
-    def set_system(self, E1=None, E2=None, delay=None, wait=False, 
+    def set_system(self, E1=None, E2=None, delay=None, wait=True, 
                     verify_move=True):
         """
         High level system parameter setter. From this function the energies of
@@ -538,11 +546,11 @@ class SplitAndDelay(Device):
             logger.info("Waiting for the motors to finish moving...")
             for s in status:
                 status_wait(s)
-            logger.info("Move completed.")
+            logger.info("\nMove completed.")
             
         return status
 
-    def set_energy(self, E, wait=False, verify_move=True, *args, **kwargs):
+    def set_energy(self, E, wait=True, verify_move=True, *args, **kwargs):
         """
         Sets the energy for both the delay line and the channe cut line of the
         system.
@@ -555,7 +563,7 @@ class SplitAndDelay(Device):
         wait : bool, optional
             Wait for each tower to complete the motion.
         """
-        return self.set_system(E1=E, E2=E)
+        return self.set_system(E1=E, E2=E, wait=wait)
             
     @property
     def energy(self):
@@ -608,7 +616,7 @@ class SplitAndDelay(Device):
         """
         status = self.set_energy(E)
         
-    def set_energy1(self, E, wait=False, verify_move=True, *args, **kwargs):
+    def set_energy1(self, E, wait=True, verify_move=True, *args, **kwargs):
         """
         Sets the energy for the delay line.
 
@@ -673,7 +681,7 @@ class SplitAndDelay(Device):
         """
         self.energy1 = E
 
-    def set_energy2(self, E, wait=False, verify_move=True, *args, **kwargs):
+    def set_energy2(self, E, wait=True, verify_move=True, *args, **kwargs):
         """
         Sets the energy for the channel cut line.
 
@@ -740,7 +748,7 @@ class SplitAndDelay(Device):
         """
         self.energy2 = E
 
-    def set_delay(self, delay, wait=False, verify_move=True, *args, **kwargs):
+    def set_delay(self, delay, wait=True, verify_move=True, *args, **kwargs):
         """
         Sets the linear stages on the delay line to be the correct length
         according to desired delay and current theta positions.
@@ -778,6 +786,17 @@ class SplitAndDelay(Device):
             The desired delay from the system.
         """
         status = self.set_delay(delay)
+    
+    def delay_rel(self, delay_rel):
+        """
+        Increments the delay by the inputted amount.
+
+        Parameters
+        ----------
+        delay_rel : float
+            The desired relative delay from the system.
+        """
+        status = self.set_delay(self.delay + delay_rel)
 
     def main_screen(self):
         """
@@ -823,4 +842,4 @@ class SplitAndDelay(Device):
 # Notes:
 # Add the limits for the attocubes to autosave
 # Create energy motors
-
+# Check to make sure the motor is stopped
