@@ -684,7 +684,7 @@ class EccBase(Device, PositionerBase):
         if newline:
             status += "\n"
         if print_status is True:
-            print(status)
+            logger.info(status)
         else:
             return status
 

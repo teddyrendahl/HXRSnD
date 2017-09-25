@@ -66,7 +66,7 @@ class PneuBase(Device):
         if newline:
             status += "\n"
         if print_status is True:
-            print(status)
+            logger.info(status)
         else:
             return status
 
@@ -283,7 +283,7 @@ class SndPneumatics(Device):
         if newline:
             status += "\n"
         if print_status is True:
-            print(status)
+            logger.info(status)
         else:
             return status
 
@@ -311,7 +311,7 @@ class SndPneumatics(Device):
         status = ""
         for valve in self._valves:
             status += valve.status(print_status=False)
-        print(status)
+        logger.info(status)
 
     @property
     def pressures(self):
@@ -321,7 +321,7 @@ class SndPneumatics(Device):
         status = ""
         for pressure in self._pressure_switches:
             status += pressure.status(print_status=False)
-        print(status)
+        logger.info(status)
 
     def __repr__(self):
         """

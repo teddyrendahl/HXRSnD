@@ -214,7 +214,7 @@ class TowerBase(Device):
             Length to set the delay stage to. (Doesnt apply for cc towers)
 
         no_raise : bool, optional
-            Do not re-raise the attribute error for delay parameters
+            Do not re-raise the attribute error for delay parameters.
         """
         # Create the list of motors and positions we will iterate through
         motors = []
@@ -225,7 +225,7 @@ class TowerBase(Device):
             motors += self._energy_motors
             theta = bragg_angle(energy)
             positions += self._get_move_positions(theta)
-
+            
         # Get the delay parameters
         try:
             if length is not None:
@@ -329,7 +329,7 @@ class TowerBase(Device):
         if newline:
             status += "\n"
         if print_status:
-            print(status)
+            logger.info(status)
         else:
             return status
 
