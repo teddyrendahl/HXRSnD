@@ -18,6 +18,9 @@ import numpy as np
 # Module #
 ##########
 from hxrsnd import utils
+from hxrsnd.utils import get_logger
+
+logger = get_logger(__name__, log_file=False)
 
 test_values = [2, np.pi, True, "test_s", "10", ["test"], ("test",), {"test":1}]
 test_lists = [[1,2,3,4,5], [[1],[2],[3],[4],[5]], [[1,2,3],[4,5]],
