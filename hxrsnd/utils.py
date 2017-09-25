@@ -13,7 +13,32 @@ def get_logger(name, stream_level=logging.INFO, log_file=True,
                log_dir=Path("."), max_bytes=10*1024*1024):
     """
     Returns a properly configured logger that has a stream handler and a file
-    handler.
+    handler. This was made so that immediately setting up both a stream and
+    file handler is as easy as just calling this function and forgetting about
+    the details.
+
+    Parameters
+    ----------
+    name : str
+        Name for the logger.
+
+    stream_level : logging.level, optional
+        Logging level for what prints to the console.
+
+    log_file : bool, optional
+        Save to a log file.
+
+    log_dir : Path, optional
+        Path to where the log file should be saved.
+        
+    max_bytes : int, optional
+        Size of the log file in bytes.
+
+    Returns
+    -------
+    logger : logging.logger
+        Properly configured logger that has a stream and optionally a file
+        handler.
     """
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
