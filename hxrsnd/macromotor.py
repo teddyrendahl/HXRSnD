@@ -25,13 +25,14 @@ from pcdsdevices.component import Component
 ##########
 # Module #
 ##########
-from .state import OphydMachine
-from .pneumatic import SndPneumatics
+from .sndsystem import SplitAndDelay
 from .utils import flatten, get_logger
 from .bragg import bragg_angle, cosd, sind
 from .tower import DelayTower, ChannelCutTower
 from .diode import HamamatsuXMotionDiode, HamamatsuXYMotionCamDiode
 from .exceptions import MotorDisabled, MotorFaulted, BadN2Pressure
+
+logger = get_logger(__name__, log_file=False)
 
 
 class MacroBase(Device):
@@ -41,6 +42,32 @@ class MacroBase(Device):
     # Constants
     c = 0.299792458             # mm/ps
     gap = 55                    # m
+
+    def __init__(self, prefix, desc=None, *args, **kwargs):
+        self.desc = desc
+        super().__init__(prefix, *args, **kwargs)
+        
+        # Make sure this is used 
+        if not isinstance(self.parent, SplitAndDelay):
+            logger.warning("Macromotors must be instantiated as components of a"
+                           " SplitAndDelay object to function properly.")
+        else:
+            self._delay_towers = [self.parent.t1, self.parent.t4]
+            self._channelcut_towers = [self.parent.t2, self.parent.t3]
+        if self.desc is None:
+            self.desc = self.name
+
+    def position(self):
+        """
+        Returns the current energy of the channel cut line.
+        
+        Returns
+        -------
+        energy : float
+            Energy the channel cut line is set to in eV.
+        """
+        return (self.parent.t1.energy, self.parent.t2.energy,
+                self._length_to_delay())
 
     def _delay_to_length(self, delay, theta1=None, theta2=None):
         """
@@ -65,15 +92,15 @@ class MacroBase(Device):
             recombining crystal.
         """
         # Check if any other inputs were used
-        theta1 = theta1 or self.theta1
-        theta2 = theta2 or self.theta2
+        theta1 = theta1 or self.parent.theta1
+        theta2 = theta2 or self.parent.theta2
 
         # Length calculation
         length = ((delay*self.c/2 + self.gap*(1 - cosd(2*theta2)) /
                    sind(theta2)) / (1 - cosd(2*theta1)))
         return length
 
-    def get_delay_diagnostic_position(self, E1=None, E2=None, delay=None):
+    def _get_delay_diagnostic_position(self, E1=None, E2=None, delay=None):
         """
         Gets the position the delay diagnostic needs to move to based on the 
         inputted energies and delay or the current bragg angles and current 
@@ -101,17 +128,17 @@ class MacroBase(Device):
         """
         # Use current bragg angle
         if E1 is None:
-            theta1 = self.theta1
+            theta1 = self.parent.theta1
         else:
             theta1 = bragg_angle(E=E1)
 
         # Use current delay stage position if no delay is inputted
         if delay is None:
-            length = self.t1.length
+            length = self.parent.t1.length
         # Calculate the expected delay position if a delay is inputted
         else:
             if E2 is None:
-                theta2 = self.theta2
+                theta2 = self.parent.theta2
             else:
                 theta2 = bragg_angle(E=E2)
             length = self._delay_to_length(delay, theta1=theta1, theta2=theta2)
@@ -120,7 +147,7 @@ class MacroBase(Device):
         position = -length*sind(2*theta1)
         return position
 
-    def get_channelcut_diagnostic_position(self, E2=None):
+    def _get_channelcut_diagnostic_position(self, E2=None):
         """
         Gets the position the channel cut diagnostic needs to move to based on 
         the inputted energy or the current energy of the channel cut line.
@@ -139,7 +166,7 @@ class MacroBase(Device):
         """
         # Use the current theta2 of the system or calc based on inputted energy
         if E2 is None:
-            theta2 = self.theta2
+            theta2 = self.parent.theta2
         else:
             theta2 = bragg_angle(E=E2)
             
@@ -173,46 +200,40 @@ class MacroBase(Device):
         string += "\n" + "-"*len(string)
         if E1 is not None:
             theta1 = bragg_angle(E=E1)
-            string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
-                "t1.tth", self.t1.tth.position, 2*theta1)
-            string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
-                "t4.tth", self.t4.tth.position, 2*theta1)
-            string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
-                "t1.th1", self.t1.th1.position, theta1)
-            string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
-                "t1.th2", self.t1.th2.position, theta1)
-            string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
-                "t4.th1", self.t4.th1.position, theta1)
-            string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
-                "t4.th2", self.t4.th2.position, theta1)
+            for tower in self._delay_towers:
+                for motor, position in zip(tower._energy_motors,
+                                           tower._get_move_positions(theta1)):
+                    string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
+                        motor.desc, motor.position, position)
 
         if E2 is not None:
             theta2 = bragg_angle(E=E2)
-            string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
-                "t2.th", self.t2.th.position, theta2)
-            string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
-                "t3.th", self.t3.th.position, theta2)
+            for tower in self._delay_towers:
+                for motor, position in zip(tower._energy_motors,
+                                           tower._get_move_positions(theta1)):
+                    string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
+                        motor.desc, motor.position, position)
 
         if delay is not None:
             length = self._delay_to_length(delay)
-            string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
-                "t1.L", self.t1.length, length)
-            string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
-                "t4.L", self.t4.length, length)
+            for tower in self._delay_towers:
+                string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
+                    tower.L.desc, tower.length, length)
 
         if E1 is not None or delay is not None:
-            position_dd = self.get_delay_diagnostic_position(E1, E2, delay)
+            position_dd = self._get_delay_diagnostic_position(E1, E2, delay)
             string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
-                "dd.x", self.dd.x.position, position_dd)
+                "dd.x", self.parent.dd.x.position, position_dd)
         if E2 is not None:
-            position_dcc = self.get_channelcut_diagnostic_position(E2)
+            position_dcc = self._get_channelcut_diagnostic_position(E2)
             string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
-                "dcc.x", self.dcc.x.position, position_dcc)
+                "dcc.x", self.parent.dcc.x.position, position_dcc)
             
         logger.info(string)
         try:
             response = input("\nConfirm Move [y]: ")
-        except:
+        except Exception as e:
+            logger.info("Exception raised: {0}".format(e))
             response = "n"
 
         if response.lower() != "y":
@@ -276,23 +297,23 @@ class MacroBase(Device):
                 length = self._delay_to_length(delay)
 
             # Check each of the delay towers
-            for tower in self.delay_towers:
+            for tower in self._delaytowers:
                 tower.check_status(energy=E1, length=length)
 
             # Check the delay diagnostic position
-            position_dd = self.get_delay_diagnostic_position(E1=E1, E2=E2, 
+            position_dd = self._get_delay_diagnostic_position(E1=E1, E2=E2, 
                                                              delay=delay)
-            self.dd.x.check_status(position_dd)
+            self.parent.dd.x.check_status(position_dd)
             
         # Check channel cut line
         if E2 is not None:
             # Check each of the channel cut towers
-            for tower in self.channelcut_towers:
+            for tower in self._channelcut_towers:
                 tower.check_status(energy=E2)
 
             # Check the channel cut diagnostic position
-            position_dcc = self.get_channelcut_diagnostic_position(E2=E2)
-            self.dcc.x.check_status(position_dcc)
+            position_dcc = self._get_channelcut_diagnostic_position(E2=E2)
+            self.parent.dcc.x.check_status(position_dcc)
 
         return length, position_dd, position_dcc
 
@@ -334,7 +355,7 @@ class MacroBase(Device):
         if E1 is not None and position_dd is not None:
             # Move the towers to the specified energy
             status += [tower.set_energy(E1, wait=False, check_status=False) for
-                       tower in self.delay_towers]
+                       tower in self._delaytowers]
             # Log the energy change
             logger.debug("Setting E1 to {0}.".format(E1))
             
@@ -342,24 +363,23 @@ class MacroBase(Device):
         if E2 is not None and position_dcc is not None:
             # Move the channel cut towers
             status += [tower.set_energy(E2, wait=False, check_status=False) for
-                       tower in self.channelcut_towers]
+                       tower in self._channelcut_towers]
             # Move the channel cut diagnostics
-            status += [self.dcc.x.move(position_dcc, wait=False)]
+            status += [self.parent.dcc.x.move(position_dcc, wait=False)]
             # Log the energy change
             logger.debug("Setting E2 to {0}.".format(E2))
             
         # Move the delay stages
         if delay is not None and length is not None:
             status += [tower.set_length(length, wait=False, check_status=False) 
-                       for tower in self.delay_towers]
+                       for tower in self._delaytowers]
             # Log the delay change
             logger.debug("Setting delay to {0}.".format(delay))
-
         
         if ((delay is not None and length is not None) or 
             (E1 is not None and position_dd is not None)):
             # Move the delay diagnostic to the inputted position
-            status += [self.dd.x.move(position_dd, wait=False)]
+            status += [self.parent.dd.x.move(position_dd, wait=False)]
 
         return status        
 
@@ -432,8 +452,8 @@ class MacroBase(Device):
         Parameters
         ----------
         position : float or list
-            Position to move to for the macro-motor. Can be a float or a list 
-            depending on the class.
+            Position to move to for the macro-motor. List follows the form:
+            [E1, E2, delay].
 
         wait : bool, optional
             Wait for each motor to complete the motion before returning the
@@ -452,8 +472,8 @@ class MacroBase(Device):
         status : list
             List of status objects for each motor that was involved in the move.
         """
-        status = self.set_system(*position, wait=wait, verify_move=verify_move)
-        
+        status = self.set_system(*position, wait=wait, verify_move=verify_move,
+                                 ret_status=ret_status)
 
     def move_rel(self, position_rel, wait=True, verify_move=True, 
                  ret_status=True):
@@ -487,8 +507,7 @@ class MacroBase(Device):
             List of status objects for each motor that was involved in the move.
         """
         # Make sure it is a list
-        position_rel = list(position_rel)
-        
+        position_rel = list(position_rel)        
         # Make the list of abolsute positions to move to
         position = [pos + pos_rel for pos, pos_rel in zip(self.position, 
                                                           position_rel)]
@@ -497,6 +516,58 @@ class MacroBase(Device):
         return self.move(position, wait=wait, verify_move=verify_move,
                          ret_status=ret_status)
 
+    def _catch_motor_exceptions(self, clbl, *args, **kwargs):
+        """
+        Method that runs the inputted callable with the inputted arguments 
+        wrapped in a try/except that catches a number of motor exceptions and
+        prints to the console a nicer message about what went wrong.
+
+        Parameters
+        ----------
+        clbl : callable
+            Callable to wrap in a try/except.
+
+        args : tuple
+            Arguments to pass to the callable.
+            
+        kwargs : dict
+            Key-word arguments to pass to the callable.
+            
+        Exceptions Caught
+        -----------------
+        LimitError
+            Error raised when the inputted position is beyond the soft limits.
+        
+        MotorDisabled
+            Error raised if the motor is disabled and move is requested.
+
+        MotorFaulted
+            Error raised if the motor is disabled and the move is requested.
+
+        BadN2Pressure
+            Error raised if the pressure in the tower is bad.
+
+        Returns
+        -------
+        ret
+            Whatever the callable is supposed to return.
+        """
+        try:
+            return clbl(*args, **kwargs)
+        
+        # Catch all the common motor exceptions        
+        except LimitError:
+            logger.warning("Requested move '{0}' is outside the soft limits "
+                           "{1}.".format(position, self.limits))
+        except MotorDisabled:
+            logger.warning("Cannot move - motor is currently disabled. Try "
+                           "running 'motor.enable()'.")
+        except MotorFaulted:
+            logger.warning("Cannot move - motor is currently faulted. Try "
+                           "running 'motor.clear()'.")
+        except BadN2Pressure:
+            logger.warning("Cannot move - pressure in tower {0} is bad.".format(
+                self._tower))        
 
     def mv(self, position, wait=True, verify_move=True, ret_status=False):
         """
@@ -547,24 +618,10 @@ class MacroBase(Device):
         status : list
             List of status objects for each motor that was involved in the move.
         """
-        # Cast position as a list
-        position = list(position)        
-        try:
-            return self.move(*position, wait=wait, verify_move=verify_move, 
-                            ret_status=ret_status)
-        # Catch all the common motor exceptions        
-        except LimitError:
-            logger.warning("Requested move '{0}' is outside the soft limits "
-                           "{1}.".format(position, self.limits))
-        except MotorDisabled:
-            logger.warning("Cannot move - motor is currently disabled. Try "
-                           "running 'motor.enable()'.")
-        except MotorFaulted:
-            logger.warning("Cannot move - motor is currently faulted. Try "
-                           "running 'motor.clear()'.")
-        except BadN2Pressure:
-            logger.warning("Cannot move - pressure in tower {0} is bad.".format(
-                self._tower))
+        # Perform the move, catching the common motor exceptions
+        return self._catch_motor_exceptions(
+            self.move, list(position), wait=wait, verify_move=verify_move, 
+            ret_status=ret_status)
 
     def mvr(self, position_rel, wait=True, verify_move=True, ret_status=False):
         """        
@@ -575,7 +632,6 @@ class MacroBase(Device):
 
         Catches all the same exceptions that mv() does. If a relative move is 
         needed for higher level functions use move_rel() instead.
-
         
         Parameters
         ----------
@@ -613,24 +669,150 @@ class MacroBase(Device):
         status : list
             List of status objects for each motor that was involved in the move.
         """
-        # Cast relative position as a list
-        position_rel = list(position_rel)       
-        try:
-            return self.move_rel(position_rel, wait=wait, ret_status=ret_status,
-                                 verify_move=verify_move)
-        # Catch all the common motor exceptions        
-        except LimitError:
-            logger.warning("Requested move '{0}' is outside the soft limits "
-                           "{1}.".format(position, self.limits))
-        except MotorDisabled:
-            logger.warning("Cannot move - motor is currently disabled. Try "
-                           "running 'motor.enable()'.")
-        except MotorFaulted:
-            logger.warning("Cannot move - motor is currently faulted. Try "
-                           "running 'motor.clear()'.")
-        except BadN2Pressure:
-            logger.warning("Cannot move - pressure in tower {0} is bad.".format(
-                self._tower))
+        # Perform the move, catching the common motor exceptions
+        return self._catch_motor_exceptions(
+            self.move_rel, list(position_rel), wait=wait,
+            verify_move=verify_move, ret_status=ret_status)        
+
+    def __call__(self, position, wait=True, ret_status=False, verify_move=True):
+        """
+        Moves the macro-motor to the inputted position. Alias for 
+        self.mv(position).
+
+        Parameters
+        ----------
+        position
+            Position to move to.
+
+        wait : bool, optional
+            Wait for the motor to complete the motion.
+
+        ret_status : bool, optional
+            Return the status object of the move.
+
+        verify_move : bool, optional
+            Prints the current system state and a proposed system state and
+            then prompts the user to accept the proposal before changing the
+            system.
+
+        Returns
+        -------
+        status : list
+            List of status objects for each motor that was involved in the move.
+        """
+        return self.mv(position, wait=wait, ret_status=ret_status,
+                       verify_move=verify_move)
+
+    def wm(self):
+        """
+        Returns the current position of the macro-motor.
+
+        Returns
+        -------
+        position : float or list
+            Position of the macro-motor.
+        """
+        return self.position
+
+    def set_position(self, E1=None, E2=None, delay=None):
+        """
+        Sets the current positions of the motors in the towers to be the 
+        calculated positions based on the inputted energies or delay.
+        
+        Parameters
+        ----------
+        E1 : float or None, optional
+            Energy to set the delay line to.
+
+        E2 : float or None, optional
+            Energy to set the channel cut line to.
+
+        delay : float or None, optional
+            Delay to set the delay stages to.
+        """
+        # Delay line 
+        if E1 is not None:
+            theta1 = bragg_angle(E=E1)
+
+            # Set position of each E1 motor in each delay tower
+            for tower in self._delay_towers:
+                for motor, pos in zip(tower._energy_motors,
+                                      tower._get_move_positions(theta1)):
+                    motor.set_position(pos, print_set=False)
+
+            # Log the set
+            logger.debug("Setting positions for E1 to {0}.".format(E1))
+
+        # Channel Cut Line
+        if E2 is not None:
+            theta2 = bragg_angle(E=E2)
+
+            # Set position of each E2 motor in each channel cut tower
+            for tower in self._channelcut_towers:
+                for motor, pos in zip(tower._energy_motors,
+                                      tower._get_move_positions(theta1)):
+                    motor.set_position(pos, print_set=False)
+                    
+            # Move the cc diagnostic as well
+            position_dcc = self._get_channelcut_diagnostic_position(E2)
+            self.parent.dcc.x.set_position(position_dcc, print_set=False)
+            
+            # Log the set
+            logger.debug("Setting positions for E2 to {0}.".format(E2))
+            
+
+        # Delay stages
+        if delay is not None:
+            length = self._delay_to_length(delay)
+
+            # Set the position of each delay stage
+            for tower in self._delay_towers:
+                tower.L.set_position(length, print_set=False)
+                
+            # Log the set
+            logger.debug("Setting positions for delay to {0}.".format(delay))
+            
+        # Diagnostic
+        if E1 is not None or delay is not None:
+            position_dd = self._get_delay_diagnostic_position(E1, E2, delay)
+            self.parent.dd.x.set_position(position_dd, print_set=False)            
+
+    def status(self, status="", offset=0, print_status=True, newline=False, 
+               short=False):
+        """
+        Returns the status of the device.
+        
+        Parameters
+        ----------
+        status : str, optional
+            The string to append the status to.
+            
+        offset : int, optional
+            Amount to offset each line of the status.
+
+        print_status : bool, optional
+            Determines whether the string is printed or returned.
+        """
+        status += "\n{0}{1:<16} {2:^16.3f}".format(
+            " "*offset, self.desc+":", self.position)
+
+        if newline:
+            status += "\n"
+        if print_status:
+            logger.info(status)
+        else:
+            return status        
+        
+    def __repr__(self):
+        """
+        Returns the status of the motor. Alias for status().
+
+        Returns
+        -------
+        status : str
+            Status string.
+        """
+        return self.status(print_status=False)    
 
 
 class Energy(MacroBase):
@@ -663,8 +845,28 @@ class Energy(MacroBase):
         status : list
             List of status objects for each motor that was involved in the move.
         """
-        return super().move(E1=E, E2=E, wait=wait, verify_move=verify_move, 
+        return super().move([E, E, None], wait=wait, verify_move=verify_move, 
                             ret_status=ret_status)
+
+    def position(self):
+        """
+        Returns the current energy of the system.
+        
+        Returns
+        -------
+        energy : float
+            Energy the channel cut line is set to in eV.
+        """
+        return self.parent.t1.energy, self.parent.t2.energy
+
+    def set_position(self, E):
+        """
+        Sets the positions of the delay and channel cut branches.
+
+        E : float
+            Energy to set the system to.
+        """
+        super().set_position(E1=E, E2=E)
 
 
 class Energy1(MacroBase):
@@ -697,8 +899,28 @@ class Energy1(MacroBase):
         status : list
             List of status objects for each motor that was involved in the move.
         """
-        return super().move(E1=E1, wait=wait, verify_move=verify_move, 
-                            ret_status=ret_status)
+        return super().move([E1, None, None], wait=wait,
+                            verify_move=verify_move, ret_status=ret_status)
+
+    def position(self):
+        """
+        Returns the current energy of the delay line.
+        
+        Returns
+        -------
+        energy : float
+            Energy the channel cut line is set to in eV.
+        """
+        return self.parent.t1.energy
+
+    def set_position(self, E1):
+        """
+        Sets the positions of the delay branch.
+
+        E1 : float
+            Energy to set the delay branch to.
+        """
+        super().set_position(E1=E1)    
 
 
 class Energy2(MacroBase):
@@ -731,46 +953,34 @@ class Energy2(MacroBase):
         status : list
             List of status objects for each motor that was involved in the move.
         """
-        return super().move(E2=E2, wait=wait, verify_move=verify_move, 
-                            ret_status=ret_status)
+        return super().move([None, E2, None], wait=wait,
+                            verify_move=verify_move, ret_status=ret_status)
+
+    def position(self):
+        """
+        Returns the current energy of the channel cut line.
+        
+        Returns
+        -------
+        energy : float
+            Energy the channel cut line is set to in eV.
+        """
+        return self.parent.t2.energy
+
+    def set_position(self, E2):
+        """
+        Sets the positions of the channel cut branches.
+
+        E2 : float
+            Energy to set the channel cut branch to.
+        """
+        super().set_position(E2=E2)
 
 
 class Delay(MacroBase):
     """
     Pseudo-motor for the delay macro-motor.
     """
-    def _length_to_delay(self, L=None, theta1=None, theta2=None):
-        """
-        Converts the inputted L of the delay stage, theta1 and theta2 to
-        the expected delay of the system, or uses the current positions
-        as inputs.
-
-        Parameters
-        ----------
-        L : float or None, optional
-            Position of the linear delay stage.
-        
-        theta1 : float or None, optional
-            Bragg angle the delay line is set to maximize.
-
-        theta2 : float or None, optional
-            Bragg angle the channel cut line is set to maximize.
-
-        Returns
-        -------
-        delay : float
-            The delay of the system in picoseconds.
-        """
-        # Check if any other inputs were used
-        L = L or self.t1.length
-        theta1 = theta1 or self.theta1
-        theta2 = theta2 or self.theta2
-
-        # Delay calculation
-        delay = (2*(L*(1 - cosd(2*theta1)) - self.gap*(1 - cosd(2*theta2)) /
-                    sind(theta2))/self.c)
-        return delay    
-
     def move(self, delay, wait=True, verify_move=True, ret_status=True):
         """
         Moves the macro parameters to the inputted positions.
@@ -797,6 +1007,58 @@ class Delay(MacroBase):
         status : list
             List of status objects for each motor that was involved in the move.
         """
-        return super().move(delay=delay, wait=wait, verify_move=verify_move, 
-                            ret_status=ret_status)
+        return super().move([None, None, delay], wait=wait,
+                            verify_move=verify_move, ret_status=ret_status)
+
+    def _length_to_delay(self, L=None, theta1=None, theta2=None):
+        """
+        Converts the inputted L of the delay stage, theta1 and theta2 to
+        the expected delay of the system, or uses the current positions
+        as inputs.
+
+        Parameters
+        ----------
+        L : float or None, optional
+            Position of the linear delay stage.
+        
+        theta1 : float or None, optional
+            Bragg angle the delay line is set to maximize.
+
+        theta2 : float or None, optional
+            Bragg angle the channel cut line is set to maximize.
+
+        Returns
+        -------
+        delay : float
+            The delay of the system in picoseconds.
+        """
+        # Check if any other inputs were used
+        L = L or self.parent.t1.length
+        theta1 = theta1 or self.parent.theta1
+        theta2 = theta2 or self.parent.theta2
+
+        # Delay calculation
+        delay = (2*(L*(1 - cosd(2*theta1)) - self.gap*(1 - cosd(2*theta2)) /
+                    sind(theta2))/self.c)
+        return delay
+
+    def position(self):
+        """
+        Returns the current energy of the channel cut line.
+        
+        Returns
+        -------
+        energy : float
+            Energy the channel cut line is set to in eV.
+        """
+        return self._length_to_delay()
+    
+    def set_position(self, delay):
+        """
+        Sets the positions of the delay stages.
+
+        delay : float
+            Delay to set the delay stages to in ps.
+        """
+        super().set_position(delay=delay)
 
