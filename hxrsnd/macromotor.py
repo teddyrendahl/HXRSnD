@@ -811,7 +811,7 @@ class MacroBase(Device):
         return self.status(print_status=False)    
 
 
-class Energy(MacroBase):
+class EnergyMacro(MacroBase):
     """
     Pseudo-motor for the energy macro-motor.
     """
@@ -866,7 +866,7 @@ class Energy(MacroBase):
         super().set_position(E1=E, E2=E)
 
 
-class Energy1(MacroBase):
+class Energy1Macro(MacroBase):
     """
     Pseudo-motor for the energy 1 macro-motor.
     """
@@ -921,7 +921,7 @@ class Energy1(MacroBase):
         super().set_position(E1=E1)    
 
 
-class Energy2(MacroBase):
+class Energy2Macro(MacroBase):
     """
     Pseudo-motor for the energy 2 macro-motor.
     """
@@ -976,7 +976,7 @@ class Energy2(MacroBase):
         super().set_position(E2=E2)
 
 
-class Delay(MacroBase):
+class DelayMacro(MacroBase):
     """
     Pseudo-motor for the delay macro-motor.
     """

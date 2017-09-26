@@ -30,8 +30,8 @@ from .pneumatic import SndPneumatics
 from .utils import flatten, get_logger
 from .bragg import bragg_angle, cosd, sind
 from .tower import DelayTower, ChannelCutTower
-from .macromotor import Energy, Energy1, Energy2, Delay
 from .diode import HamamatsuXMotionDiode, HamamatsuXYMotionCamDiode
+from .macromotor import EnergyMacro, Energy1Macro, Energy2Macro, DelayMacro
 
 logger = get_logger(__name__)
 
@@ -102,10 +102,10 @@ class SplitAndDelay(Device):
     dco = Component(HamamatsuXMotionDiode, ":DIA:DCO")
 
     # Macromotors
-    E = Component(Energy, "", desc="System")
-    E1 = Component(Energy1, "", desc="Delay")
-    E2 = Component(Energy2, "", desc="Channel Cut")
-    delay = Component(Delay, "", desc="Delay")
+    E = Component(EnergyMacro, "", desc="System")
+    E1 = Component(Energy1Macro, "", desc="Delay")
+    E2 = Component(Energy2Macro, "", desc="Channel Cut")
+    delay = Component(DelayMacro, "", desc="Delay")
     
     def __init__(self, prefix, desc=None, *args, **kwargs):
         self.desc = desc
@@ -189,8 +189,3 @@ class SplitAndDelay(Device):
             Status string.
         """
         return self.status(print_status=False)
-
-# Notes:
-# Add the limits for the attocubes to autosave
-# Create energy motors
-# Check to make sure the motor is stopped
