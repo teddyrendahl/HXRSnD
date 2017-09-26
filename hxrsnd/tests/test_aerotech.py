@@ -24,14 +24,15 @@ from pcdsdevices.sim.pv import  using_fake_epics_pv
 ##########
 from .conftest import get_classes_in_module
 from hxrsnd import aerotech
+from hxrsnd.utils import get_logger
 from hxrsnd.aerotech import (AeroBase, MotorDisabled, MotorFaulted)
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__, log_file=False)
 
 @using_fake_epics_pv
 @pytest.mark.parametrize("dev", get_classes_in_module(aerotech, Device))
 def test_aerotech_devices_instantiate_and_run_ophyd_functions(dev):
-    motor = dev("TEST")
+    motor = dev("TEST:SND:T1")
     assert(isinstance(motor.read(), OrderedDict))
     assert(isinstance(motor.describe(), OrderedDict))
     assert(isinstance(motor.describe_configuration(), OrderedDict))

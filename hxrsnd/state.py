@@ -13,8 +13,10 @@ from super_state_machine.extras  import PropertyMachine
 ##########
 # Module #
 ##########
+from .utils import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+
 
 class MachineMeta(ComponentMeta):
     """

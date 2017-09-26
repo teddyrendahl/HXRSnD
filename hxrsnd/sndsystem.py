@@ -6,6 +6,7 @@ All units of time are in picoseconds, units of length are in mm.
 ############
 # Standard #
 ############
+import os
 import logging
 
 ###############
@@ -19,21 +20,19 @@ from ophyd.utils.epics_pvs import raise_if_disconnected
 # SLAC #
 ########
 from pcdsdevices.device import Device
-from pcdsdevices.component import Component, FormattedComponent
+from pcdsdevices.component import Component
 
 ##########
 # Module #
 ##########
-from .utils import flatten
-from .bragg import bragg_angle, cosd, sind
 from .state import OphydMachine
 from .pneumatic import SndPneumatics
+from .utils import flatten, get_logger
+from .bragg import bragg_angle, cosd, sind
 from .tower import DelayTower, ChannelCutTower
-from .diode import (HamamatsuDiode, HamamatsuXMotionDiode,
-                                     HamamatsuXYMotionCamDiode)
+from .diode import HamamatsuXMotionDiode, HamamatsuXYMotionCamDiode
 
-logger = logging.getLogger(__name__)
-            
+logger = get_logger(__name__)
 
 class SplitAndDelay(Device):
     """
@@ -88,17 +87,17 @@ class SplitAndDelay(Device):
     t3 = Component(ChannelCutTower, ":T3", pos_inserted=None, 
                    pos_removed=0, desc="Tower 3")
 
-    # Vacuum
+    # Pneumatic Air Bearings
     ab = Component(SndPneumatics, "")
 
     # SnD and Delay line diodes
-    di = Component(HamamatsuXYMotionCamDiode, ":DIA:DI")
+    di = Component(HamamatsuXMotionDiode, ":DIA:DI")
     dd = Component(HamamatsuXYMotionCamDiode, ":DIA:DD")
-    do = Component(HamamatsuXYMotionCamDiode, ":DIA:DO")
+    do = Component(HamamatsuXMotionDiode, ":DIA:DO")
 
     # Channel Cut Diodes
     dci = Component(HamamatsuXMotionDiode, ":DIA:DCI")
-    dcc = Component(HamamatsuXMotionDiode, ":DIA:DCC")
+    dcc = Component(HamamatsuXYMotionCamDiode, ":DIA:DCC")
     dco = Component(HamamatsuXMotionDiode, ":DIA:DCO")
     
     # Constants
@@ -280,42 +279,6 @@ class SplitAndDelay(Device):
         # Calculate position the diagnostic needs to move to
         position = 2*cosd(theta2)*self.gap
         return position
-        
-    def _apply_tower_move_method(self, position, towers, move_method, 
-                                 wait=False, *args, **kwargs):
-        """
-        Runs the inputted aggregate move method on each tower and then 
-        optionally waits for the move to complete. A move method is defined as
-        being a method that returns a status object, or list of status objects.
-
-        Any additional arguments or keyword arguments will be passed to 
-        move_method.
-
-        Parmeters
-        ---------
-        position : float
-            Position to pass to the move method.
-
-        towers : list
-            List of towers to set the energy for.
-
-        move_method : str
-            Method of each tower to run.
-
-        wait : bool, optional
-            Wait for each tower to complete the motion.
-        """
-        # Check that there are no issues moving any of the tower motors        
-        status = [getattr(t, move_method)(position, *args, **kwargs) 
-                  for t in towers]
-
-        # Wait for the motions to finish
-        if wait:
-            for s in flatten(status):
-                logger.info("Waiting for {} to finish move ...".format(
-                    s.device.name))
-                status_wait(s)
-        return status
 
     def _verify_move(self, E1=None, E2=None, delay=None):
         """
@@ -370,23 +333,224 @@ class SplitAndDelay(Device):
             string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
                 "t4.L", self.t4.length, length)
 
-        if E1:
-            position_dd = self.get_delay_diagnostic_position(E1, E2)
+        if E1 is not None or delay is not None:
+            position_dd = self.get_delay_diagnostic_position(E1, E2, delay)
             string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
                 "dd.x", self.dd.x.position, position_dd)
-        if E2:
+        if E2 is not None:
             position_dcc = self.get_channelcut_diagnostic_position(E2)
             string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
                 "dcc.x", self.dcc.x.position, position_dcc)
             
-        print(string)
-        response = input("\nConfirm Move [y]: ")
+        logger.info(string)
+        try:
+            response = input("\nConfirm Move [y]: ")
+        except:
+            response = "n"
+
         if response.lower() != "y":
+            logger.info("\nMove cancelled.")
             return True
         else:
-            return False
+            logger.debug("\nMove confirmed.")
+            return False            
 
-    def set_energy(self, E, wait=False, verify_move=True, *args, **kwargs):
+    def _check_towers_and_diagnostics(self, E1=None, E2=None, delay=None):
+        """
+        Checks the towers in the delay line and the channel cut line to make 
+        sure they can be moved. Depending on if E1, E2 or delay are entered, 
+        the delay line energy motors, channel cut line energy motors or the 
+        delay stages will be checked for faults, if they are enabled, if the
+        requested energy requires moving beyond the limits and if the pressure
+        in the tower N2 is good.
+
+        Parameters
+        ----------
+        E1 : float or None, optional
+            Requested energy for the delay line.
+
+        E2 : float or None, optional
+            Requested energy for the channel cut line.
+
+        delay : float or None, optional
+            Requested delay for the system.
+
+        Raises
+        ------
+        LimitError
+            Error raised when the inputted position is beyond the soft limits.
+        
+        MotorDisabled
+            Error raised if the motor is disabled and move is requested.
+
+        MotorFaulted
+            Error raised if the motor is disabled and the move is requested.
+
+        BadN2Pressure
+            Error raised if the pressure in the tower is bad.
+
+        Returns
+        -------
+        length : float or None
+            Position to move the delay stages to.
+
+        position_dd : float or None
+            Position to move the delay diagnostic to.
+
+        position_dcc : float or None
+            Position to move the channel cut diagnostic to.
+        """
+        length, position_dd, position_dcc = None, None, None
+        
+        # Check delay line
+        if E1 is not None or delay is not None:
+            # Get the desired length for the delay stage
+            if delay is not None:
+                length = self.delay_to_length(delay)
+
+            # Check each of the delay towers
+            for tower in self.delay_towers:
+                tower.check_status(energy=E1, length=length)
+
+            # Check the delay diagnostic position
+            position_dd = self.get_delay_diagnostic_position(E1=E1, E2=E2, 
+                                                             delay=delay)
+            self.dd.x.check_status(position_dd)
+            
+        # Check channel cut line
+        if E2 is not None:
+            # Check each of the channel cut towers
+            for tower in self.channelcut_towers:
+                tower.check_status(energy=E2)
+
+            # Check the channel cut diagnostic position
+            position_dcc = self.get_channelcut_diagnostic_position(E2=E2)
+            self.dcc.x.check_status(position_dcc)
+
+        return length, position_dd, position_dcc
+
+    def _move_towers_and_diagnostics(self, length=None, position_dd=None,
+                                     position_dcc=None, E1=None, E2=None, 
+                                     delay=None):
+        """
+        Moves all the tower and diagnostic motors according to the inputted
+        energies and delay. If any of the inputted information is set to None
+        then that component of the move is ignored.
+        
+        Parameters
+        ----------
+        length : float or None, optional
+            Position to move the delay stages to.
+
+        position_dd : float or None, optional
+            Position to move the delay diagnostic to.
+
+        position_dcc : float or None, optional
+            Position to move the channel cut diagnostic to.
+
+        E1 : float or None, optional
+            Requested energy for the delay line.
+
+        E2 : float or None, optional
+            Requested energy for the channel cut line.
+
+        delay : float or None, optional
+            Requested delay for the system.
+
+        Returns
+        -------
+        status : list
+            Nested list of status objects from each tower.
+        """
+        status = []
+        # Move the delay line
+        if E1 is not None and position_dd is not None:
+            # Move the towers to the specified energy
+            status += [tower.set_energy(E1, wait=False, check_status=False) for
+                       tower in self.delay_towers]
+            # Log the energy change
+            logger.debug("Setting E1 to {0}.".format(E1))
+            
+        # Move the channel cut line
+        if E2 is not None and position_dcc is not None:
+            # Move the channel cut towers
+            status += [tower.set_energy(E2, wait=False, check_status=False) for
+                       tower in self.channelcut_towers]
+            # Move the channel cut diagnostics
+            status += [self.dcc.x.move(position_dcc, wait=False)]
+            # Log the energy change
+            logger.debug("Setting E2 to {0}.".format(E2))
+            
+        # Move the delay stages
+        if delay is not None and length is not None:
+            status += [tower.set_length(length, wait=False, check_status=False) 
+                       for tower in self.delay_towers]
+            # Log the delay change
+            logger.debug("Setting delay to {0}.".format(delay))
+
+        
+        if ((delay is not None and length is not None) or 
+            (E1 is not None and position_dd is not None)):
+            # Move the delay diagnostic to the inputted position
+            status += [self.dd.x.move(position_dd, wait=False)]
+
+        return status        
+
+    def set_system(self, E1=None, E2=None, delay=None, wait=True, 
+                    verify_move=True):
+        """
+        High level system parameter setter. From this function the energies of
+        the delay and channel cut lines, as well as the system delay can be
+        changed. For any missing inputs, the current state of the system will be
+        assumed.
+
+        Parameters
+        ----------
+        E1 : float or None, optional
+            Requested energy for the delay line.
+
+        E2 : float or None, optional
+            Requested energy for the channel cut line.
+
+        delay : float or None, optional
+            Requested delay for the system.
+            
+        wait : bool, optional
+            Wait for each motor to complete the motion before returning the
+            console.
+            
+        verify_move : bool, optional
+            Prints the current system state and a proposed system state and
+            then prompts the user to accept the proposal before changing the
+            system.
+        
+        Returns
+        -------
+        status : list
+            List of status objects for each motor that was involved in the move.
+        """
+        # Prompt the user about the move before making it
+        if verify_move and self._verify_move(E1=E1, E2=E2, delay=delay):
+            return
+
+        # Check the towers and diagnostics
+        length, position_dd, position_dcc = self._check_towers_and_diagnostics(
+            E1, E2, delay)
+
+        # Send the move commands to all the motors
+        status = flatten(self._move_towers_and_diagnostics(
+            length, position_dd, position_dcc, E1, E2, delay))
+            
+        # Wait for all the motors to finish moving
+        if wait:
+            logger.info("Waiting for the motors to finish moving...")
+            for s in status:
+                status_wait(s)
+            logger.info("\nMove completed.")
+            
+        return status
+
+    def set_energy(self, E, wait=True, verify_move=True, *args, **kwargs):
         """
         Sets the energy for both the delay line and the channe cut line of the
         system.
@@ -399,35 +563,8 @@ class SplitAndDelay(Device):
         wait : bool, optional
             Wait for each tower to complete the motion.
         """
-        # Prompt the user about the move before making it
-        if verify_move and self._verify_move(E, E):
-            return 
-
-        # Check that all the tower and diagnostic motors can be moved
-        for tower in self.towers:
-            tower.check_status()
-        self.dd.x.check_status()
-        self.dcc.x.check_status()
-        
-        # Move the tower motors
-        status = self._apply_tower_move_method(
-            E, self.towers, "set_energy", wait=False, check_status=False, 
-            *args, **kwargs)
-
-        # Get the pos for the diagnostic motors and move there
-        dd_x_pos = self.get_delay_diagnostic_position(E1=E, E2=E)
-        dcc_x_pos = self.get_channelcut_diagnostic_position(E2=E)
-        status.append(self.dd.x.move(dd_x_pos, wait=False))
-        status.append(self.dcc.x.move(dcc_x_pos, wait=False))
-
-        # Optionally wait for all the moves to complete
-        if wait:
-            for s in flatten(status):
-                logger.info("Waiting for {} to finish move ...".format(
-                    s.device.name))
-                status_wait(s)
-        return status
-    
+        return self.set_system(E1=E, E2=E, wait=wait)
+            
     @property
     def energy(self):
         """
@@ -479,7 +616,7 @@ class SplitAndDelay(Device):
         """
         status = self.set_energy(E)
         
-    def set_energy1(self, E, wait=False, verify_move=True, *args, **kwargs):
+    def set_energy1(self, E, wait=True, verify_move=True, *args, **kwargs):
         """
         Sets the energy for the delay line.
 
@@ -491,31 +628,8 @@ class SplitAndDelay(Device):
         wait : bool, optional
             Wait for each motor to complete the motion.
         """
-        # Prompt the user about the move before making it
-        if verify_move and self._verify_move(E1=E):
-            return 
-
-        # Check that all the delay tower and diagnostic motors can be moved
-        for tower in self.delay_towers:
-            tower.check_status()
-        self.dd.x.check_status()
-        
-        # Move all delay tower motors
-        status = self._apply_tower_move_method(
-            E, self.delay_towers, "set_energy", wait=False, check_status=False,
-            *args, **kwargs)
-
-        # Get the pos for the diagnostic motor and move there
-        dd_x_pos = self.get_delay_diagnostic_position(E1=E, E2=E)
-        status.append(self.dd.x.move(dd_x_pos, wait=False))
-
-        # Optionally wait for all the moves to complete
-        if wait:
-            for s in flatten(status):
-                logger.info("Waiting for {} to finish move ...".format(
-                    s.device.name))
-                status_wait(s)
-        return status    
+        return self.set_system(E1=E, wait=wait, verify_move=verify_move, *args,
+                                **kwargs)
 
     @property
     def energy1(self):
@@ -567,7 +681,7 @@ class SplitAndDelay(Device):
         """
         self.energy1 = E
 
-    def set_energy2(self, E, wait=False, verify_move=True, *args, **kwargs):
+    def set_energy2(self, E, wait=True, verify_move=True, *args, **kwargs):
         """
         Sets the energy for the channel cut line.
 
@@ -579,31 +693,8 @@ class SplitAndDelay(Device):
         wait : bool, optional
             Wait for each motor to complete the motion.
         """
-        # Prompt the user about the move before making it
-        if verify_move and self._verify_move(E2=E):
-            return 
-
-        # Check that all the delay tower and diagnosic motors can be moved
-        for tower in self.channelcut_towers:
-            tower.check_status()
-        self.dcc.x.check_status()
-
-        # Move all the channel cut tower motors
-        status = self._apply_tower_move_method(
-            E, self.channelcut_towers, "set_energy", wait=False, 
-            check_status=False, *args, **kwargs)
-
-        # Get the pos for the diagnostic motors and move there
-        dcc_x_pos = self.get_channelcut_diagnostic_position(E2=E)
-        status.append(self.dcc.x.move(dcc_x_pos, wait=False))
-
-        # Optionally wait for all the moves to complete
-        if wait:
-            for s in flatten(status):
-                logger.info("Waiting for {} to finish move ...".format(
-                    s.device.name))
-                status_wait(s)
-        return status    
+        return self.set_system(E2=E, wait=wait, verify_move=verify_move, *args,
+                                **kwargs)
         
     @property
     def energy2(self):
@@ -657,7 +748,7 @@ class SplitAndDelay(Device):
         """
         self.energy2 = E
 
-    def set_delay(self, delay, wait=False, verify_move=True, *args, **kwargs):
+    def set_delay(self, delay, wait=True, verify_move=True, *args, **kwargs):
         """
         Sets the linear stages on the delay line to be the correct length
         according to desired delay and current theta positions.
@@ -667,23 +758,8 @@ class SplitAndDelay(Device):
         delay : float
             The desired delay of the system in picoseconds.
         """
-        # Prompt the user about the move before making it
-        if verify_move and self._verify_move(delay=delay):
-            return 
-
-        # Check that all the tower motors can be moved
-        for tower in self.delay_towers:
-            tower.check_status(energy=False, delay=True)        
-
-        # Get the delay position to move to
-        length = self.delay_to_length(delay)
-        logger.debug("Input delay: {0}. \nMoving t1.L and t2.L to {1}".format(
-            delay, self.length))
-        
-        # Move all the delay stage motors
-        status = self._apply_tower_move_method(
-            length, self.delay_towers, "set_length", wait=wait, *args, **kwargs)
-        return status
+        return self.set_system(delay=delay, wait=wait, verify_move=verify_move,
+                                *args, **kwargs)
     
     @property
     def delay(self):
@@ -710,6 +786,23 @@ class SplitAndDelay(Device):
             The desired delay from the system.
         """
         status = self.set_delay(delay)
+    
+    def delay_rel(self, delay_rel):
+        """
+        Increments the delay by the inputted amount.
+
+        Parameters
+        ----------
+        delay_rel : float
+            The desired relative delay from the system.
+        """
+        status = self.set_delay(self.delay + delay_rel)
+
+    def main_screen(self):
+        """
+        Launches the main SnD screen.
+        """
+        os.system("/reg/neh/operator/xcsopr/bin/snd/snd_main")
         
     def status(self, print_status=True):
         """
@@ -721,16 +814,17 @@ class SplitAndDelay(Device):
         """
         status =  "Split and Delay System Status\n"
         status += "-----------------------------\n"
-        status += "  Energy 1: {>8.3f}\n".format(self.energy1)
-        status += "  Energy 2: {>8.3f}\n".format(self.energy2)
-        status += "  Delay:    {>8.3f}\n\n".format(self.delay)
+        status += "  Energy 1: {:>10.3f}\n".format(self.energy1)
+        status += "  Energy 2: {:>10.3f}\n".format(self.energy2)
+        status += "  Delay:    {:>10.3f}\n".format(self.delay)
         status = self.t1.status(status, 0, print_status=False, newline=True)
         status = self.t2.status(status, 0, print_status=False, newline=True)
         status = self.t3.status(status, 0, print_status=False, newline=True)
-        status = self.t4.status(status, 0, print_status=False, newline=False)
+        status = self.t4.status(status, 0, print_status=False, newline=True)
+        status = self.ab.status(status, 0, print_status=False, newline=False)
 
         if print_status:
-            print(status)
+            logger.info(status)
         else:
             return status
 
@@ -744,3 +838,8 @@ class SplitAndDelay(Device):
             Status string.
         """
         return self.status(print_status=False)
+
+# Notes:
+# Add the limits for the attocubes to autosave
+# Create energy motors
+# Check to make sure the motor is stopped

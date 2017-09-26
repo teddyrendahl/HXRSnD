@@ -13,20 +13,24 @@ import os
 # Third Party #
 ###############
 import numpy as np
+from ophyd.utils import LimitError
+from ophyd.status import wait as status_wait
 
 ########
 # SLAC #
 ########
 from pcdsdevices.epics.epicsmotor import EpicsMotor
-from pcdsdevices.component import Component
+from pcdsdevices.component import Component, FormattedComponent
 from pcdsdevices.epics.signal import (EpicsSignal, EpicsSignalRO, FakeSignal)
 
 ##########
 # Module #
 ##########
-from .exceptions import MotorDisabled, MotorFaulted
+from .utils import get_logger
+from .pneumatic import PressureSwitch
+from .exceptions import MotorDisabled, MotorFaulted, BadN2Pressure
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class AeroBase(EpicsMotor):
@@ -75,6 +79,7 @@ class AeroBase(EpicsMotor):
     zero_all_proc = Component(EpicsSignal, ".ZERO_P.PROC")
     home_forward = Component(EpicsSignal, ".HOMF")
     home_reverse = Component(EpicsSignal, ".HOMR")
+    dial = Component(EpicsSignalRO, ".DRBV")
 
     def __init__(self, prefix, desc=None, *args, **kwargs):
         self.desc=desc
@@ -209,7 +214,7 @@ class AeroBase(EpicsMotor):
         try:
             # Check the motor status
             if check_status:
-                self.check_status()
+                self.check_status(position)
             status =  super().move(position, wait=wait, *args, **kwargs)
 
             # Notify the user that a motor has completed or the command is sent
@@ -228,7 +233,7 @@ class AeroBase(EpicsMotor):
             self.stop()
             logger.info("Motor '{0}' stopped by keyboard interrupt".format(
                 self.desc))
-
+            
     def move_rel(self, rel_position, *args, **kwargs):
         """
         Move relative to the current position, optionally waiting for motion to
@@ -282,7 +287,11 @@ class AeroBase(EpicsMotor):
            *args, **kwargs):
         """
         Move to a specified position, optionally waiting for motion to
-        complete. Alias for move().
+        complete. mv() is different from move() by catching all the common
+        exceptions that this motor can raise and just raises a logger
+        warning. Therefore if building higher level functionality, do not
+        use this method and use move() instead otherwise none of these
+        exceptions will propagate to it.
 
         Parameters
         ----------
@@ -301,19 +310,43 @@ class AeroBase(EpicsMotor):
         print_move : bool, optional
             Print a short statement about the move.
 
+        Exceptions Caught
+        -----------------
+        LimitError
+            Error raised when the inputted position is beyond the soft limits.
+        
+        MotorDisabled
+            Error raised if the motor is disabled and move is requested.
+
+        MotorFaulted
+            Error raised if the motor is disabled and the move is requested.
+
         Returns
         -------
         status : MoveStatus        
             Status object for the move.
         """
-        return self.move(position, wait=wait, ret_status=ret_status, 
-                         print_move=print_move, *args, **kwargs)
+        try:
+            return self.move(position, wait=wait, ret_status=ret_status, 
+                             print_move=print_move, *args, **kwargs)
+
+        # Catch all the common motor exceptions        
+        except LimitError:
+            logger.warning("Requested move '{0}' is outside the soft limits "
+                           "{1}.".format(position, self.limits))
+        except MotorDisabled:
+            logger.warning("Cannot move - motor is currently disabled. Try "
+                           "running 'motor.enable()'.")
+        except MotorFaulted:
+            logger.warning("Cannot move - motor is currently faulted. Try "
+                           "running 'motor.clear()'.")
 
     def mvr(self, rel_position, wait=True, ret_status=False, print_move=True, 
             *args, **kwargs):
         """
         Move relative to the current position, optionally waiting for motion to
-        complete. Alias for move_rel().
+        complete. Catches all the same exceptions that mv() does. If a relative
+        move is needed for higher level functions use move_rel() instead.
 
         Parameters
         ----------
@@ -332,17 +365,34 @@ class AeroBase(EpicsMotor):
         print_move : bool, optional
             Print a short statement about the move.
 
+        Exceptions Caught
+        -----------------
+        LimitError
+            Error raised when the inputted position is beyond the soft limits.
+        
+        MotorDisabled
+            Error raised if the motor is disabled and move is requested.
+
+        MotorFaulted
+            Error raised if the motor is disabled and the move is requested.
+
         Returns
         -------
         status : MoveStatus        
             Status object for the move.
         """
-        return self.move_rel(rel_position, wait=wait, ret_status=ret_status, 
-                             print_move=print_status, *args, **kwargs)
+        return self.mv(rel_position + self.position, wait=wait,
+                       ret_status=ret_status, print_move=print_move, *args,
+                       **kwargs)
 
-    def check_status(self):
+    def check_status(self, position, *args, **kwargs):
         """
         Checks the status of the motor to make sure it is ready to move.
+
+        Parameters
+        ----------
+        position : float
+            Position to check for validity.
 
         Raises
         ------
@@ -361,6 +411,9 @@ class AeroBase(EpicsMotor):
             err = "Motor is currently faulted."
             logger.error(err)
             raise MotorFaulted(err)
+
+        # Check if the move is valid
+        self.check_value(position)        
         
     def set_position(self, position_des):
         """
@@ -548,7 +601,8 @@ class AeroBase(EpicsMotor):
         return self.move(position, wait=wait, ret_status=ret_status,
                          print_move=print_move, *args, **kwargs)
     
-    def status(self, status="", offset=0, print_status=True, newline=False):
+    def status(self, status="", offset=0, print_status=True, newline=False, 
+               short=False):
         """
         Returns the status of the device.
         
@@ -571,20 +625,26 @@ class AeroBase(EpicsMotor):
         status : str
             Status string.
         """
-        status += "{0}{1}\n".format(" "*offset, self.desc)
-        status += "{0}PV: {1:>25}\n".format(" "*(offset+2), self.prefix)
-        status += "{0}Enabled: {1:>20}\n".format(" "*(offset+2), 
-                                                 str(self.enabled))
-        status += "{0}Faulted: {1:>20}\n".format(" "*(offset+2), 
-                                                 str(self.faulted))
-        status += "{0}Position: {1:>19}\n".format(" "*(offset+2), 
-                                                  np.round(self.wm(), 6))
-        status += "{0}Limits: {1:>21}\n".format(
-            " "*(offset+2), str((int(self.low_limit), int(self.high_limit))))
+        if short:
+            status += "\n{0}{1:<16}|{2:^16.3f}|{3:^16.3f}".format(
+                " "*offset, self.desc, self.position, self.dial.value)
+        else:
+            status += "{0}{1}\n".format(" "*offset, self.desc)
+            status += "{0}PV: {1:>25}\n".format(" "*(offset+2), self.prefix)
+            status += "{0}Enabled: {1:>20}\n".format(" "*(offset+2), 
+                                                     str(self.enabled))
+            status += "{0}Faulted: {1:>20}\n".format(" "*(offset+2), 
+                                                     str(self.faulted))
+            status += "{0}Position: {1:>19}\n".format(" "*(offset+2), 
+                                                      np.round(self.wm(), 6))
+            status += "{0}Limits: {1:>21}\n".format(
+                " "*(offset+2), str((int(self.low_limit), 
+                                     int(self.high_limit))))
+
         if newline:
             status += "\n"
         if print_status is True:
-            print(status)
+            logger.info(status)
         else:
             return status
 
@@ -599,7 +659,113 @@ class AeroBase(EpicsMotor):
         """
         return self.status(print_status=False)
 
-    
+class InterlockedAero(AeroBase):
+    """
+    Linear Aerotech stage that has the additional move check for the pressure
+    status.
+    """
+    # To do the internel pressure check
+    _pressure = FormattedComponent(PressureSwitch,
+                                   "{self._prefix}:N2:{self._tower}")
+    def __init__(self, prefix, *args, **kwargs):
+        self._tower = prefix.split(":")[-2]
+        self._prefix = ":".join(prefix.split(":")[:2])
+        super().__init__(prefix, *args, **kwargs)
+
+
+    def check_status(self, *args, **kwargs):
+        """
+        Status check that also checks if the pressure measured by the pressure
+        switch is good.
+        
+        Parameters
+        ----------
+        position : float
+            Position to check for validity.
+
+        Raises
+        ------
+        MotorDisabled
+            If the motor is disabled.
+        
+        MotorFaulted
+            If the motor is faulted.
+        """
+        if self._pressure.bad:
+            err = "Cannot move - Pressure in {0} is bad.".format(self._tower)
+            logger.error(err)
+            raise BadN2Pressure(err)
+        super().check_status(*args, **kwargs)
+
+    def mv(self, position, wait=True, ret_status=False, print_move=True, 
+           *args, **kwargs):
+        """
+        Move to a specified position, optionally waiting for motion to
+        complete. mv() is different from move() by catching all the common
+        exceptions that this motor can raise and just raises a logger
+        warning. Therefore if building higher level functionality, do not
+        use this method and use move() instead otherwise none of these
+        exceptions will propagate to it.
+
+        Parameters
+        ----------
+        position
+            Position to move to.
+
+        wait : bool, optional
+            Wait for the motor to complete the motion.
+
+        check_status : bool, optional
+            Check if the motors are in a valid state to move.
+
+        ret_status : bool, optional
+            Return the status object of the move.
+
+        print_move : bool, optional
+            Print a short statement about the move.
+
+        Exceptions Caught
+        -----------------
+        LimitError
+            Error raised when the inputted position is beyond the soft limits.
+        
+        MotorDisabled
+            Error raised if the motor is disabled and move is requested.
+
+        MotorFaulted
+            Error raised if the motor is disabled and the move is requested.
+
+        BadN2Pressure
+            Error raised if the pressure in the tower is bad.
+
+        Returns
+        -------
+        status : MoveStatus        
+            Status object for the move.
+        """
+        try:
+            return super().mv(position, wait=wait, ret_status=ret_status, 
+                              print_move=print_move, *args, **kwargs)
+        # Catch a bad pressure setting.
+        except BadN2Pressure:
+            logger.warning("Cannot move - pressure in tower {0} is bad.".format(
+                self._tower))
+            
+            
+class LinearAero(AeroBase):
+    """
+    Class for the aerotech linear stage.
+    """
+    pass
+
+
+class InterLinearAero(InterlockedAero, LinearAero):
+    """
+    Class for the interlocked aerotech linear stage.
+    """
+    pass
+
+
 class RotationAero(AeroBase):
     """
     Class for the aerotech rotation stage.
@@ -607,9 +773,9 @@ class RotationAero(AeroBase):
     pass
 
 
-class LinearAero(AeroBase):
+class InterRotationAero(InterlockedAero, RotationAero):
     """
-    Class for the aerotech linear stage.
+    Class for the interlocked aerotech rotation stage.
     """
     pass
 

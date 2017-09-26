@@ -8,43 +8,48 @@ Exceptions for the SnD system.
 ############
 import logging
 
-###############
-# Third Party #
-###############
-
-########
-# SLAC #
-########
-
 ##########
 # Module #
 ##########
+from .utils import get_logger
+
+logger = get_logger(__name__)
 
 # Exceptions
 
-class SnDException(Exception):
+class SndException(Exception):
     """
     Base aerotech motor exceptions.
     """
     pass
 
 
-class MotorDisabled(SnDException):
+class MotorDisabled(SndException):
     """
     Exception raised when an action requiring the motor be enabled is requested.
     """
     pass
 
 
-class MotorFaulted(SnDException):
+class MotorFaulted(SndException):
     """
-    Exception raised when an action requiring the motor not be faulted is requested.
+    Exception raised when an action requiring the motor not be faulted is 
+    requested.
     """
     pass
 
 
-class MotorError(SnDException):
+class MotorError(SndException):
     """
-    Exception raised when an action requiring the motor not have an error is requested.
+    Exception raised when an action requiring the motor not have an error is 
+    requested.
+    """
+    pass
+
+
+class BadN2Pressure(SndException):
+    """
+    Exception raised when an action requiring the N2 pressure be good is 
+    requested with a bad pressure.
     """
     pass

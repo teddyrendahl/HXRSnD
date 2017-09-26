@@ -20,7 +20,12 @@ from pcdsdevices.device import Device
 from pcdsdevices.component import Component
 from pcdsdevices.epics.signal import EpicsSignal, EpicsSignalRO
 
-logger = logging.getLogger(__name__)
+##########
+# Module #
+##########
+from .utils import get_logger
+
+logger = get_logger(__name__)
 
 class PneuBase(Device):
     """
@@ -56,11 +61,12 @@ class PneuBase(Device):
         status : str
             Status string.
         """
-        status += "{0}{1}: {2}\n".format(" "*offset, self.desc, self.position)
+        status += "{0}{1:<16}|{2:^16}\n".format(" "*offset, self.desc+"", 
+                                                self.position)
         if newline:
             status += "\n"
         if print_status is True:
-            print(status)
+            logger.info(status)
         else:
             return status
 
@@ -243,7 +249,6 @@ class SndPneumatics(Device):
         if self.desc is None:
             self.desc = self.name
 
-
     def status(self, status="", offset=0, print_status=True, newline=False):
         """
         Returns the status of the vacuum system.
@@ -267,7 +272,9 @@ class SndPneumatics(Device):
         status : str
             Status string.
         """
-        status += "{0}Vacuum\n{1}{2}\n".format(" "*offset, " "*offset, "-"*6)
+        status += "\n{0}Pneumatics".format(" "*offset)
+        status += "\n{0}{1}\n{0}{2:^16}|{3:^16}\n{0}{4}\n".format(
+            " "*(offset+2), "-"*34, "Device", "State", "-"*34)
         for valve in self._valves:
             status += valve.status(offset=offset+2, print_status=False)
         for pressure in self._pressure_switches:
@@ -276,7 +283,7 @@ class SndPneumatics(Device):
         if newline:
             status += "\n"
         if print_status is True:
-            print(status)
+            logger.info(status)
         else:
             return status
 
@@ -304,7 +311,7 @@ class SndPneumatics(Device):
         status = ""
         for valve in self._valves:
             status += valve.status(print_status=False)
-        print(status)
+        logger.info(status)
 
     @property
     def pressures(self):
@@ -314,7 +321,7 @@ class SndPneumatics(Device):
         status = ""
         for pressure in self._pressure_switches:
             status += pressure.status(print_status=False)
-        print(status)
+        logger.info(status)
 
     def __repr__(self):
         """

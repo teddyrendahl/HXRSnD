@@ -19,9 +19,10 @@ from bluesky.plans      import subs_decorator
 ##########
 # Module #
 ##########
+from .utils import get_logger
 from .errors import UndefinedBounds
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 def block_run_control(msg):
     """
