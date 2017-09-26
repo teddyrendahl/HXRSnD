@@ -20,16 +20,12 @@ from ophyd.status import wait as status_wait
 # SLAC #
 ########
 from pcdsdevices.device import Device
-from pcdsdevices.component import Component
 
 ##########
 # Module #
 ##########
-from .sndsystem import SplitAndDelay
-from .utils import flatten, get_logger
+from .utils import get_logger
 from .bragg import bragg_angle, cosd, sind
-from .tower import DelayTower, ChannelCutTower
-from .diode import HamamatsuXMotionDiode, HamamatsuXYMotionCamDiode
 from .exceptions import MotorDisabled, MotorFaulted, BadN2Pressure
 
 logger = get_logger(__name__, log_file=False)
@@ -47,10 +43,11 @@ class MacroBase(Device):
         self.desc = desc
         super().__init__(prefix, *args, **kwargs)
         
-        # Make sure this is used 
-        if not isinstance(self.parent, SplitAndDelay):
-            logger.warning("Macromotors must be instantiated as components of a"
-                           " SplitAndDelay object to function properly.")
+        # Make sure this is used
+        if self.parent is None:
+            logger.warning("Macromotors must be instantiated with a parent "
+                           "that has the SnD towers as components to function "
+                           "properly.")
         else:
             self._delay_towers = [self.parent.t1, self.parent.t4]
             self._channelcut_towers = [self.parent.t2, self.parent.t3]
@@ -760,7 +757,6 @@ class MacroBase(Device):
             # Log the set
             logger.debug("Setting positions for E2 to {0}.".format(E2))
             
-
         # Delay stages
         if delay is not None:
             length = self._delay_to_length(delay)
@@ -866,6 +862,7 @@ class Energy(MacroBase):
         E : float
             Energy to set the system to.
         """
+        logger.info("Setting positions for Energy to {0}.".format(E))
         super().set_position(E1=E, E2=E)
 
 
@@ -920,6 +917,7 @@ class Energy1(MacroBase):
         E1 : float
             Energy to set the delay branch to.
         """
+        logger.info("Setting positions for Energy 1 to {0}.".format(E1))
         super().set_position(E1=E1)    
 
 
@@ -974,6 +972,7 @@ class Energy2(MacroBase):
         E2 : float
             Energy to set the channel cut branch to.
         """
+        logger.info("Setting positions for Energy 2 to {0}.".format(E2))
         super().set_position(E2=E2)
 
 
@@ -1060,5 +1059,6 @@ class Delay(MacroBase):
         delay : float
             Delay to set the delay stages to in ps.
         """
+        logger.info("Setting positions for delay stages to {0}.".format(delay))
         super().set_position(delay=delay)
 
