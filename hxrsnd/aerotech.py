@@ -82,10 +82,10 @@ class AeroBase(EpicsMotor):
     dial = Component(EpicsSignalRO, ".DRBV")
 
     def __init__(self, prefix, desc=None, *args, **kwargs):
-        self.desc=desc
+        self.desc = desc
         super().__init__(prefix, *args, **kwargs)
         self.configuration_attrs.append("power")
-        if desc is None:
+        if self.desc is None:
             self.desc = self.name
 
     def _status_print(self, status, msg=None, ret_status=False, print_set=True):
@@ -415,7 +415,7 @@ class AeroBase(EpicsMotor):
         # Check if the move is valid
         self.check_value(position)        
         
-    def set_position(self, position_des):
+    def set_position(self, position_des, print_set=True):
         """
         Sets the current position to be the inputted position by changing the 
         offset.
@@ -425,11 +425,18 @@ class AeroBase(EpicsMotor):
         position_des : float
             The desired current position.
         """
-        logger.info("Previous position: {0}, offset: {1}".format(
+        # Print to console or just to the log
+        if print_set:
+            log_level = logger.info
+        else:
+            log_level = logger.debug
+
+        
+        log_level("'{0}' previous position: {0}, offset: {1}".format(
             self.position, self.offset))
         self.offset += position_des - self.position
-        logger.info("New position: {0}, offset: {1}".format(
-            self.position, self.offset))
+        log_level("'{0}' New position: {0}, offset: {1}".format(self.position,
+                                                                self.offset))
 
     def enable(self, ret_status=False, print_set=True):
         """
@@ -598,8 +605,8 @@ class AeroBase(EpicsMotor):
         status : MoveStatus 
             Status object for the move.
         """
-        return self.move(position, wait=wait, ret_status=ret_status,
-                         print_move=print_move, *args, **kwargs)
+        return self.mv(position, wait=wait, ret_status=ret_status,
+                       print_move=print_move, *args, **kwargs)
     
     def status(self, status="", offset=0, print_status=True, newline=False, 
                short=False):
