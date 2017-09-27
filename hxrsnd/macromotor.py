@@ -24,7 +24,7 @@ from pcdsdevices.device import Device
 ##########
 # Module #
 ##########
-from .utils import get_logger, as_list
+from .utils import get_logger, as_list, flatten
 from .bragg import bragg_angle, cosd, sind
 from .exceptions import MotorDisabled, MotorFaulted, BadN2Pressure
 
@@ -238,8 +238,7 @@ class MacroBase(Device):
         
         # Catch all the common motor exceptions        
         except LimitError:
-            logger.warning("Requested move '{0}' is outside the soft limits "
-                           "{1}.".format(position, self.limits))
+            logger.warning("Requested move is outside the soft limits")
         except MotorDisabled:
             logger.warning("Cannot move - motor is currently disabled. Try "
                            "running 'motor.enable()'.")
@@ -624,13 +623,13 @@ class DelayMacro(DelayTowerMacro):
         # Convert to length and add the body of the string
         length = self._delay_to_length(delay)
         for tower in self._delay_towers:
-            string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
+            string += "\n{:<15}|{:^15.3f}|{:^15.3f}".format(
                 tower.L.desc, tower.length, length)
 
         # Add the diagnostic move
         position_dd = self._get_delay_diagnostic_position(delay)
-        string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
-            "dd.x", self.parent.dd.x.position, position_dd)
+        string += "\n{:<15}|{:^15.3f}|{:^15.3f}".format(
+            self.parent.dd.x.desc, self.parent.dd.x.position, position_dd)
 
         # Prompt the user for a confirmation or return the string
         if confirm_move is True:
@@ -685,10 +684,7 @@ class DelayMacro(DelayTowerMacro):
 
         Returns
         -------
-        length : float or None
-            Position to move the delay stages to.
-
-        position_dd : float or None
+        position_dd : list
             Position to move the delay diagnostic to.
         """
         # Get the desired length for the delay stage
@@ -702,7 +698,7 @@ class DelayMacro(DelayTowerMacro):
         position_dd = self._get_delay_diagnostic_position(delay=delay)
         self.parent.dd.x.check_status(position_dd)
 
-        return as_list(position_dd)
+        return [position_dd]
 
     def _move_towers_and_diagnostics(self, delay, position_dd):
         """
@@ -727,7 +723,7 @@ class DelayMacro(DelayTowerMacro):
 
         # Move the delay stages
         status = [tower.set_length(length, wait=False, check_status=False) 
-                   for tower in self._delaytowers]
+                   for tower in self._delay_towers]
         # Log the delay change
         logger.debug("Setting delay to {0}.".format(delay))
         
@@ -867,16 +863,15 @@ class Energy1Macro(DelayTowerMacro):
             string += self._add_verify_header(string)
 
         # Get move for each motor in the delay towers
-        theta1 = bragg_angle(E=E1)
         for tower in self._delay_towers:
             for motor, position in zip(tower._energy_motors,
-                                       tower._get_move_positions(theta1)):
-                string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
+                                       tower._get_move_positions(E1)):
+                string += "\n{:<15}|{:^15.3f}|{:^15.3f}".format(
                     motor.desc, motor.position, position)
 
         position_dd = self._get_delay_diagnostic_position(E1)
-        string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
-            "dd.x", self.parent.dd.x.position, position_dd)            
+        string += "\n{:<15}|{:^15.3f}|{:^15.3f}".format(
+            self.parent.dd.x.desc, self.parent.dd.x.position, position_dd)            
 
         # Prompt the user for a confirmation or return the string
         if confirm_move is True:
@@ -921,7 +916,7 @@ class Energy1Macro(DelayTowerMacro):
         position_dd = self._get_delay_diagnostic_position(E1=E1)
         self.parent.dd.x.check_status(position_dd)
             
-        return position_dd
+        return [position_dd]
 
     def _move_towers_and_diagnostics(self, E1, position_dd):
         """
@@ -943,7 +938,7 @@ class Energy1Macro(DelayTowerMacro):
         """
         # Move the towers to the specified energy
         status = [tower.set_energy(E1, wait=False, check_status=False) for
-                   tower in self._delaytowers]
+                   tower in self._delay_towers]
         # Log the energy change
         logger.debug("Setting E1 to {0}.".format(E1))
 
@@ -1101,17 +1096,16 @@ class Energy2Macro(MacroBase):
             string += self._add_verify_header(string)
 
         # Get move for each motor in the channel cut towers towers
-        theta2 = bragg_angle(E=E2)
         for tower in self._channelcut_towers:
             for motor, position in zip(tower._energy_motors,
-                                       tower._get_move_positions(theta2)):
-                string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
+                                       tower._get_move_positions(E2)):
+                string += "\n{:<15}|{:^15.3f}|{:^15.3f}".format(
                     motor.desc, motor.position, position)
 
         # Get move for the channel cut diagnostic
         position_dcc = self._get_channelcut_diagnostic_position(E2)
-        string += "\n{:^15}|{:^15.3f}|{:^15.3f}".format(
-            "dcc.x", self.parent.dcc.x.position, position_dcc)
+        string += "\n{:<15}|{:^15.3f}|{:^15.3f}".format(
+            self.parent.dcc.x.desc, self.parent.dcc.x.position, position_dcc)
             
         # Prompt the user for a confirmation or return the string
         if confirm_move is True:
@@ -1156,7 +1150,7 @@ class Energy2Macro(MacroBase):
         position_dcc = self._get_channelcut_diagnostic_position(E2=E2)
         self.parent.dcc.x.check_status(position_dcc)
 
-        return position_dcc
+        return [position_dcc]
 
     def _move_towers_and_diagnostics(self, E2, position_dcc):
         """
@@ -1292,6 +1286,10 @@ class EnergyMacro(Energy1Macro, Energy2Macro):
         allowed : bool
             True if the move is approved, False if the move is not.
         """
+        # Add a header to the output
+        if use_header:
+            string += self._add_verify_header(string)
+
         # Verify each energy
         string += Energy1Macro._verify_move(self, E, "", False, False) 
         string += Energy2Macro._verify_move(self, E, "", False, False) 
@@ -1338,7 +1336,7 @@ class EnergyMacro(Energy1Macro, Energy2Macro):
         position_dd = Energy1Macro._check_towers_and_diagnostics(self, E)
         position_dcc = Energy2Macro._check_towers_and_diagnostics(self, E)
             
-        return position_dd, position_dcc
+        return flatten([position_dd, position_dcc])
 
     def _move_towers_and_diagnostics(self, E, position_dd, position_dcc):
         """
@@ -1391,4 +1389,5 @@ class EnergyMacro(Energy1Macro, Energy2Macro):
 
 # Add checks for faults after the move
 # Add signal for stop and go pv
-
+# For E, if each energy is off by more than 1 eV, then report a warning, but
+# then do a relative move on each of their current positions.
