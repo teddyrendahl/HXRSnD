@@ -140,7 +140,7 @@ class AeroBase(EpicsMotor):
         """
         status = self.home_forward.set(1)
         return self._status_print(status, "Homing '{0}' forward.".format(
-            self.desc))
+            self.desc, print_set=print_set))
 
     def homr(self, ret_status=False, print_set=True):
         """
@@ -161,7 +161,7 @@ class AeroBase(EpicsMotor):
         """
         status = self.home_reverse.set(1)
         return self._status_print(status, "Homing '{0}' in reverse.".format(
-            self.desc))
+            self.desc, print_set=print_set))
 
     def move(self, position, wait=False, check_status=True, ret_status=True, 
              print_move=False, *args, **kwargs):
@@ -457,7 +457,7 @@ class AeroBase(EpicsMotor):
         """
         status = self.power.set(1)
         return self._status_print(status, "Enabled motor '{0}'.".format(
-            self.desc))
+            self.desc, print_set=print_set))
 
     def disable(self, ret_status=False, print_set=True):
         """
@@ -478,7 +478,7 @@ class AeroBase(EpicsMotor):
         """
         status = self.power.set(0)
         return self._status_print(status, "Disabled motor '{0}'.".format(
-            self.desc))
+            self.desc, print_set=print_set))
 
     @property
     def enabled(self):
@@ -511,7 +511,7 @@ class AeroBase(EpicsMotor):
         """
         status = self.clear_error.set(1)
         return self._status_print(status, "Cleared motor '{0}'.".format(
-            self.desc))
+            self.desc, print_set=print_set))
 
     def reconfig(self, ret_status=False, print_set=True):
         """
@@ -532,7 +532,7 @@ class AeroBase(EpicsMotor):
         """
         status = self.config.set(1)
         return self._status_print(status, "Reconfigured motor '{0}'.".format(
-            self.desc))
+            self.desc, print_set=print_set))
 
     @property
     def faulted(self):
@@ -565,7 +565,7 @@ class AeroBase(EpicsMotor):
         """
         status = self.zero_all_proc.set(1)
         return self._status_print(status, "Zeroed motor '{0}'.".format(
-            self.desc))
+            self.desc, print_set=print_set))
 
     def expert_screen(self, print_msg=True):
         """

@@ -101,10 +101,10 @@ class SplitAndDelay(Device):
     dcc = Component(HamamatsuXYMotionCamDiode, ":DIA:DCC")
     dco = Component(HamamatsuXMotionDiode, ":DIA:DCO")
 
-    # Macromotors
+    # Macro motors
     E = Component(EnergyMacro, "", desc="System")
-    E1 = Component(Energy1Macro, "", desc="Delay")
-    E2 = Component(Energy2Macro, "", desc="Channel Cut")
+    E1 = Component(Energy1Macro, "", desc="Delay Energy")
+    E2 = Component(Energy2Macro, "", desc="CC Energy")
     delay = Component(DelayMacro, "", desc="Delay")
     
     def __init__(self, prefix, desc=None, *args, **kwargs):
@@ -163,10 +163,10 @@ class SplitAndDelay(Device):
         Status : str            
         """
         status =  "Split and Delay System Status\n"
-        status += "-----------------------------\n"
-        status += "  Energy 1: {:>10.3f}\n".format(self.energy1)
-        status += "  Energy 2: {:>10.3f}\n".format(self.energy2)
-        status += "  Delay:    {:>10.3f}\n".format(self.delay)
+        status += "-----------------------------"
+        status = self.E1.status(status, 0, print_status=False)
+        status = self.E2.status(status, 0, print_status=False)
+        status = self.delay.status(status, 0, print_status=False, newline=True)
         status = self.t1.status(status, 0, print_status=False, newline=True)
         status = self.t2.status(status, 0, print_status=False, newline=True)
         status = self.t3.status(status, 0, print_status=False, newline=True)

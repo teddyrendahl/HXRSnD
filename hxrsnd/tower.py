@@ -62,7 +62,8 @@ class TowerBase(Device):
         E : float
             Energy of the delay line.
         """
-        return np.round(bragg_energy(self.theta), 3)
+        # This is awful but please forgive me, np.round doesnt work as expected
+        return float("{:.3f}".format(bragg_energy(self.theta)))
 
     @energy.setter
     def energy(self, E):
