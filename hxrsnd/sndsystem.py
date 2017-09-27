@@ -73,6 +73,18 @@ class SplitAndDelay(Device):
     
     dco : HamamatsuXMotionDiode
         Input diode for the channel cut line.
+
+    E : EnergyMacro
+        System energy pseudomotor.
+
+    E1 : Energy1Macro
+        Delay energy pseudomotor.
+
+    E2 : Energy2Macro
+        Channel cut energy pseudomotor.
+
+    delay : DelayMacro
+        Delay pseudomotor.
     """
     # Delay Towers
     t1 = Component(DelayTower, ":T1", y1="A:ACT0", y2="A:ACT1",

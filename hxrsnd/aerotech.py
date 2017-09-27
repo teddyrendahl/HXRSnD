@@ -644,6 +644,9 @@ class AeroBase(EpicsMotor):
                                                      str(self.faulted))
             status += "{0}Position: {1:>19}\n".format(" "*(offset+2), 
                                                       np.round(self.wm(), 6))
+            status += "{0}Dial: {1:>23}\n".format(" "*(offset+2), 
+                                                      np.round(self.dial.value,
+                                                               6))
             status += "{0}Limits: {1:>21}\n".format(
                 " "*(offset+2), str((int(self.low_limit), 
                                      int(self.high_limit))))

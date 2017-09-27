@@ -43,6 +43,13 @@ class TowerBase(Device):
         super().__init__(prefix, *args, **kwargs)
         if self.desc is None:
             self.desc = self.name
+        self.desc_short = "".join([s[0] for s in self.desc.split(" ")])
+        
+        # Add Tower short name to desc
+        for sig_name in self.signal_names:
+            signal = getattr(self, sig_name)
+            if hasattr(signal, "desc"):
+                signal.desc = "{0} {1}".format(self.desc_short, signal.desc)
         
     def set_energy(self, E, *args, **kwargs):
         """
@@ -225,7 +232,7 @@ class TowerBase(Device):
         if energy is not None:
             motors += self._energy_motors
             theta = bragg_angle(energy)
-            positions += self._get_move_positions(theta)
+            positions += self._get_move_positions(energy)
             
         # Get the delay parameters
         try:
@@ -389,29 +396,29 @@ class DelayTower(TowerBase):
         RTD temperature sensor for the nitrogen.
     """
     # Rotation stages
-    tth = Component(InterRotationAero, ":TTH", desc="Two Theta")
-    th1 = Component(RotationAero, ":TH1", desc="Theta 1")
-    th2 = Component(RotationAero, ":TH2", desc="Theta 2")
+    tth = Component(InterRotationAero, ":TTH", desc="TTH")
+    th1 = Component(RotationAero, ":TH1", desc="TH1")
+    th2 = Component(RotationAero, ":TH2", desc="TH2")
 
     # Linear stages
-    x = Component(InterLinearAero, ":X", desc="Tower X")
-    L = Component(InterLinearAero, ":L", desc="Delay Stage")
+    x = Component(InterLinearAero, ":X", desc="X")
+    L = Component(InterLinearAero, ":L", desc="L")
 
     # Y Crystal motion
     y1 = FormattedComponent(TranslationEcc, "{self._prefix}:ECC:{self._y1}",
-                            desc="Crystal 1 Y")
+                            desc="Y1")
     y2 = FormattedComponent(TranslationEcc, "{self._prefix}:ECC:{self._y2}",
-                            desc="Crystal 2 Y")
+                            desc="Y2Y")
 
     # Chi motion
     chi1 = FormattedComponent(GoniometerEcc, "{self._prefix}:ECC:{self._chi1}",
-                              desc="Crystal 1 Chi")
+                              desc="CHI1")
     chi2 = FormattedComponent(GoniometerEcc, "{self._prefix}:ECC:{self._chi2}",
-                              desc="Crystal 2 Chi")
+                              desc="CHI2")
 
     # Diode motion
     dh = FormattedComponent(DiodeEcc, "{self._prefix}:ECC:{self._dh}",
-                            desc="Diode Motor")
+                            desc="DH")
     
     # # Diode
     # diode = Component(HamamatsuDiode, ":DIODE", desc="Tower Diode")
@@ -460,7 +467,7 @@ class DelayTower(TowerBase):
             List of positions each of the energy motors need to move to.
         """
         # Convert to theta
-        theta = bragg_angle(E)
+        theta = bragg_angle(E=E)
 
         # Get the positions
         positions = []
@@ -574,10 +581,10 @@ class ChannelCutTower(TowerBase):
         Translation stage of the tower
     """
     # Rotation
-    th = Component(RotationAero, ":TH", desc="Theta")
+    th = Component(RotationAero, ":TH", desc="TH")
 
     # Translation
-    x = Component(LinearAero, ":X", desc="Tower X")
+    x = Component(LinearAero, ":X", desc="X")
 
     def __init__(self, prefix, *args, **kwargs):
         super().__init__(prefix, *args, **kwargs)
