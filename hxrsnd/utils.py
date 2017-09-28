@@ -5,6 +5,7 @@ Script for small utility functions used in HXRSnD
 # Standard #
 ############
 import logging
+import inspect
 from pathlib import Path
 from collections.abc import Iterable
 from logging.handlers import RotatingFileHandler
@@ -82,6 +83,8 @@ def get_logger(name, stream_level=logging.INFO, log_file=True,
 
     return logger
 
+logger = get_logger(__name__)
+
 def isiterable(obj):
     """
     Function that determines if an object is an iterable, not including 
@@ -138,3 +141,29 @@ def flatten(inp_iter):
         The contents of the iterable as a flat list
     """
     return list(_flatten(inp_iter))
+
+def absolute_submodule_path(submodule, cur_dir=inspect.stack()[0][1]):
+    """
+    Returns the absolute path of the inputted SnD submodule based on an inputted
+    absolute path, or the absolute path of this file.
+
+    Parameters
+    ----------
+    submodule : str or Path
+        Desired submodule path.
+
+    cur_dir : str or Path, optional
+        Absolute path to use as a template for the full submodule path.
+
+    Returns
+    -------
+    full_path : str
+        Full string path to the inputted submodule.
+    """
+    dir_parts = Path(cur_dir).parts
+    sub_parts = Path(submodule).parts
+    base_path = Path(*dir_parts[:dir_parts.index(sub_parts[0])])
+    if str(base_path) == ".":
+        logger.warning("Could not match base path with desired submodule.")
+    full_path = base_path / Path(submodule)
+    return str(full_path)
