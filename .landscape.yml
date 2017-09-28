@@ -14,5 +14,7 @@ ignore-paths:
   - __init__.py
   - hxrsnd/_version.py
   - versioneer.py
+  - bin
+  - screens
 python-targets:
   - 3
