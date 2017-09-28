@@ -8,6 +8,7 @@ Welcome to the Hard X-Ray Split and Delay Alignment System!
 
 .. image:: https://landscape.io/github/slaclab/HXRSnD/master/landscape.svg?style=flat
    :target: https://landscape.io/github/slaclab/HXRSnD/master
+
 Beam Alignment module for the hard x-ray split and delay.
 
 ===================================
@@ -33,6 +34,7 @@ Basic Usage
 ===========
 The `snd` object is where most if not all of the interfacing with the system
 should be done. It has the following devices as attributes:
+
  - `t1` - Tower 1 in the split and delay system
  - `t4` - Tower 4 in the split and delay system
  - `t2` - Tower 2 in the split and delay system
@@ -52,26 +54,6 @@ Each of the devices has an assortment of motors that can be viewed from the
 'Component' section of the object's docstring. The easiest way to so is by using
 the `ipython`, `?`, operator.
 
-For example, to view the components of `snd.t2`: ::
-
-    In [1]: snd.t2?
-    Type:        ChannelCutTower
-    String form: ChannelCutTower(prefix='XCS:SND:T2', name='XCS:SND_t2', parent='XCS:SND', read_attrs=['th', 'x'], configuration_attrs=[])
-    File:        /reg/neh/home5/apra/work/python/snd/HXRSnD/hxrsnd/devices.py
-    Docstring:  
-    Channel Cut tower.
-
-    Components
-    ----------
-    th : RotationAero
-	Rotation stage of the channel cut crystal
-
-    x : LinearAero
-	Translation stage of the tower
-
-Which shows that the `snd.t2` has two motors `th` and `x` which can be accessed
-using `snd.t2.th` and `snd.t2.x` respectively.
-
 For convenience, each of the components (except the pseudomotors) are
 instantiated independently and should behave identically to when interfaced
 using the `snd` object.
@@ -89,7 +71,8 @@ below is not an exhaustive list and is just a catalog of some of (what my idea
 are) the more useful methods and attributes.
 
 Methods common to all motors:
-------------------------------
+-----------------------------
+
 `motor.move()`, `motor.mv()`
  - Moves the motor to the inputted position.
 
@@ -179,10 +162,10 @@ present in the environment. These can be used to perform any quick calculations
 and are listed below:
 
 `snd_L`
-- Calculates the bragg angles for the delay and channel cut branches, in addition to the delay.
+ - Calculates the bragg angles for the delay and channel cut branches, in addition to the delay.
 
 `snd_diag`
-- Calculates the positions of the diagnostic motors in the middle of the system to intersect with the beam at the inputted energies and delay.
+ - Calculates the positions of the diagnostic motors in the middle of the system to intersect with the beam at the inputted energies and delay.
 
 `snd_delay`
-- Calculates the delay of the system based on the length of the delay arm.
+ - Calculates the delay of the system based on the length of the delay arm.
