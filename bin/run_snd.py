@@ -20,32 +20,35 @@ logger = get_logger(__name__)
 # Instantiate the system
 pv_base = "XCS:SND"
 
-# The whole system
-snd = SplitAndDelay(pv_base)
+try:
+    # The whole system
+    snd = SplitAndDelay(pv_base)
+    
+    # Towers
+    t1 = DelayTower(pv_base + ":T1", y1="A:ACT0", y2="A:ACT1", chi1="A:ACT2",
+                    chi2="B:ACT0", dh="B:ACT1", pos_inserted=21.1,
+                    pos_removed=0, desc="Tower 1")
+    t2 = ChannelCutTower(pv_base + ":T2", pos_inserted=None, pos_removed=0, 
+                         desc="Tower 2")
+    t3 = ChannelCutTower(pv_base + ":T3", pos_inserted=None, pos_removed=0, 
+                         desc="Tower 3")
+    t4 = DelayTower(pv_base + ":T4", y1="C:ACT0", y2="C:ACT1", chi1="C:ACT2",
+                    chi2="D:ACT0", dh="D:ACT1", pos_inserted=21.1,
+                    pos_removed=0, desc="Tower 4")
 
-# Towers
-t1 = DelayTower(pv_base + ":T1", y1="A:ACT0", y2="A:ACT1", chi1="A:ACT2",
-                chi2="B:ACT0", dh="B:ACT1", pos_inserted=21.1, pos_removed=0,
-                desc="Tower 1")
-t2 = ChannelCutTower(pv_base + ":T2", pos_inserted=None, pos_removed=0, 
-                     desc="Tower 2")
-t3 = ChannelCutTower(pv_base + ":T3", pos_inserted=None, pos_removed=0, 
-                     desc="Tower 3")
-t4 = DelayTower(pv_base + ":T4", y1="C:ACT0", y2="C:ACT1", chi1="C:ACT2",
-                chi2="D:ACT0", dh="D:ACT1", pos_inserted=21.1, pos_removed=0,
-                desc="Tower 4")
+    # Vacuum
+    ab = SndPneumatics(pv_base)
 
-# Vacuum
-ab = SndPneumatics(pv_base)
-
-# Diagnostics
-di = HamamatsuXMotionDiode(pv_base + ":DIA:DI")
-dd = HamamatsuXYMotionCamDiode(pv_base + ":DIA:DD")
-do = HamamatsuXMotionDiode(pv_base + ":DIA:DO")
-dci = HamamatsuXMotionDiode(pv_base + ":DIA:DCI")
-dcc = HamamatsuXYMotionCamDiode(pv_base + ":DIA:DCC")
-dco = HamamatsuXMotionDiode(pv_base + ":DIA:DCO")
-
+    # Diagnostics
+    di = HamamatsuXMotionDiode(pv_base + ":DIA:DI")
+    dd = HamamatsuXYMotionCamDiode(pv_base + ":DIA:DD")
+    do = HamamatsuXMotionDiode(pv_base + ":DIA:DO")
+    dci = HamamatsuXMotionDiode(pv_base + ":DIA:DCI")
+    dcc = HamamatsuXYMotionCamDiode(pv_base + ":DIA:DCC")
+    dco = HamamatsuXMotionDiode(pv_base + ":DIA:DCO")
+except TimeoutError:
+    logger.error("Timeout on getting PVs.")
+    raise e
 
 # These are the calculations provided by Yanwen. They can be a useful sanity
 # check if things are being weird.
