@@ -10,6 +10,36 @@ from pathlib import Path
 from collections.abc import Iterable
 from logging.handlers import RotatingFileHandler
 
+logger = logging.getLogger(__name__)
+
+def absolute_submodule_path(submodule, cur_dir=inspect.stack()[0][1]):
+    """
+    Returns the absolute path of the inputted SnD submodule based on an inputted
+    absolute path, or the absolute path of this file.
+
+    Parameters
+    ----------
+    submodule : str or Path
+        Desired submodule path.
+
+    cur_dir : str or Path, optional
+        Absolute path to use as a template for the full submodule path.
+
+    Returns
+    -------
+    full_path : str
+        Full string path to the inputted submodule.
+    """
+    dir_parts = Path(cur_dir).parts
+    sub_parts = Path(submodule).parts
+    base_path = Path(*dir_parts[:dir_parts.index(sub_parts[0])])
+    if str(base_path) == ".":
+        logger.warning("Could not match base path with desired submodule.")
+    full_path = base_path / Path(submodule)
+    return str(full_path)
+
+LOG_DIR = absolute_submodule_path("HXRSnD/logs")
+
 def get_logger(name, stream_level=logging.INFO, log_file=True, 
                log_dir=Path("."), max_bytes=10*1024*1024):
     """
@@ -66,6 +96,10 @@ def get_logger(name, stream_level=logging.INFO, log_file=True,
     # Log to a file
     if log_file:
         log_file = log_dir / "log.txt"
+
+        # Create the inputted foler if it doesnt already exist
+        if not log_dir.exists():
+            log_dir.mkdir(parents=True)
         # Create the file if it doesnt already exist
         if not log_file.exists():
             log_file.touch()
@@ -141,29 +175,3 @@ def flatten(inp_iter):
         The contents of the iterable as a flat list
     """
     return list(_flatten(inp_iter))
-
-def absolute_submodule_path(submodule, cur_dir=inspect.stack()[0][1]):
-    """
-    Returns the absolute path of the inputted SnD submodule based on an inputted
-    absolute path, or the absolute path of this file.
-
-    Parameters
-    ----------
-    submodule : str or Path
-        Desired submodule path.
-
-    cur_dir : str or Path, optional
-        Absolute path to use as a template for the full submodule path.
-
-    Returns
-    -------
-    full_path : str
-        Full string path to the inputted submodule.
-    """
-    dir_parts = Path(cur_dir).parts
-    sub_parts = Path(submodule).parts
-    base_path = Path(*dir_parts[:dir_parts.index(sub_parts[0])])
-    if str(base_path) == ".":
-        logger.warning("Could not match base path with desired submodule.")
-    full_path = base_path / Path(submodule)
-    return str(full_path)
