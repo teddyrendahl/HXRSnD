@@ -82,10 +82,10 @@ class AeroBase(EpicsMotor):
     dial = Component(EpicsSignalRO, ".DRBV")
 
     def __init__(self, prefix, desc=None, *args, **kwargs):
-        self.desc=desc
+        self.desc = desc
         super().__init__(prefix, *args, **kwargs)
         self.configuration_attrs.append("power")
-        if desc is None:
+        if self.desc is None:
             self.desc = self.name
 
     def _status_print(self, status, msg=None, ret_status=False, print_set=True):
@@ -140,7 +140,7 @@ class AeroBase(EpicsMotor):
         """
         status = self.home_forward.set(1)
         return self._status_print(status, "Homing '{0}' forward.".format(
-            self.desc))
+            self.desc, print_set=print_set))
 
     def homr(self, ret_status=False, print_set=True):
         """
@@ -161,7 +161,7 @@ class AeroBase(EpicsMotor):
         """
         status = self.home_reverse.set(1)
         return self._status_print(status, "Homing '{0}' in reverse.".format(
-            self.desc))
+            self.desc, print_set=print_set))
 
     def move(self, position, wait=False, check_status=True, ret_status=True, 
              print_move=False, *args, **kwargs):
@@ -415,7 +415,7 @@ class AeroBase(EpicsMotor):
         # Check if the move is valid
         self.check_value(position)        
         
-    def set_position(self, position_des):
+    def set_position(self, position_des, print_set=True):
         """
         Sets the current position to be the inputted position by changing the 
         offset.
@@ -425,11 +425,18 @@ class AeroBase(EpicsMotor):
         position_des : float
             The desired current position.
         """
-        logger.info("Previous position: {0}, offset: {1}".format(
+        # Print to console or just to the log
+        if print_set:
+            log_level = logger.info
+        else:
+            log_level = logger.debug
+
+        
+        log_level("'{0}' previous position: {0}, offset: {1}".format(
             self.position, self.offset))
         self.offset += position_des - self.position
-        logger.info("New position: {0}, offset: {1}".format(
-            self.position, self.offset))
+        log_level("'{0}' New position: {0}, offset: {1}".format(self.position,
+                                                                self.offset))
 
     def enable(self, ret_status=False, print_set=True):
         """
@@ -450,7 +457,7 @@ class AeroBase(EpicsMotor):
         """
         status = self.power.set(1)
         return self._status_print(status, "Enabled motor '{0}'.".format(
-            self.desc))
+            self.desc, print_set=print_set))
 
     def disable(self, ret_status=False, print_set=True):
         """
@@ -471,7 +478,7 @@ class AeroBase(EpicsMotor):
         """
         status = self.power.set(0)
         return self._status_print(status, "Disabled motor '{0}'.".format(
-            self.desc))
+            self.desc, print_set=print_set))
 
     @property
     def enabled(self):
@@ -504,7 +511,7 @@ class AeroBase(EpicsMotor):
         """
         status = self.clear_error.set(1)
         return self._status_print(status, "Cleared motor '{0}'.".format(
-            self.desc))
+            self.desc, print_set=print_set))
 
     def reconfig(self, ret_status=False, print_set=True):
         """
@@ -525,7 +532,7 @@ class AeroBase(EpicsMotor):
         """
         status = self.config.set(1)
         return self._status_print(status, "Reconfigured motor '{0}'.".format(
-            self.desc))
+            self.desc, print_set=print_set))
 
     @property
     def faulted(self):
@@ -558,7 +565,7 @@ class AeroBase(EpicsMotor):
         """
         status = self.zero_all_proc.set(1)
         return self._status_print(status, "Zeroed motor '{0}'.".format(
-            self.desc))
+            self.desc, print_set=print_set))
 
     def expert_screen(self, print_msg=True):
         """
@@ -598,8 +605,8 @@ class AeroBase(EpicsMotor):
         status : MoveStatus 
             Status object for the move.
         """
-        return self.move(position, wait=wait, ret_status=ret_status,
-                         print_move=print_move, *args, **kwargs)
+        return self.mv(position, wait=wait, ret_status=ret_status,
+                       print_move=print_move, *args, **kwargs)
     
     def status(self, status="", offset=0, print_status=True, newline=False, 
                short=False):
@@ -637,6 +644,9 @@ class AeroBase(EpicsMotor):
                                                      str(self.faulted))
             status += "{0}Position: {1:>19}\n".format(" "*(offset+2), 
                                                       np.round(self.wm(), 6))
+            status += "{0}Dial: {1:>23}\n".format(" "*(offset+2), 
+                                                      np.round(self.dial.value,
+                                                               6))
             status += "{0}Limits: {1:>21}\n".format(
                 " "*(offset+2), str((int(self.low_limit), 
                                      int(self.high_limit))))

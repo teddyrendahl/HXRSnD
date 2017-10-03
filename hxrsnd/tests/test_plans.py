@@ -16,8 +16,10 @@ from bluesky.examples  import Mover, Reader
 # Module #
 ##########
 from hxrsnd import maximize_lorentz, rocking_curve
+from hxrsnd.utils import get_logger
 
-logger = logging.getLogger(__name__)
+
+logger = get_logger(__name__, log_file=False)
 
 
 class Diode(Reader):
