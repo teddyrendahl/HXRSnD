@@ -28,8 +28,8 @@ from pcdsdevices.epics.epicsmotor import EpicsMotor
 ##########
 # Module #
 ##########
-from .utils import get_logger
 from .exceptions import MotorDisabled, MotorError
+from .utils import get_logger, absolute_submodule_path
 
 logger = get_logger(__name__)
 
@@ -538,16 +538,26 @@ class EccBase(Device, PositionerBase):
         """
         return self.position    
     
-    def expert_screen(self):
+    def expert_screen(self, print_msg=True):
         """
         Launches the expert screen for the motor.
+
+        Parameters
+        ----------
+        print_msg : bool, optional
+            Prints that the screen is being launched.
         """
+        # Get motor info to pass to the screens
         pv_spl = self.prefix.split(":")
         act = [s for s in pv_spl[::-1] if s.startswith("ACT")][0]
         p = ":".join(pv_spl[:pv_spl.index(act)])
         axis = act[3:]
-        os.system("/reg/neh/operator/xcsopr/bin/snd/expert_screen.sh {0} {1}"
-                  "".format(p, axis))
+
+        # Get the absolute path to the screen
+        path = absolute_submodule_path("HXRSnD/screens/motor_expert_screen.sh")
+        if print_msg:
+            logger.info("Launching expert screen.")        
+        os.system("{0} {1} {2} &".format(path, p, axis))
 
     def set_limits(self, llm, hlm):
         """

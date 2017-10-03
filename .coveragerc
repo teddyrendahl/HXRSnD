@@ -10,3 +10,5 @@ omit =
     #versioning
     .*version.*
     *_version.py
+    bin
+    screens

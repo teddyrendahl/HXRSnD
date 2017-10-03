@@ -26,8 +26,8 @@ from pcdsdevices.epics.signal import (EpicsSignal, EpicsSignalRO, FakeSignal)
 ##########
 # Module #
 ##########
-from .utils import get_logger
 from .pneumatic import PressureSwitch
+from .utils import get_logger, absolute_submodule_path
 from .exceptions import MotorDisabled, MotorFaulted, BadN2Pressure
 
 logger = get_logger(__name__)
@@ -576,10 +576,11 @@ class AeroBase(EpicsMotor):
         print_msg : bool, optional
             Prints that the screen is being launched.
         """
+        path = absolute_submodule_path("HXRSnD/screens/motor_expert_screen.sh")
         if print_msg:
-            logger.info("Launching expert screen.")
-        os.system("/reg/neh/operator/xcsopr/bin/snd/expert_screen.sh {0}"
-                  "".format(self.prefix))
+            logger.info("Launching expert screen.")        
+        os.system("{0} {1} {2} &".format(path, p, axis))
+        
 
     def __call__(self, position, wait=True, ret_status=False, print_move=True,
                  *args, **kwargs):

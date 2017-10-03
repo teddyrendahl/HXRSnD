@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# Run everything from my conda setup for now.
+source ~apra/environment/conda_setup.sh
+export PYTHONPATH=$PYTHONPATH:/reg/neh/home/apra/env/
+export PYTHONPATH=$PYTHONPATH:/reg/neh/home5/apra/.conda/envs/myenv/bin
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/reg/common/package/epicsca/3.14.12/lib/rhel6-x86_64
+
+# Activate the conda environment
+source activate snd_opr
+
+# Get the current directory
+pushd `dirname $0` > /dev/null
+SCRIPTPATH=`pwd`
+popd > /dev/null
+
+# Start the ipython shell
+ipython -i $SCRIPTPATH/run_snd.py

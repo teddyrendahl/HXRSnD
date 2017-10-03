@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# Launches the main SND screen that includes all the epics devices of the sytem.
+
+# Change to directory containing the script
+cd "$(dirname $(readlink -f $0))"
+
+# Setup edm environment (using 3.14.9 have some problems with 3.14.12 - fixing)
+source /reg/g/pcds/setup/epicsenv-3.14.12.sh
+
+# Enables saving of motor configuations
+export DEVICE_CONFIG_TEMPLATE_DIR=/reg/g/pcds/controls/device_config/ims_templates
+export DEVICE_CONFIG_TEMPLATE_DEFAULT=ims_config.tmp
+export DEVICE_CONFIG_DIR=/reg/neh/operator/xcsopr/device_config/ims
+export PATH=$PATH:/reg/g/pcds/controls/device_config
+
+export PCDS_EDMS=/reg/g/pcds/package/epics/3.14/screens/edm
+#export EDMDATAFILES=.:..:../..:${PCDS_EDMS}/xps8:${PCDS_EDMS}/ims ## Switch back to this line once release version of ims screens is updated
+export EDMDATAFILES=.:..:../..:${PCDS_EDMS}/xps8:/reg/neh/home/dhzhang/ims_edms:${PCDS_EDMS}/ims
+# Support for slow cams
+export EPICS_CA_MAX_ARRAY_BYTES=8000000
+
+export XCSHOME_DIR=/reg/g/pcds/package/epics/3.14-dev/screens/edm/xcs/current/SND
+
+    for f in *Screens
+    do
+        if [ ! -d "$f" ] ; then
+            continue
+        fi
+        if ! echo $EDMDATAFILES | /bin/egrep -q "(^|:)$f($|:)" ; then
+                EDMDATAFILES=$EDMDATAFILES:$f/
+        fi
+    done
+
+# Launch SND main screen from the snd dir
+cd $XCSHOME_DIR
+edm -x -eolc snd_all_motors.edl &

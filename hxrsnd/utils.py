@@ -5,61 +5,40 @@ Script for small utility functions used in HXRSnD
 # Standard #
 ############
 import logging
+import inspect
 from pathlib import Path
 from collections.abc import Iterable
 from logging.handlers import RotatingFileHandler
 
-def as_list(obj, length=None, tp=None, iter_to_list=True):
+logger = logging.getLogger(__name__)
+
+def absolute_submodule_path(submodule, cur_dir=inspect.stack()[0][1]):
     """
-    Force an argument to be a list, optionally of a given length, optionally
-    with all elements cast to a given type if not None.
+    Returns the absolute path of the inputted SnD submodule based on an inputted
+    absolute path, or the absolute path of this file.
 
-    Paramters
-    ---------
-    obj : Object
-        The obj we want to convert to a list.
+    Parameters
+    ----------
+    submodule : str or Path
+        Desired submodule path.
 
-    length : int or None, optional
-        Length of new list. Applies if the inputted obj is not an iterable and
-        iter_to_list is false.
-
-    tp : type, optional
-        Type to cast the values inside the list as.
-
-    iter_to_list : bool, optional
-        Determines if we should cast an iterable (not str) obj as a list or to
-        enclose it in one.
+    cur_dir : str or Path, optional
+        Absolute path to use as a template for the full submodule path.
 
     Returns
     -------
-    obj : list
-        The object enclosed or cast as a list.
+    full_path : str
+        Full string path to the inputted submodule.
     """
-    # If the obj is None, return empty list or fixed-length list of Nones
-    if obj is None:
-        if length is None:
-            return []
-        return [None] * length
-    
-    # If it is already a list do nothing
-    elif isinstance(obj, list):
-        pass
+    dir_parts = Path(cur_dir).parts
+    sub_parts = Path(submodule).parts
+    base_path = Path(*dir_parts[:dir_parts.index(sub_parts[0])])
+    if str(base_path) == ".":
+        logger.warning("Could not match base path with desired submodule.")
+    full_path = base_path / Path(submodule)
+    return str(full_path)
 
-    # If it is an iterable (and not str), convert it to a list
-    elif isiterable(obj) and iter_to_list:
-        obj = list(obj)
-        
-    # Otherwise, just enclose in a list making it the inputted length
-    else:
-        try:
-            obj = [obj] * length
-        except TypeError:
-            obj = [obj]
-        
-    # Cast to type; Let exceptions here bubble up to the top.
-    if tp is not None:
-        obj = [tp(o) for o in obj]
-    return obj
+LOG_DIR = absolute_submodule_path("HXRSnD/logs")
 
 def get_logger(name, stream_level=logging.INFO, log_file=True, 
                log_dir=Path("."), max_bytes=10*1024*1024):
@@ -117,6 +96,10 @@ def get_logger(name, stream_level=logging.INFO, log_file=True,
     # Log to a file
     if log_file:
         log_file = log_dir / "log.txt"
+
+        # Create the inputted foler if it doesnt already exist
+        if not log_dir.exists():
+            log_dir.mkdir(parents=True)
         # Create the file if it doesnt already exist
         if not log_file.exists():
             log_file.touch()
@@ -133,6 +116,60 @@ def get_logger(name, stream_level=logging.INFO, log_file=True,
         logger.addHandler(file_handler)
 
     return logger
+
+logger = get_logger(__name__)
+
+def as_list(obj, length=None, tp=None, iter_to_list=True):
+    """
+    Force an argument to be a list, optionally of a given length, optionally
+    with all elements cast to a given type if not None.
+
+    Paramters
+    ---------
+    obj : Object
+        The obj we want to convert to a list.
+
+    length : int or None, optional
+        Length of new list. Applies if the inputted obj is not an iterable and
+        iter_to_list is false.
+
+    tp : type, optional
+        Type to cast the values inside the list as.
+
+    iter_to_list : bool, optional
+        Determines if we should cast an iterable (not str) obj as a list or to
+        enclose it in one.
+
+    Returns
+    -------
+    obj : list
+        The object enclosed or cast as a list.
+    """
+    # If the obj is None, return empty list or fixed-length list of Nones
+    if obj is None:
+        if length is None:
+            return []
+        return [None] * length
+    
+    # If it is already a list do nothing
+    elif isinstance(obj, list):
+        pass
+
+    # If it is an iterable (and not str), convert it to a list
+    elif isiterable(obj) and iter_to_list:
+        obj = list(obj)
+        
+    # Otherwise, just enclose in a list making it the inputted length
+    else:
+        try:
+            obj = [obj] * length
+        except TypeError:
+            obj = [obj]
+        
+    # Cast to type; Let exceptions here bubble up to the top.
+    if tp is not None:
+        obj = [tp(o) for o in obj]
+    return obj
 
 def isiterable(obj):
     """

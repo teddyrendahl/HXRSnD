@@ -94,6 +94,9 @@ ENV/
 # Rope project settings
 .ropeproject
 
+# logs
+logs/
+log.txt
 
 # Any of the tilda files
 *~

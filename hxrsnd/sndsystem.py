@@ -164,7 +164,11 @@ class SplitAndDelay(Device):
         """
         Launches the main SnD screen.
         """
-        os.system("/reg/neh/operator/xcsopr/bin/snd/snd_main")
+        # Get the absolute path to the screen
+        path = absolute_submodule_path("HXRSnD/screens/snd_main")
+        if print_msg:
+            logger.info("Launching expert screen.")
+        os.system("{0} {1} {2} &".format(path, p, axis))
         
     def status(self, print_status=True):
         """
