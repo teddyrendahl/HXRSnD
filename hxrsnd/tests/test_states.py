@@ -13,9 +13,10 @@ from super_state_machine.errors   import TransitionError
 ##########
 # Module #
 ##########
+from hxrsnd.utils import get_logger
 from hxrsnd.state import OphydMachine
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__, log_file=False)
 
 class PuckStateMachine(StateMachine):
     """
