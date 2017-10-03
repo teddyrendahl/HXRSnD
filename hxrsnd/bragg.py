@@ -350,7 +350,7 @@ def bragg_angle(E=None, ID="Si", hkl=(2,2,0)):
         Expected bragg angle
     """
     ID = check_id(ID)
-    E = get_e(energy=E, correct_ev=True)
+    E = get_e(energy=E, correct_ev=False)
     d = d_space(ID, hkl)
     two_theta = asind(lam(E)/2/d)
     return two_theta

@@ -17,20 +17,20 @@ from ophyd.device import Device
 ########
 # SLAC #
 ########
-from pcdsdevices.sim.pv import  using_fake_epics_pv
+from pcdsdevices.sim.pv import using_fake_epics_pv
 
 ##########
 # Module #
 ##########
-from hxrsnd import detectors
-from hxrsnd.utils import get_logger
 from .conftest import get_classes_in_module
+from hxrsnd import macromotor
+from hxrsnd.utils import get_logger
 
 logger = get_logger(__name__, log_file=False)
 
 @using_fake_epics_pv
-@pytest.mark.parametrize("dev", get_classes_in_module(detectors, Device))
-def test_rtd_devices_instantiate_and_run_ophyd_functions(dev):
+@pytest.mark.parametrize("dev", get_classes_in_module(macromotor, Device))
+def test_devices_instantiate_and_run_ophyd_functions(dev):
     device = dev("TEST")
     assert(isinstance(device.read(), OrderedDict))
     assert(isinstance(device.describe(), OrderedDict))
