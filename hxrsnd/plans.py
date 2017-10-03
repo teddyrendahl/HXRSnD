@@ -9,11 +9,12 @@ import logging
 ###############
 # Third Party #
 ###############
+import numpy as np
 from lmfit.models       import LorentzianModel
 from pswalker.callbacks import LiveBuild
 from pswalker.plans     import measure_average
 from bluesky            import Msg
-from bluesky.plans      import msg_mutator, scan, abs_set, checkpoint
+from bluesky.plans      import msg_mutator, list_scan, abs_set, checkpoint
 from bluesky.plans      import subs_decorator
 
 ##########
@@ -24,6 +25,8 @@ from .errors import UndefinedBounds
 
 logger = get_logger(__name__)
 
+#Used to strip `run_wrapper` off of plan
+#Should probably be added as bluesky PR
 def block_run_control(msg):
     """
     Block open and close run messages
@@ -34,7 +37,7 @@ def block_run_control(msg):
     return msg
 
 
-def maximize_lorentz(detector, motor, read_field, nsteps=10,
+def maximize_lorentz(detector, motor, read_field, step_size=1,
                      bounds=None, average=None, filters=None,
                      position_field='user_readback', initial_guess=None):
     """
@@ -90,15 +93,18 @@ def maximize_lorentz(detector, motor, read_field, nsteps=10,
                          "between %s and %s will searched",
                          bounds[0], bounds[1])
         except AttributeError as exc:
-            raise UndefinedBounds("Bounds are not defined by motor %s or "
+            raise UndefinedBounds("Bounds are not defined by motor {} or "
                                   "plan".format(motor.name)) from exc
-
+    #Calculate steps
+    steps = np.arange(bounds[0], bounds[1], step_size)
+    #Include the last step even if this is smaller than the step_size
+    steps = np.append(steps, bounds[1])
     #Create Lorentz fit and live model build
     fit    = LorentzianModel(missing='drop')
     i_vars = {'x' : position_field}
     model  = LiveBuild(fit, read_field, i_vars, filters=filters,
-                       average=average, init_guess=initial_guess,
-                       update_every=nsteps) #Set to fit only on last step
+                       average=average, init_guess=initial_guess)#,
+                       #update_every=len(steps)) #Set to fit only on last step
 
     #Create per_step plan
     def measure(detectors, motor, step):
@@ -110,10 +116,8 @@ def maximize_lorentz(detector, motor, read_field, nsteps=10,
         return (yield from measure_average([motor, detector],
                                            num=average,
                                            filters=filters))
-
     #Create linear scan
-    plan = scan([detector], motor, bounds[0], bounds[1],
-                nsteps, per_step=measure)
+    plan = list_scan([detector], motor, steps, per_step=measure)
 
     @subs_decorator(model)
     def inner():
@@ -128,9 +132,122 @@ def maximize_lorentz(detector, motor, read_field, nsteps=10,
         if not bounds[0] < max_position  < bounds[1]:
             raise ValueError("Predicted maximum position of {} is outside the "
                              "bounds {}".format(max_position, bounds))
-
         #Order move to maximum position
-        logger.info("Travelling to maximum of Lorentz at %s", max_position)
+        logger.debug("Travelling to maximum of Lorentz at %s", max_position)
         yield from abs_set(motor, model.result.values['center'], wait=True)
 
+    #Run the assembled plan
     yield from inner()
+    #Return the fit 
+    return model
+
+
+def rocking_curve(detector, motor, read_field, coarse_step, fine_step,
+                  bounds=None, average=None, fine_space=5, initial_guess=None,
+                  position_field='user_readback', show_plot=True):
+    """
+    Travel to the maxima of a bell curve
+
+    The rocking curve scan is two repeated calls of :func:`.maximize_lorentz`.
+    The first is a rough step scan which searches the area given by ``bounds``
+    using ``coarse_step``, the idea is that this will populate the model enough
+    such that we can do a more accurate scan of a smaller region of the search
+    space. Once the rough scan is completed, the maxima of the fit is used as
+    the center of the new fine scan that probes a region of space with a region
+    twice as large as the ``fine_space`` parameter. After this, the motor is
+    translated to the calculated maxima of the model
+
+    Parameters
+    ----------
+    detector : obj
+        The object to be read during the plan
+
+    motor : obj
+        The object to be moved via the plan.
+
+    read_field : str
+        Field of detector to maximize
+
+    coarse_step : float
+        Step size for the initial rough scan
+
+    fine_step : float
+        Step size for the fine scan
+
+    bounds : tuple, optional
+        Bounds for the original rough scan. If not provided, the soft limits of
+        the motor are used
+
+    average : int, optional
+        Number of shots to average at each step
+
+    fine_space : float, optional
+        The amount to scan on either side of the rough scan result. Note that
+        the rocking_curve will never tell the secondary scan to travel outside
+
+    position_field : str, optional
+        Motor field that will have the Lorentzian relationship with the given
+        signal
+
+    initial_guess : dict, optional
+        Initial guess to the Lorentz model parameters of `sigma` `center`
+        `amplitude`
+        of the ``bounds``, so this region may be truncated.
+
+    show_plot : bool, optional
+        Create a plot displaying the progress of the `rocking_curve`
+    """
+    #Define bounds
+    if not bounds:
+        try:
+            bounds = motor.limits
+            logger.debug("Bounds were not specified, the area "
+                         "between %s and %s will searched",
+                         bounds[0], bounds[1])
+        except AttributeError as exc:
+            raise UndefinedBounds("Bounds are not defined by motor {} or "
+                                  "plan".format(motor.name)) from exc
+    if show_plot:
+        #Create plot
+        #subscribe first plot to rough_scan
+        pass
+    #Run the initial rough scan
+    try:
+        model = yield from maximize_lorentz(detector, motor, read_field,
+                                            step_size=coarse_step,
+                                            bounds=bounds, average=average,
+                                            position_field=position_field,
+                                            initial_guess=initial_guess)
+    except ValueError as exc:
+        raise ValueError("Unable to find a proper maximum value"
+                         "during rough scan") from exc
+    #Define new bounds
+    center = model.result.values['center']
+    bounds = (max(center - fine_space, bounds[0]),
+              min(center + fine_space, bounds[1]))
+
+    logger.info("Rough scan of region yielded maximum of %s, "
+                "performing fine scan from %s to %s ...",
+                center, bounds[0], bounds[1])
+
+    if show_plot:
+        #Highlight search space on first plot
+        #Subscribe secondary plot
+        pass
+
+    #Run the initial rough scan
+    try:
+        fit = yield from maximize_lorentz(detector, motor, read_field,
+                                          step_size=fine_step, bounds=bounds,
+                                          average=average,
+                                          position_field=position_field,
+                                          initial_guess=model.result.values)
+    except ValueError as exc:
+        raise ValueError("Unable to find a proper maximum value"
+                         "during fine scan") from exc
+
+    if show_plot:
+        #Draw final calculated max on plots
+        pass
+
+    return fit
