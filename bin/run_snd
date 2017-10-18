@@ -10,9 +10,8 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/reg/common/package/epicsca/3.14.12/lib/
 source activate snd_opr
 
 # Get the current directory
-pushd `dirname $0` > /dev/null
-SCRIPTPATH=`pwd`
-popd > /dev/null
+FILE=`readlink -f $0`
+SCRIPTPATH=`dirname $FILE`
 
 # Start the ipython shell
 ipython -i $SCRIPTPATH/run_snd.py
