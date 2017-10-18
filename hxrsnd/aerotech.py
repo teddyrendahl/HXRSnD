@@ -580,7 +580,6 @@ class AeroBase(EpicsMotor):
         if print_msg:
             logger.info("Launching expert screen.")        
         os.system("{0} {1} {2} &".format(path, p, axis))
-        
 
     def __call__(self, position, wait=True, ret_status=False, print_move=True,
                  *args, **kwargs):
