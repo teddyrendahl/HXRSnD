@@ -577,12 +577,10 @@ class AeroBase(EpicsMotor):
             Prints that the screen is being launched.
         """
         path = absolute_submodule_path("HXRSnD/screens/motor_expert_screens.sh")
-         if print_msg:
-             logger.info("Launching expert screen.")        
+        if print_msg:
+            logger.info("Launching expert screen.")
         os.system("{0} {1} &".format(path, self.prefix))
  
-        
-
     def __call__(self, position, wait=True, ret_status=False, print_move=True,
                  *args, **kwargs):
         """
