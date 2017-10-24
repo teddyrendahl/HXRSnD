@@ -48,7 +48,6 @@ try:
     dco = HamamatsuXMotionDiode(pv_base + ":DIA:DCO")
 except TimeoutError:
     logger.error("Timeout on getting PVs.")
-    raise e
 
 # These are the calculations provided by Yanwen. They can be a useful sanity
 # check if things are being weird.
