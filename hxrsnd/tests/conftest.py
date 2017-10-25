@@ -64,9 +64,11 @@ def set_level(pytestconfig):
 def fresh_RE(request):
     return RE(request)
     
-def get_classes_in_module(module, subcls=None):
+def get_classes_in_module(module, subcls=None, blacklist=None):
     classes = []
-    all_classes = inspect.getmembers(module)
+    blacklist = blacklist or list()
+    all_classes = [(_, cls) for (_, cls) in inspect.getmembers(module)
+                          if cls not in blacklist]
     for _, cls in all_classes:
         try:
             if cls.__module__ == module.__name__:
