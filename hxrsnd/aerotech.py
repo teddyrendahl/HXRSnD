@@ -76,7 +76,7 @@ class AeroBase(EpicsMotor):
     axis_fault = Component(EpicsSignalRO, ":AXIS_FAULT")
     clear_error = Component(EpicsSignal, ":CLEAR")
     config = Component(EpicsSignal, ":CONFIG")
-    zero_all_proc = Component(EpicsSignal, ".ZERO_P.PROC")
+    zero_all_proc = Component(EpicsSignal, ":ZERO_P.PROC")
     home_forward = Component(EpicsSignal, ".HOMF")
     home_reverse = Component(EpicsSignal, ".HOMR")
     dial = Component(EpicsSignalRO, ".DRBV")
