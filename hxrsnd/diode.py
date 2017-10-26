@@ -56,5 +56,5 @@ class HamamatsuXYMotionCamDiode(HamamatsuXMotionDiode):
     Class for the Hamamatsu diode but with X and Y motors
     """
     y = Component(DiodeAero, ":Y")
-    cam = Component(GigeDetector, ":CAM")
+    # cam = Component(GigeDetector, ":CAM")
     

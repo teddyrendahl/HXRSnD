@@ -4,6 +4,7 @@ Hold all of the Bluesky plans for HXRSnD operations
 ############
 # Standard #
 ############
+import time
 import logging
 
 ###############
@@ -15,7 +16,8 @@ from pswalker.callbacks import LiveBuild
 from pswalker.plans     import measure_average
 from bluesky            import Msg
 from bluesky.plans      import msg_mutator, list_scan, abs_set, checkpoint
-from bluesky.plans      import subs_decorator
+from bluesky.plans      import subs_decorator, stage_decorator, run_decorator
+from bluesky.utils import short_uid as _short_uid
 
 ##########
 # Module #
@@ -251,3 +253,43 @@ def rocking_curve(detector, motor, read_field, coarse_step, fine_step,
         pass
 
     return fit
+
+def daq_scan(motor, start, stop, num, hold=1, md=None):
+    """
+    Performs a linear scan using the inputted motor.
+    """
+    # Save some metadata on this scan
+    _md = {'motors': [motor.name],
+           'num_points': num,
+           'num_intervals': num - 1,
+           'plan_args': {'num': num,
+                         'motor': repr(motor),
+                         'start': start, 
+                         'stop': stop},
+           'plan_name': 'daq_scan',
+           'plan_pattern': 'linspace',
+           'plan_pattern_module': 'numpy',
+           'plan_pattern_args': dict(start=start, stop=stop, num=num),
+           'hints': {},
+          }
+    _md.update(md or {})
+
+    # Build the list of steps
+    steps = np.linspace(**_md['plan_pattern_args'])
+    
+    # Define the inner scan
+    @stage_decorator([motor])
+    @run_decorator(md=_md)
+    def inner_scan():
+        for i, step in enumerate(steps):
+            grp = _short_uid('set')
+            yield Msg('checkpoint')
+            yield Msg('set', motor, step, group=grp, verify_move=False)
+            yield Msg('wait', None, group=grp)
+            # print how long until it settles into the position
+            # print the step number and current position
+            time.sleep(hold)
+            print("Step {0}: {1}".format(i+1, motor.position))
+        # Move to original position
+
+    return (yield from inner_scan())
