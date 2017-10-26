@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Form</class>
+ <widget class="QWidget" name="Form">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>581</width>
+    <height>538</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout_2">
+   <item row="0" column="0">
+    <layout class="QGridLayout" name="gridLayout">
+     <item row="3" column="0">
+      <widget class="PyDMTimePlot" name="PyDMTimePlot_5">
+       <property name="toolTip">
+        <string/>
+       </property>
+       <property name="whatsThis">
+        <string/>
+       </property>
+       <property name="curves">
+        <stringlist>
+         <string>{&quot;channel&quot;: &quot;ca://XCS:SND:DIO:_peakT_6&quot;, &quot;name&quot;: &quot;Diode 6&quot;, &quot;color&quot;: &quot;white&quot;}</string>
+        </stringlist>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="0">
+      <widget class="PyDMTimePlot" name="PyDMTimePlot">
+       <property name="toolTip">
+        <string/>
+       </property>
+       <property name="whatsThis">
+        <string/>
+       </property>
+       <property name="curves">
+        <stringlist>
+         <string>{&quot;channel&quot;: &quot;ca://XCS:SND:DIO:_peakT_0&quot;, &quot;name&quot;: &quot;Diode 0&quot;, &quot;color&quot;: &quot;white&quot;}</string>
+        </stringlist>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="PyDMTimePlot" name="PyDMTimePlot_2">
+       <property name="toolTip">
+        <string/>
+       </property>
+       <property name="whatsThis">
+        <string/>
+       </property>
+       <property name="curves">
+        <stringlist>
+         <string>{&quot;channel&quot;: &quot;ca://XCS:SND:DIO:_peakT_1&quot;, &quot;name&quot;: &quot;Diode 1&quot;, &quot;color&quot;: &quot;white&quot;}</string>
+        </stringlist>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="PyDMTimePlot" name="PyDMTimePlot_3">
+       <property name="toolTip">
+        <string/>
+       </property>
+       <property name="whatsThis">
+        <string/>
+       </property>
+       <property name="curves">
+        <stringlist>
+         <string>{&quot;channel&quot;: &quot;ca://XCS:SND:DIO:_peakT_4&quot;, &quot;name&quot;: &quot;Diode 4&quot;, &quot;color&quot;: &quot;white&quot;}</string>
+        </stringlist>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="PyDMTimePlot" name="PyDMTimePlot_4">
+       <property name="toolTip">
+        <string/>
+       </property>
+       <property name="whatsThis">
+        <string/>
+       </property>
+       <property name="curves">
+        <stringlist>
+         <string>{&quot;channel&quot;: &quot;ca://XCS:SND:DIO:_peakT_6&quot;, &quot;name&quot;: &quot;Diode 5&quot;, &quot;color&quot;: &quot;white&quot;}</string>
+        </stringlist>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <widget class="PyDMTimePlot" name="PyDMTimePlot_6">
+       <property name="toolTip">
+        <string/>
+       </property>
+       <property name="whatsThis">
+        <string/>
+       </property>
+       <property name="curves">
+        <stringlist>
+         <string>{&quot;channel&quot;: &quot;ca://XCS:SND:DIO:_peakT_7&quot;, &quot;name&quot;: &quot;Diode 7&quot;, &quot;color&quot;: &quot;white&quot;}</string>
+        </stringlist>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="PyDMTimePlot" name="PyDMTimePlot_7">
+       <property name="toolTip">
+        <string/>
+       </property>
+       <property name="whatsThis">
+        <string/>
+       </property>
+       <property name="curves">
+        <stringlist>
+         <string>{&quot;channel&quot;: &quot;ca://XCS:SND:DIO:_peakT_2&quot;, &quot;name&quot;: &quot;Diode 2&quot;, &quot;color&quot;: &quot;white&quot;}</string>
+        </stringlist>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="PyDMTimePlot" name="PyDMTimePlot_8">
+       <property name="toolTip">
+        <string/>
+       </property>
+       <property name="whatsThis">
+        <string/>
+       </property>
+       <property name="curves">
+        <stringlist>
+         <string>{&quot;channel&quot;: &quot;ca://XCS:SND:DIO:_peakT_3&quot;, &quot;name&quot;: &quot;Diode 3&quot;, &quot;color&quot;: &quot;white&quot;}</string>
+        </stringlist>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>PyDMTimePlot</class>
+   <extends>QGraphicsView</extends>
+   <header>pydm.widgets.timeplot</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>
