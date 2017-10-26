@@ -13,6 +13,7 @@ import os
 # Third Party #
 ###############
 import numpy as np
+from ophyd import Component, FormattedComponent
 from ophyd.utils import LimitError
 from ophyd.status import wait as status_wait
 
@@ -20,7 +21,6 @@ from ophyd.status import wait as status_wait
 # SLAC #
 ########
 from pcdsdevices.epics.epicsmotor import EpicsMotor
-from pcdsdevices.component import Component, FormattedComponent
 from pcdsdevices.epics.signal import (EpicsSignal, EpicsSignalRO, FakeSignal)
 
 ##########

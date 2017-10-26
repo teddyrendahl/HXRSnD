@@ -14,6 +14,7 @@ import logging
 ###############
 import numpy as np
 from ophyd import PositionerBase
+from ophyd import Component, FormattedComponent
 from ophyd.utils import LimitError
 from ophyd.status import wait as status_wait
 
