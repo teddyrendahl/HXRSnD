@@ -10,13 +10,13 @@ import logging
 # Third Party #
 ###############
 import numpy as np
+from ophyd import Component, FormattedComponent
 from ophyd.status import wait as status_wait
 
 ########
 # SLAC #
 ########
 from pcdsdevices.device import Device
-from pcdsdevices.component import Component, FormattedComponent
 
 ##########
 # Module #
@@ -69,8 +69,7 @@ class TowerBase(Device):
         E : float
             Energy of the delay line.
         """
-        # This is awful but please forgive me, np.round doesnt work as expected
-        return float("{:.3f}".format(bragg_energy(self.theta)))
+        return int(np.round(bragg_energy(self.theta)))
 
     @energy.setter
     def energy(self, E):

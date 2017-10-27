@@ -2,10 +2,23 @@
 # Standard #
 ############
 import logging
+from imp import reload
+
+###############
+# Third Party #
+###############
+from bluesky import RunEngine
+from bluesky.plans import run_wrapper
+
+########
+# SLAC #
+########
+from pcdsdevices.daq import make_daq_run_engine
 
 ##########
 # Module #
 ##########
+from hxrsnd.plans import linear_scan
 from hxrsnd.utils import get_logger
 from hxrsnd.pneumatic import SndPneumatics
 from hxrsnd.sndsystem import SplitAndDelay
@@ -13,41 +26,42 @@ from hxrsnd.tower import DelayTower, ChannelCutTower
 from hxrsnd.bragg import bragg_angle, bragg_energy, sind, cosd
 from hxrsnd.diode import HamamatsuXMotionDiode, HamamatsuXYMotionCamDiode
 
-
 # Logging
 logger = get_logger(__name__)
+get_logger("pcdsdevices")
 
 # Instantiate the system
 pv_base = "XCS:SND"
 
-try:
-    # The whole system
-    snd = SplitAndDelay(pv_base)
-    
-    # Towers
-    t1 = DelayTower(pv_base + ":T1", y1="A:ACT0", y2="A:ACT1", chi1="A:ACT2",
-                    chi2="B:ACT0", dh="B:ACT1", pos_inserted=21.1,
-                    pos_removed=0, desc="Tower 1")
-    t2 = ChannelCutTower(pv_base + ":T2", pos_inserted=None, pos_removed=0, 
-                         desc="Tower 2")
-    t3 = ChannelCutTower(pv_base + ":T3", pos_inserted=None, pos_removed=0, 
-                         desc="Tower 3")
-    t4 = DelayTower(pv_base + ":T4", y1="C:ACT0", y2="C:ACT1", chi1="C:ACT2",
-                    chi2="D:ACT0", dh="D:ACT1", pos_inserted=21.1,
-                    pos_removed=0, desc="Tower 4")
+# The whole system
+snd = SplitAndDelay(pv_base)
 
-    # Vacuum
-    ab = SndPneumatics(pv_base)
+# Towers
+t1 = DelayTower(pv_base + ":T1", y1="A:ACT0", y2="A:ACT1", chi1="A:ACT2",
+                chi2="B:ACT0", dh="B:ACT1", pos_inserted=21.1,
+                pos_removed=0, desc="Tower 1")
+t2 = ChannelCutTower(pv_base + ":T2", pos_inserted=None, pos_removed=0, 
+                     desc="Tower 2")
+t3 = ChannelCutTower(pv_base + ":T3", pos_inserted=None, pos_removed=0, 
+                     desc="Tower 3")
+t4 = DelayTower(pv_base + ":T4", y1="C:ACT0", y2="C:ACT1", chi1="C:ACT2",
+                chi2="D:ACT0", dh="D:ACT1", pos_inserted=21.1,
+                pos_removed=0, desc="Tower 4")
 
-    # Diagnostics
-    di = HamamatsuXMotionDiode(pv_base + ":DIA:DI")
-    dd = HamamatsuXYMotionCamDiode(pv_base + ":DIA:DD")
-    do = HamamatsuXMotionDiode(pv_base + ":DIA:DO")
-    dci = HamamatsuXMotionDiode(pv_base + ":DIA:DCI")
-    dcc = HamamatsuXYMotionCamDiode(pv_base + ":DIA:DCC")
-    dco = HamamatsuXMotionDiode(pv_base + ":DIA:DCO")
-except TimeoutError:
-    logger.error("Timeout on getting PVs.")
+# Vacuum
+ab = SndPneumatics(pv_base)
+
+# Diagnostics
+di = HamamatsuXMotionDiode(pv_base + ":DIA:DI")
+dd = HamamatsuXYMotionCamDiode(pv_base + ":DIA:DD")
+do = HamamatsuXMotionDiode(pv_base + ":DIA:DO")
+dci = HamamatsuXMotionDiode(pv_base + ":DIA:DCI")
+dcc = HamamatsuXYMotionCamDiode(pv_base + ":DIA:DCC")
+dco = HamamatsuXMotionDiode(pv_base + ":DIA:DCO")
+
+# Create a RunEngine
+RE = RunEngine({})
+RE_daq = make_daq_run_engine(snd.daq)
 
 # These are the calculations provided by Yanwen. They can be a useful sanity
 # check if things are being weird.

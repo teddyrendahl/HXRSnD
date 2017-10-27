@@ -13,14 +13,16 @@ import logging
 # Third Party #
 ###############
 import numpy as np
+from ophyd import Component
 from ophyd.status import wait as status_wait
 from ophyd.utils.epics_pvs import raise_if_disconnected
+from bluesky import RunEngine
 
 ########
 # SLAC #
 ########
 from pcdsdevices.device import Device
-from pcdsdevices.component import Component
+from pcdsdevices.daq import Daq, make_daq_run_engine
 
 ##########
 # Module #
@@ -31,9 +33,10 @@ from .utils import flatten, get_logger
 from .bragg import bragg_angle, cosd, sind
 from .tower import DelayTower, ChannelCutTower
 from .diode import HamamatsuXMotionDiode, HamamatsuXYMotionCamDiode
-from .macromotor import EnergyMacro, Energy1Macro, Energy2Macro, DelayMacro
+from .macromotor import Energy1Macro, Energy2Macro, DelayMacro
 
 logger = get_logger(__name__)
+
 
 class SplitAndDelay(Device):
     """
@@ -74,9 +77,6 @@ class SplitAndDelay(Device):
     dco : HamamatsuXMotionDiode
         Input diode for the channel cut line.
 
-    E : EnergyMacro
-        System energy pseudomotor.
-
     E1 : Energy1Macro
         Delay energy pseudomotor.
 
@@ -114,12 +114,14 @@ class SplitAndDelay(Device):
     dco = Component(HamamatsuXMotionDiode, ":DIA:DCO")
 
     # Macro motors
-    E = Component(EnergyMacro, "", desc="System")
     E1 = Component(Energy1Macro, "", desc="Delay Energy")
     E2 = Component(Energy2Macro, "", desc="CC Energy")
     delay = Component(DelayMacro, "", desc="Delay")
+
+    # DAQ
+    daq = Component(Daq, None, platform=1)
     
-    def __init__(self, prefix, desc=None, *args, **kwargs):
+    def __init__(self, prefix, desc=None, RE=None, *args, **kwargs):
         self.desc = desc
         super().__init__(prefix, *args, **kwargs)
         self._delay_towers = [self.t1, self.t4]
@@ -127,8 +129,11 @@ class SplitAndDelay(Device):
         self._towers = self._delay_towers + self._channelcut_towers
         self._delay_diagnostics = [self.di, self.dd, self.do]
         self._channelcut_diagnostics = [self.dci, self.dcc, self.dco]
-        self._diagnostics = self._delay_diagnostics+self._channelcut_diagnostics
+        self._diagnostics = self._delay_diagnostics+self._channelcut_diagnostics        
         
+        # Get the LCLS RunEngine
+        self.RE = make_daq_run_engine(self.daq)
+
         if self.desc is None:
             self.desc = self.name    
 

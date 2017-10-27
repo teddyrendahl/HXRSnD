@@ -6,12 +6,20 @@ unset PYTHONPATH
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/reg/common/package/epicsca/3.14.12/lib/rhel6-x86_64
 export PATH=/reg/g/pcds/pyps/conda/rhel6/bin:$PATH
 
-# Activate the conda environment
+# These have to be included otherwise there you get the following error then a
+# seg fault:
+#       QXcbConnection: Could not connect to display
+# This needs to point to the conda env being used
+export QT_XKB_CONFIG_ROOT='/reg/g/pcds/pyps/conda/rhel6/envs/snd_opr/lib'
+# This ensures the terminal doesn't totally screw up
+export QT_QPA_PLATFORM='offscreen'
+
+# Activate the snd_opr conda environment
 source activate snd_opr
 
-# Get the current directory
+# Get the directory of this script resolving soft links
 FILE=`readlink -f $0`
 SCRIPTPATH=`dirname $FILE`
 
-# Start the ipython shell
+# Start the ipython shell using the snd environment
 ipython -i $SCRIPTPATH/run_snd.py

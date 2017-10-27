@@ -14,6 +14,7 @@ import logging
 ###############
 import numpy as np
 from ophyd import PositionerBase
+from ophyd import Component, FormattedComponent
 from ophyd.utils import LimitError
 from ophyd.status import wait as status_wait
 
@@ -78,7 +79,7 @@ class EccBase(Device, PositionerBase):
     motor_frequency = Component(EpicsSignal, ":CMD:FREQ")
 
     # motor status
-    motor_connected = Component(EpicsSignalRO, ":ST_CONNECTED")
+    motor_connected = Component(EpicsSignalRO, ":ST_CONNECT")
     motor_enabled = Component(EpicsSignalRO, ":ST_ENABLED")
     motor_referenced = Component(EpicsSignalRO, ":ST_REFVAL")
     motor_error = Component(EpicsSignalRO, ":ST_ERROR")

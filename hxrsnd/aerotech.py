@@ -13,6 +13,7 @@ import os
 # Third Party #
 ###############
 import numpy as np
+from ophyd import Component, FormattedComponent
 from ophyd.utils import LimitError
 from ophyd.status import wait as status_wait
 
@@ -20,7 +21,6 @@ from ophyd.status import wait as status_wait
 # SLAC #
 ########
 from pcdsdevices.epics.epicsmotor import EpicsMotor
-from pcdsdevices.component import Component, FormattedComponent
 from pcdsdevices.epics.signal import (EpicsSignal, EpicsSignalRO, FakeSignal)
 
 ##########
@@ -76,7 +76,7 @@ class AeroBase(EpicsMotor):
     axis_fault = Component(EpicsSignalRO, ":AXIS_FAULT")
     clear_error = Component(EpicsSignal, ":CLEAR")
     config = Component(EpicsSignal, ":CONFIG")
-    zero_all_proc = Component(EpicsSignal, ".ZERO_P.PROC")
+    zero_all_proc = Component(EpicsSignal, ":ZERO_P.PROC")
     home_forward = Component(EpicsSignal, ".HOMF")
     home_reverse = Component(EpicsSignal, ".HOMR")
     dial = Component(EpicsSignalRO, ".DRBV")

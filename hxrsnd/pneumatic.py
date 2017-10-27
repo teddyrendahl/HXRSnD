@@ -12,12 +12,12 @@ import logging
 # Third Party #
 ###############
 import numpy as np
+from ophyd import Component
 
 ########
 # SLAC #
 ########
 from pcdsdevices.device import Device
-from pcdsdevices.component import Component
 from pcdsdevices.epics.signal import EpicsSignal, EpicsSignalRO
 
 ##########
