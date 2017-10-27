@@ -18,7 +18,7 @@ from pcdsdevices.daq import make_daq_run_engine
 ##########
 # Module #
 ##########
-from hxrsnd.plans import daq_scan
+from hxrsnd.plans import linear_scan
 from hxrsnd.utils import get_logger
 from hxrsnd.pneumatic import SndPneumatics
 from hxrsnd.sndsystem import SplitAndDelay
@@ -28,6 +28,7 @@ from hxrsnd.diode import HamamatsuXMotionDiode, HamamatsuXYMotionCamDiode
 
 # Logging
 logger = get_logger(__name__)
+get_logger("pcdsdevices")
 
 # Instantiate the system
 pv_base = "XCS:SND"

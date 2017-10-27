@@ -41,7 +41,7 @@ def absolute_submodule_path(submodule, cur_dir=inspect.stack()[0][1]):
 LOG_DIR = absolute_submodule_path("HXRSnD/logs")
 
 def get_logger(name, stream_level=logging.INFO, log_file=True, 
-               log_dir=Path("."), max_bytes=10*1024*1024):
+               log_dir=Path(LOG_DIR), max_bytes=10*1024*1024):
     """
     Returns a properly configured logger that has a stream handler and a file
     handler. This was made so that immediately setting up both a stream and
