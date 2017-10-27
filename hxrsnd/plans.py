@@ -17,7 +17,8 @@ from pswalker.plans     import measure_average
 from bluesky            import Msg
 from bluesky.plans      import msg_mutator, list_scan, abs_set, checkpoint
 from bluesky.plans      import subs_decorator, stage_decorator, run_decorator
-from bluesky.utils import short_uid as _short_uid
+from bluesky.plans      import scan, trigger_and_read
+from bluesky.utils      import short_uid as _short_uid
 
 ##########
 # Module #
@@ -254,9 +255,32 @@ def rocking_curve(detector, motor, read_field, coarse_step, fine_step,
 
     return fit
 
-def daq_scan(motor, start, stop, num, hold=1, md=None):
+def linear_scan(motor, start, stop, num, use_diag=True, return_to_start=True, 
+                md=None):
     """
-    Performs a linear scan using the inputted motor.
+    Performs a linear scan using the inputted motor, optionally using the
+    diagnostics, and optionally moving the motor back to the original start
+    position.
+
+    Parameters
+    ----------
+    motor : object
+        any 'setable' object (motor, temp controller, etc.)
+
+    start : float
+        starting position of motor
+
+    stop : float
+        ending position of motor
+
+    num : int
+        number of steps
+        
+    use_diag : bool, optional
+        Include the diagnostic motors in the scan.
+
+    md : dict, optional
+        metadata
     """
     # Save some metadata on this scan
     _md = {'motors': [motor.name],
@@ -277,19 +301,31 @@ def daq_scan(motor, start, stop, num, hold=1, md=None):
     # Build the list of steps
     steps = np.linspace(**_md['plan_pattern_args'])
     
+    # Let's store this for now
+    start = motor.position
+    
     # Define the inner scan
     @stage_decorator([motor])
     @run_decorator(md=_md)
     def inner_scan():
+        
         for i, step in enumerate(steps):
+            logger.info("\nStep {0}: Moving to {1}".format(i+1, step))
             grp = _short_uid('set')
             yield Msg('checkpoint')
-            yield Msg('set', motor, step, group=grp, verify_move=False)
+            # Set wait to be false in set once the status object is implemented
+            yield Msg('set', motor, step, group=grp, verify_move=False, 
+                      use_diag=use_diag)
             yield Msg('wait', None, group=grp)
-            # print how long until it settles into the position
-            # print the step number and current position
-            time.sleep(hold)
-            print("Step {0}: {1}".format(i+1, motor.position))
-        # Move to original position
+            yield from trigger_and_read([motor])
+
+        if return_to_start:
+            logger.info("\nScan complete. Moving back to starting position: {0}"
+                        "\n".format(start))
+            yield Msg('set', motor, start, group=grp, verify_move=False, 
+                    use_diag=use_diag)
+            yield Msg('wait', None, group=grp)
 
     return (yield from inner_scan())
+    
+        
