@@ -14,7 +14,7 @@ import logging
 ###############
 import numpy as np
 from ophyd import PositionerBase
-from ophyd import Component, FormattedComponent
+from ophyd import Component
 from ophyd.utils import LimitError
 from ophyd.status import wait as status_wait
 
@@ -22,7 +22,6 @@ from ophyd.status import wait as status_wait
 # SLAC #
 ########
 from pcdsdevices.device import Device
-from pcdsdevices.component import Component
 from pcdsdevices.epics.signal import (EpicsSignal, EpicsSignalRO)
 from pcdsdevices.epics.epicsmotor import EpicsMotor
 
