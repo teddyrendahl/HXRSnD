@@ -256,7 +256,7 @@ def rocking_curve(detector, motor, read_field, coarse_step, fine_step,
     return fit
 
 def linear_scan(motor, start, stop, num, use_diag=True, return_to_start=True, 
-                md=None):
+                md=None, *args, **kwargs):
     """
     Performs a linear scan using the inputted motor, optionally using the
     diagnostics, and optionally moving the motor back to the original start
@@ -314,16 +314,15 @@ def linear_scan(motor, start, stop, num, use_diag=True, return_to_start=True,
             grp = _short_uid('set')
             yield Msg('checkpoint')
             # Set wait to be false in set once the status object is implemented
-            yield Msg('set', motor, step, group=grp, verify_move=False, 
-                      use_diag=use_diag)
+            yield Msg('set', motor, step, group=grp, *args, **kwargs)
             yield Msg('wait', None, group=grp)
             yield from trigger_and_read([motor])
 
         if return_to_start:
             logger.info("\nScan complete. Moving back to starting position: {0}"
                         "\n".format(start))
-            yield Msg('set', motor, start, group=grp, verify_move=False, 
-                    use_diag=use_diag)
+            yield Msg('set', motor, start, group=grp, use_diag=use_diag, *args,
+                      **kwargs)
             yield Msg('wait', None, group=grp)
 
     return (yield from inner_scan())
