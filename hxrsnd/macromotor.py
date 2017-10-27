@@ -936,6 +936,9 @@ class Energy1Macro(DelayTowerMacro):
         confirm_move : bool, optional
             Prompts the user for confirmation.
 
+        use_diag : bool, optional
+            Add the diagnostic motor to the list of motors to verify.
+        
         Returns
         -------
         allowed : bool
@@ -1178,6 +1181,9 @@ class Energy2Macro(MacroBase):
         confirm_move : bool, optional
             Prompts the user for confirmation.
 
+        use_diag : bool, optional
+            Add the diagnostic motor to the list of motors to verify.
+        
         Returns
         -------
         allowed : bool

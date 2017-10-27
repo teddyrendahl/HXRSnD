@@ -11,13 +11,12 @@ import logging
 ###############
 # Third Party #
 ###############
-
+from ophyd import Component
 
 ########
 # SLAC #
 ########
 from pcdsdevices.device import Device
-from pcdsdevices.component import Component
 
 ##########
 # Module #
