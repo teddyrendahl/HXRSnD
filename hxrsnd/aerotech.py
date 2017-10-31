@@ -80,15 +80,19 @@ class AeroBase(EpicsMotor):
     home_forward = Component(EpicsSignal, ".HOMF")
     home_reverse = Component(EpicsSignal, ".HOMR")
     dial = Component(EpicsSignalRO, ".DRBV")
+    state_component = Component(EpicsSignal, ".SPMG")
 
-    def __init__(self, prefix, desc=None, *args, **kwargs):
+    def __init__(self, prefix, desc=None, timeout=2, *args, **kwargs):
         self.desc = desc
+        self._timeout = timeout
         super().__init__(prefix, *args, **kwargs)
         self.configuration_attrs.append("power")
+        self._state_list = ["Stop", "Pause", "Move", "Go"]
         if self.desc is None:
             self.desc = self.name
 
-    def _status_print(self, status, msg=None, ret_status=False, print_set=True):
+    def _status_print(self, status, msg=None, ret_status=False, print_set=True,
+                      wait=True, reraise=False):
         """
         Internal method that optionally returns the status object and optionally
         prints a message about the set. If a message is passed but print_set is
@@ -96,7 +100,7 @@ class AeroBase(EpicsMotor):
 
         Parameters
         ----------
-        status : StatusObject
+        status : StatusObject or list
             The inputted status object.
         
         msg : str or None, optional
@@ -108,18 +112,38 @@ class AeroBase(EpicsMotor):
         print_move : bool, optional
             Print a short statement about the set.
 
+        wait : bool, optional
+            Wait for the status to complete.
+
+        reraise : bool, optional
+            Raise the RuntimeError in the except.
+
         Returns
         -------
         Status
             Inputted status object.        
         """
-        if msg is not None:
-            if print_set:
-                logger.info(msg)
-            else:
-                logger.debug(msg)
-        if ret_status:
-            return status
+        try:
+            # Wait for the status to complete
+            if wait:
+                for s in list(status):
+                    status_wait(status, self._timeout)
+
+            # Notify the user
+            if msg is not None:
+                if print_set:
+                    logger.info(msg)
+                else:
+                    logger.debug(msg)
+            if ret_status:
+                return status
+
+        # The operation failed for some reason
+        except RuntimeError:
+            error = "Operation completed, but reported an error."
+            logger.error(error)
+            if reraise:
+                raise
 
     def homf(self, ret_status=False, print_set=True):
         """
@@ -140,7 +164,7 @@ class AeroBase(EpicsMotor):
         """
         status = self.home_forward.set(1)
         return self._status_print(status, "Homing '{0}' forward.".format(
-            self.desc, print_set=print_set))
+            self.desc), print_set=print_set)
 
     def homr(self, ret_status=False, print_set=True):
         """
@@ -161,7 +185,7 @@ class AeroBase(EpicsMotor):
         """
         status = self.home_reverse.set(1)
         return self._status_print(status, "Homing '{0}' in reverse.".format(
-            self.desc, print_set=print_set))
+            self.desc), print_set=print_set)
 
     def move(self, position, wait=False, check_status=True, ret_status=True, 
              print_move=False, *args, **kwargs):
@@ -457,7 +481,7 @@ class AeroBase(EpicsMotor):
         """
         status = self.power.set(1)
         return self._status_print(status, "Enabled motor '{0}'.".format(
-            self.desc, print_set=print_set))
+            self.desc), print_set=print_set)
 
     def disable(self, ret_status=False, print_set=True):
         """
@@ -478,7 +502,7 @@ class AeroBase(EpicsMotor):
         """
         status = self.power.set(0)
         return self._status_print(status, "Disabled motor '{0}'.".format(
-            self.desc, print_set=print_set))
+            self.desc), print_set=print_set)
 
     @property
     def enabled(self):
@@ -511,7 +535,7 @@ class AeroBase(EpicsMotor):
         """
         status = self.clear_error.set(1)
         return self._status_print(status, "Cleared motor '{0}'.".format(
-            self.desc, print_set=print_set))
+            self.desc), print_set=print_set)
 
     def reconfig(self, ret_status=False, print_set=True):
         """
@@ -532,7 +556,7 @@ class AeroBase(EpicsMotor):
         """
         status = self.config.set(1)
         return self._status_print(status, "Reconfigured motor '{0}'.".format(
-            self.desc, print_set=print_set))
+            self.desc), print_set=print_set)
 
     @property
     def faulted(self):
@@ -565,7 +589,94 @@ class AeroBase(EpicsMotor):
         """
         status = self.zero_all_proc.set(1)
         return self._status_print(status, "Zeroed motor '{0}'.".format(
-            self.desc, print_set=print_set))
+            self.desc), print_set=print_set)
+
+    @property
+    def state(self):
+        """
+        Returns the state of the motor. State can be one of the following:
+            'Stop', 'Pause', 'Move', 'Go'
+
+        Returns
+        -------
+        state : str
+            The current state of the motor
+        """
+        return self._state_list[self.state_component.get()]
+
+    @state.setter
+    def state(self, val, ret_status=False, print_set=True):
+        """
+        Sets the state of the motor. Inputted state can be one of the following
+        states or the index of the desired state:
+            'Stop', 'Pause', 'Move', 'Go'            
+        Alias for set_state((val, False, True)
+        
+        Parameters
+        ----------
+        val : int or str
+        
+        ret_status : bool, optional
+            Return the status object of the set.
+
+        print_move : bool, optional
+            Print a short statement about the set.
+
+        Returns
+        -------
+        Status
+            The status object for setting the config signal.        
+        """
+        return self.set_state(val, ret_status, print_set)
+
+    def set_state(self, state, ret_status=True, print_set=False):
+        """
+        Sets the state of the motor. Inputted state can be one of the following
+        states or the index of the desired state:
+            'Stop', 'Pause', 'Move', 'Go'            
+        
+        Parameters
+        ----------
+        val : int or str
+        
+        ret_status : bool, optional
+            Return the status object of the set.
+
+        print_move : bool, optional
+            Print a short statement about the set.
+
+        Returns
+        -------
+        Status
+            The status object for setting the config signal.        
+        """
+        # Make sure it is in title case if it's a string
+        val = state
+        if isinstance(state, str):
+            val = state.title()
+
+        # Make sure it is a valid state or enum
+        if val not in self._state_list + list(range(len(self._state_list))):
+            error = "Invalid state inputted, '{0}'.".format(val)
+            logger.error(error)
+            raise ValueError(error)
+        
+        # Lets enforce it's a string or value
+        status = self.state_component.set(val)
+
+        return self._status_print(status, "Changed state to '{0}'.".format(
+            self.desc), print_set=print_set)
+
+    def ready_motor(self):
+        """
+        Sets the motor to the ready state by clearing any errors, enabling it,
+        and setting the state to be 'Go'.
+        """
+        status = self.clear(ret_status=True, print_set=False)
+        status += self.enable(ret_status=True, print_set=False)
+        status += self.set_state("Go", ret_status=True, print_set=False)
+        return self._status_print(status, "Motor '{0}' is now ready.".format(
+            self.desc), print_set=print_set)
 
     def expert_screen(self, print_msg=True):
         """
@@ -642,6 +753,8 @@ class AeroBase(EpicsMotor):
                                                      str(self.enabled))
             status += "{0}Faulted: {1:>20}\n".format(" "*(offset+2), 
                                                      str(self.faulted))
+            status += "{0}State: {1:>22}\n".format(" "*(offset+2), 
+                                                     str(self.state))
             status += "{0}Position: {1:>19}\n".format(" "*(offset+2), 
                                                       np.round(self.wm(), 6))
             status += "{0}Dial: {1:>23}\n".format(" "*(offset+2), 
