@@ -24,11 +24,11 @@ from pcdsdevices.device import Device
 ##########
 # Module #
 ##########
-from .utils import get_logger, as_list, flatten
+from .utils import flatten
 from .bragg import bragg_angle, cosd, sind
 from .exceptions import MotorDisabled, MotorFaulted, BadN2Pressure
 
-logger = get_logger(__name__, log_file=False)
+logger = logging.getLogger(__name__)
 
 
 class MacroBase(Device):

@@ -10,12 +10,7 @@ from ophyd.device import Device, ComponentMeta
 from super_state_machine.machines import StateMachine
 from super_state_machine.extras  import PropertyMachine
 
-##########
-# Module #
-##########
-from .utils import get_logger
-
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class MachineMeta(ComponentMeta):

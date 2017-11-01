@@ -29,9 +29,9 @@ from pcdsdevices.epics.epicsmotor import EpicsMotor
 # Module #
 ##########
 from .exceptions import MotorDisabled, MotorError
-from .utils import get_logger, absolute_submodule_path
+from .utils import absolute_submodule_path
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class EccController(Device):

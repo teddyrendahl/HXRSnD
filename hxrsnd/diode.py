@@ -21,11 +21,10 @@ from pcdsdevices.device import Device
 ##########
 # Module #
 ##########
-from .utils import get_logger
 from .aerotech import DiodeAero
 from .detectors import GigeDetector
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class DiodeBase(Device):
