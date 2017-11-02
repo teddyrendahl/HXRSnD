@@ -1102,6 +1102,170 @@ class Energy1Macro(DelayTowerMacro):
         if print_set is True:
             logger.info("Setting positions for E1 to {0}.".format(E1))
 
+class Energy1CCMacro(Energy1Macro):
+    """
+    Macro-motor for the energy 1 channel cut macro-motor.
+    """
+    def _verify_move(self, E1, string="", use_header=True, confirm_move=True,
+                     use_diag=True):
+        """
+        Prints a summary of the current positions and the proposed positions
+        of the motors based on the inputs. It then prompts the user to confirm
+        the move.
+        
+        Parameters
+        ----------
+        E1 : float
+            Desired energy for the delay line.
+
+        string : str, optional
+            Message to be printed as a prompt.
+
+        use_header : bool, optional
+            Adds a basic header to the message.
+
+        confirm_move : bool, optional
+            Prompts the user for confirmation.
+
+        use_diag : bool, optional
+            Add the diagnostic motor to the list of motors to verify.
+        
+        Returns
+        -------
+        allowed : bool
+            True if the move is approved, False if the move is not.
+        """
+        # Add a header to the output
+        if use_header:
+            string += self._add_verify_header(string)
+
+        # Get move for each motor in the delay towers
+        for tower in self._delay_towers:
+            string += "\n{:<15}|{:^15.3f}|{:^15.3f}".format(
+                    tower.tth.desc, tower.tth.position, bragg_angle(E1))
+
+        if use_diag:
+            position_dd = self._get_delay_diagnostic_position(E1)
+            string += "\n{:<15}|{:^15.3f}|{:^15.3f}".format(
+                self.parent.dd.x.desc, self.parent.dd.x.position, position_dd)
+
+        # Prompt the user for a confirmation or return the string
+        if confirm_move is True:
+            return self._confirm_move(string)
+        else:
+            return string
+
+    def _check_towers_and_diagnostics(self, E1, use_diag=True):
+        """
+        Checks the staus of the delay tower energy motors. Raises the basic 
+        motor errors if any of the motors are not ready to be moved
+        
+        Parameters
+        ----------
+        E1 : float
+            Desired energy for the delay line.
+
+        use_diag : bool, optional
+            Check the position of the diagnostic motor.
+        
+        Raises
+        ------
+        LimitError
+            Error raised when the inputted position is beyond the soft limits.
+        
+        MotorDisabled
+            Error raised if the motor is disabled and move is requested.
+
+        MotorFaulted
+            Error raised if the motor is disabled and the move is requested.
+
+        BadN2Pressure
+            Error raised if the pressure in the tower is bad.
+
+        Returns
+        -------
+        position_dd : float or None
+            Position to move the delay diagnostic to.
+        """
+        # Check each of the delay towers
+        for tower in self._delay_towers:
+            try:
+                tower.tth.check_status(bragg_angle(E1))
+            except Exception as e:
+                err = "Motor {0} got an exception: {1}".format(
+                    tower.tth.name, e)
+                logger.error(err)
+                raise e
+
+        # Check the delay diagnostic position
+        if use_diag:
+            position_dd = self._get_delay_diagnostic_position(E1=E1)
+            self.parent.dd.x.check_status(position_dd)
+            return position_dd
+
+    def _move_towers_and_diagnostics(self, E1, position_dd, use_diag=True):
+        """
+        Moves the delay line energy motors and diagnostic to the inputted energy
+        and diagnostic position.
+        
+        Parameters
+        ----------
+        E1 : float
+            Energy to set the delay line to.
+        
+        position_dd : float
+            Position to move the delay diagnostic to.
+
+        use_diag : bool, optional
+            Move the daignostic motors to align with the beam.
+        
+        Returns
+        -------
+        status : list
+            Nested list of status objects from each tower.
+        """
+        # Move the towers to the specified energy
+        status = [tower.tth.move(bragg_angle(E1), wait=False, 
+                                 check_status=False) 
+                  for tower in self._delay_towers]
+        # Log the energy change
+        logger.debug("Setting E1_cc to {0}.".format(E1))
+
+        # Move the delay diagnostic to the inputted position
+        if use_diag:
+            status += [self.parent.dd.x.move(position_dd, wait=False)]
+
+        return status
+
+    def set_position(self, E1=None, print_set=True):
+        """
+        Sets the current positions of the motors in the towers to be the 
+        calculated positions based on the inputted energies or delay.
+        
+        Parameters
+        ----------
+        E1 : float or None, optional
+            Energy to set the delay line to.
+        
+        print_set : bool, optional
+            Print a message to the console that the set has been made.
+        """
+        theta1 = bragg_angle(E=E1)
+
+        # Set position of each E1 motor in each delay tower
+        for tower in self._delay_towers:
+            for motor, pos in zip(tower._energy_motors,
+                                  tower._get_move_positions(theta1)):
+                motor.set_position(pos, print_set=False)
+
+        # Set the diagnostic
+        position_dd = self._get_delay_diagnostic_position(E1=E1)
+        self.parent.dd.x.set_position(position_dd, print_set=False)
+
+        # Log the set
+        if print_set is True:
+            logger.info("Setting positions for E1 to {0}.".format(E1))
+
 
 class Energy2Macro(MacroBase):
     """
