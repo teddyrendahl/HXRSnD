@@ -313,6 +313,15 @@ class MacroBase(Device):
     def read_configuration(self):
         return dict(calib=self._calib)
 
+    def describe_configuration(self):
+        if isinstance(self._calib, dict):
+            shape = [len(self._calib)]
+        else:
+            shape = self._calib.shape
+        return dict(calib=dict(source='calibrate',
+                               dtype='array',
+                               shape=shape))
+
     def move(self, position, wait=True, verify_move=True, ret_status=True, 
              use_diag=True, use_calib=True):
         """
