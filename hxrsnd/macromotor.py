@@ -252,7 +252,7 @@ class MacroBase(Device):
             names = save_calib.keys()
         for name in names:
             try:
-                obj = self._get_calib_obj(name)
+                self._get_calib_obj(name)
             except AttributeError:
                 raise TypeError("Invalid calib key {}!".format(name))
 
@@ -268,27 +268,31 @@ class MacroBase(Device):
             for name, func in calib.items():
                 obj = self._get_calib_obj(name)
                 stat = obj.set(func(position), *args, **kwargs)
-                status.append(stat)
+                statuses.append(stat)
         elif isinstance(calib, pd.DataFrame):
             lower = calib.index[0]
             upper = calib.index[-1]
             # Find largest lower, smallest upper such that
             # lower <= position <= upper
-            for i in sorted(index):
+            for i in sorted(calib.index):
                 if lower < i <= position:
                     lower = i
                 elif position <= i < upper:
                     upper = i
                     break
             # Interpolate
-            portion = (position - lower) / (upper - lower)
+            if upper != lower:
+                portion = (position - lower) / (upper - lower)
             for name in calib.columns:
-                low_pt = calib[name][lower]
-                high_pt = calib[name][upper]
-                calib_pos = (high_pt - low_pt) * portion + low_pt
+                if lower == upper:
+                    calib_pos = lower
+                else:
+                    low_pt = calib[name][lower]
+                    high_pt = calib[name][upper]
+                    calib_pos = (high_pt - low_pt) * portion + low_pt
                 obj = self._get_calib_obj(name)
                 stat = obj.set(calib_pos, *args, **kwargs)
-                status.append(stat)
+                statuses.append(stat)
         for i, stat in enumerate(statuses):
             if i == 0:
                 return_status = stat
