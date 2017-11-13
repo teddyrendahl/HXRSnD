@@ -1142,7 +1142,7 @@ class Energy1CCMacro(Energy1Macro):
         # Get move for each motor in the delay towers
         for tower in self._delay_towers:
             string += "\n{:<15}|{:^15.3f}|{:^15.3f}".format(
-                    tower.tth.desc, tower.tth.position, bragg_angle(E1))
+                    tower.tth.desc, tower.tth.position, 2*bragg_angle(E1))
 
         if use_diag:
             position_dd = self._get_delay_diagnostic_position(E1)
@@ -1190,7 +1190,7 @@ class Energy1CCMacro(Energy1Macro):
         # Check each of the delay towers
         for tower in self._delay_towers:
             try:
-                tower.tth.check_status(bragg_angle(E1))
+                tower.tth.check_status(2*bragg_angle(E1))
             except Exception as e:
                 err = "Motor {0} got an exception: {1}".format(
                     tower.tth.name, e)
@@ -1225,8 +1225,8 @@ class Energy1CCMacro(Energy1Macro):
             Nested list of status objects from each tower.
         """
         # Move the towers to the specified energy
-        status = [tower.tth.move(bragg_angle(E1), wait=False, 
-                                 check_status=False) 
+        status = [tower.tth.move(2*bragg_angle(E1), wait=False, 
+                                 check_status=False)
                   for tower in self._delay_towers]
         # Log the energy change
         logger.debug("Setting E1_cc to {0}.".format(E1))
