@@ -33,7 +33,7 @@ from .utils import flatten, get_logger
 from .bragg import bragg_angle, cosd, sind
 from .tower import DelayTower, ChannelCutTower
 from .diode import HamamatsuXMotionDiode, HamamatsuXYMotionCamDiode
-from .macromotor import Energy1Macro, Energy2Macro, DelayMacro
+from .macromotor import Energy1Macro, Energy1CCMacro, Energy2Macro, DelayMacro
 
 logger = get_logger(__name__)
 
@@ -115,6 +115,7 @@ class SplitAndDelay(Device):
 
     # Macro motors
     E1 = Component(Energy1Macro, "", desc="Delay Energy")
+    E1_cc = Component(Energy1CCMacro, "", desc="CC Delay Energy")
     E2 = Component(Energy2Macro, "", desc="CC Energy")
     delay = Component(DelayMacro, "", desc="Delay")
 
