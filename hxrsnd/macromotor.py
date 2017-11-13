@@ -208,8 +208,8 @@ class MacroBase(Device):
             The columns should be labeled with the name of the mover. The names
             are interpreted as attribute access of the parent object, e.g.
             name=t1 ------> snd.t1
-            name=t1.chi1 -> snd.chi1
-            If a dict, I'm either expecting the arugments to create a dataframe
+            name=t1.chi1 -> snd.t1.chi1
+            If a dict, I'm either expecting the arguments to create a dataframe
             e.g. data=dict(name=array, name2=array2), index=array3
             OR a dictionary of names to functions of single variables, taking
             in the main axis position and outputing the mover's adjustment.
