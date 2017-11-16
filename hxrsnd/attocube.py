@@ -29,7 +29,7 @@ from pcdsdevices.epics.epicsmotor import EpicsMotor
 # Module #
 ##########
 from .exceptions import MotorDisabled, MotorError
-from .utils import absolute_submodule_path
+from .utils import absolute_submodule_path, as_list
 
 logger = logging.getLogger(__name__)
 
@@ -135,14 +135,16 @@ class EccBase(Device, PositionerBase):
         """
         return self.motor_egu.get()
 
-    def _status_print(self, status, msg=None, ret_status=False, print_set=True):
+    def _status_print(self, status, msg=None, ret_status=False, print_set=True,
+                      wait=True, reraise=False):
         """
         Internal method that optionally returns the status object and optionally
-        prints a message about the set.
+        prints a message about the set. If a message is passed but print_set is
+        False then the message is logged at the debug level.
 
         Parameters
         ----------
-        status : StatusObject
+        status : StatusObject or list
             The inputted status object.
         
         msg : str or None, optional
@@ -151,21 +153,41 @@ class EccBase(Device, PositionerBase):
         ret_status : bool, optional
             Return the status object of the set.
 
-        print_move : bool, optional
+        print_set : bool, optional
             Print a short statement about the set.
+
+        wait : bool, optional
+            Wait for the status to complete.
+
+        reraise : bool, optional
+            Raise the RuntimeError in the except.
 
         Returns
         -------
         Status
             Inputted status object.        
         """
-        if msg is not None:
-            if print_set:
-                logger.info(msg)
-            else:
-                logger.debug(msg)
-        if ret_status:
-            return status
+        try:
+            # Wait for the status to complete
+            if wait:
+                for s in as_list(status):
+                    status_wait(s, self._timeout)
+
+            # Notify the user
+            if msg is not None:
+                if print_set:
+                    logger.info(msg)
+                else:
+                    logger.debug(msg)
+            if ret_status:
+                return status
+
+        # The operation failed for some reason
+        except RuntimeError:
+            error = "Operation completed, but reported an error."
+            logger.error(error)
+            if reraise:
+                raise
 
     def enable(self, ret_status=False, print_set=True):
         """
@@ -176,7 +198,7 @@ class EccBase(Device, PositionerBase):
         ret_status : bool, optional
             Return the status object of the set.
 
-        print_move : bool, optional
+        print_set : bool, optional
             Print a short statement about the set.
 
         Returns
@@ -186,7 +208,7 @@ class EccBase(Device, PositionerBase):
         """
         status = self.motor_enable.set(1)
         return self._status_print(status, "Enabled motor '{0}'".format(
-            self.desc))
+            self.desc), ret_status=ret_status, print_set=print_set)
 
     def disable(self, ret_status=False, print_set=True):
         """
@@ -197,7 +219,7 @@ class EccBase(Device, PositionerBase):
         ret_status : bool, optional
             Return the status object of the set.
 
-        print_move : bool, optional
+        print_set : bool, optional
             Print a short statement about the set.
 
         Returns
@@ -207,7 +229,7 @@ class EccBase(Device, PositionerBase):
         """
         status = self.motor_enable.set(0)
         return self._status_print(status, "Disabled motor '{0}'".format(
-            self.desc))
+            self.desc), ret_status=ret_status, print_set=print_set)
 
     @property
     def enabled(self):
@@ -268,7 +290,7 @@ class EccBase(Device, PositionerBase):
         """
         status = self.motor_reset.set(1)
         return self._status_print(status, "Reset motor '{0}'".format(
-            self.desc))
+            self.desc), ret_status=ret_status, print_set=print_set)
     
     def move(self, position, check_status=True, ret_status=True, 
              print_move=False, *args, **kwargs):
@@ -392,7 +414,7 @@ class EccBase(Device, PositionerBase):
         ret_status : bool, optional
             Return the status object of the set.
 
-        print_move : bool, optional
+        print_set : bool, optional
             Print a short statement about the set.
 
         Returns
@@ -403,7 +425,7 @@ class EccBase(Device, PositionerBase):
         status = self.motor_stop.set(1, wait=False)
         super().stop(success=success)
         return self._status_print(status, "Stopped motor '{0}'".format(
-            self.desc))
+            self.desc), ret_status=ret_status, print_set=print_set)
         
     def move_rel(self, rel_position, *args, **kwargs):
         """
