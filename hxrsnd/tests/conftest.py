@@ -16,10 +16,15 @@ from functools import wraps
 ###############
 import pytest
 from bluesky.run_engine import RunEngine
-from bluesky.tests.conftest import fresh_RE as RE
+from bluesky.tests.conftest import RE
 import epics
 import numpy as np
 import epics
+
+########
+# SLAC #
+########
+from pcdsdevices.sim.pv import  using_fake_epics_pv
 
 ##########
 # Module #
@@ -80,3 +85,9 @@ def get_classes_in_module(module, subcls=None):
         except AttributeError:
             pass    
     return classes
+
+# Create a fake epics device
+@using_fake_epics_pv
+def fake_device(device, name="TEST"):
+    return device(name)
+
