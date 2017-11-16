@@ -2,7 +2,8 @@ git+https://github.com/slaclab/lightpath#egg=lightpath
 git+https://github.com/slaclab/pcds-devices#egg=pcds-devices
 git+https://github.com/slaclab/pswalker#egg=pswalker
 super_state_machine
-ophyd 
+bluesky=1.0.0
+ophyd=1.0.0
 lmfit
 numpy
 simplejson
