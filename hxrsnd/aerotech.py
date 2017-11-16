@@ -27,10 +27,10 @@ from pcdsdevices.epics.signal import (EpicsSignal, EpicsSignalRO, FakeSignal)
 # Module #
 ##########
 from .pneumatic import PressureSwitch
-from .utils import get_logger, absolute_submodule_path
+from .utils import absolute_submodule_path, as_list
 from .exceptions import MotorDisabled, MotorFaulted, BadN2Pressure
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class AeroBase(EpicsMotor):
@@ -109,7 +109,7 @@ class AeroBase(EpicsMotor):
         ret_status : bool, optional
             Return the status object of the set.
 
-        print_move : bool, optional
+        print_set : bool, optional
             Print a short statement about the set.
 
         wait : bool, optional
@@ -126,8 +126,8 @@ class AeroBase(EpicsMotor):
         try:
             # Wait for the status to complete
             if wait:
-                for s in list(status):
-                    status_wait(status, self._timeout)
+                for s in as_list(status):
+                    status_wait(s, self._timeout)
 
             # Notify the user
             if msg is not None:
@@ -154,7 +154,7 @@ class AeroBase(EpicsMotor):
         ret_status : bool, optional
             Return the status object of the set.
 
-        print_move : bool, optional
+        print_set : bool, optional
             Print a short statement about the set.
         
         Returns
@@ -164,7 +164,7 @@ class AeroBase(EpicsMotor):
         """
         status = self.home_forward.set(1)
         return self._status_print(status, "Homing '{0}' forward.".format(
-            self.desc), print_set=print_set)
+            self.desc), print_set=print_set, ret_status=ret_status)
 
     def homr(self, ret_status=False, print_set=True):
         """
@@ -175,7 +175,7 @@ class AeroBase(EpicsMotor):
         ret_status : bool, optional
             Return the status object of the set.
 
-        print_move : bool, optional
+        print_set : bool, optional
             Print a short statement about the set.
 
         Returns
@@ -185,7 +185,7 @@ class AeroBase(EpicsMotor):
         """
         status = self.home_reverse.set(1)
         return self._status_print(status, "Homing '{0}' in reverse.".format(
-            self.desc), print_set=print_set)
+            self.desc), print_set=print_set, ret_status=ret_status)
 
     def move(self, position, wait=False, check_status=True, ret_status=True, 
              print_move=False, *args, **kwargs):
@@ -471,7 +471,7 @@ class AeroBase(EpicsMotor):
         ret_status : bool, optional
             Return the status object of the set.
 
-        print_move : bool, optional
+        print_set : bool, optional
             Print a short statement about the set.
 
         Returns
@@ -481,7 +481,7 @@ class AeroBase(EpicsMotor):
         """
         status = self.power.set(1)
         return self._status_print(status, "Enabled motor '{0}'.".format(
-            self.desc), print_set=print_set)
+            self.desc), print_set=print_set, ret_status=ret_status)
 
     def disable(self, ret_status=False, print_set=True):
         """
@@ -492,7 +492,7 @@ class AeroBase(EpicsMotor):
         ret_status : bool, optional
             Return the status object of the set.
 
-        print_move : bool, optional
+        print_set : bool, optional
             Print a short statement about the set.
 
         Returns
@@ -502,7 +502,7 @@ class AeroBase(EpicsMotor):
         """
         status = self.power.set(0)
         return self._status_print(status, "Disabled motor '{0}'.".format(
-            self.desc), print_set=print_set)
+            self.desc), print_set=print_set, ret_status=ret_status)
 
     @property
     def enabled(self):
@@ -525,7 +525,7 @@ class AeroBase(EpicsMotor):
         ret_status : bool, optional
             Return the status object of the set.
 
-        print_move : bool, optional
+        print_set : bool, optional
             Print a short statement about the set.
 
         Returns
@@ -535,7 +535,7 @@ class AeroBase(EpicsMotor):
         """
         status = self.clear_error.set(1)
         return self._status_print(status, "Cleared motor '{0}'.".format(
-            self.desc), print_set=print_set)
+            self.desc), print_set=print_set, ret_status=ret_status)
 
     def reconfig(self, ret_status=False, print_set=True):
         """
@@ -546,7 +546,7 @@ class AeroBase(EpicsMotor):
         ret_status : bool, optional
             Return the status object of the set.
 
-        print_move : bool, optional
+        print_set : bool, optional
             Print a short statement about the set.
 
         Returns
@@ -556,7 +556,7 @@ class AeroBase(EpicsMotor):
         """
         status = self.config.set(1)
         return self._status_print(status, "Reconfigured motor '{0}'.".format(
-            self.desc), print_set=print_set)
+            self.desc), print_set=print_set, ret_status=ret_status)
 
     @property
     def faulted(self):
@@ -579,7 +579,7 @@ class AeroBase(EpicsMotor):
         ret_status : bool, optional
             Return the status object of the set.
 
-        print_move : bool, optional
+        print_set : bool, optional
             Print a short statement about the set.
 
         Returns
@@ -589,7 +589,7 @@ class AeroBase(EpicsMotor):
         """
         status = self.zero_all_proc.set(1)
         return self._status_print(status, "Zeroed motor '{0}'.".format(
-            self.desc), print_set=print_set)
+            self.desc), print_set=print_set, ret_status=ret_status)
 
     @property
     def state(self):
@@ -619,13 +619,13 @@ class AeroBase(EpicsMotor):
         ret_status : bool, optional
             Return the status object of the set.
 
-        print_move : bool, optional
+        print_set : bool, optional
             Print a short statement about the set.
 
         Returns
         -------
         Status
-            The status object for setting the config signal.        
+            The status object for setting the state signal.        
         """
         return self.set_state(val, ret_status, print_set)
 
@@ -642,13 +642,13 @@ class AeroBase(EpicsMotor):
         ret_status : bool, optional
             Return the status object of the set.
 
-        print_move : bool, optional
+        print_set : bool, optional
             Print a short statement about the set.
 
         Returns
         -------
         Status
-            The status object for setting the config signal.        
+            The status object for setting the state signal.        
         """
         # Make sure it is in title case if it's a string
         val = state
@@ -665,18 +665,31 @@ class AeroBase(EpicsMotor):
         status = self.state_component.set(val)
 
         return self._status_print(status, "Changed state to '{0}'.".format(
-            self.desc), print_set=print_set)
+            val), print_set=print_set, ret_status=ret_status)
 
-    def ready_motor(self):
+    def ready_motor(self, ret_status=False, print_set=True):
         """
         Sets the motor to the ready state by clearing any errors, enabling it,
         and setting the state to be 'Go'.
+
+        Parameters
+        ----------
+        ret_status : bool, optional
+            Return the status object of the set.
+
+        print_set : bool, optional
+            Print a short statement about the set.
+
+        Returns
+        -------
+        Status
+            The status object for all the sets.        
         """
-        status = self.clear(ret_status=True, print_set=False)
-        status += self.enable(ret_status=True, print_set=False)
-        status += self.set_state("Go", ret_status=True, print_set=False)
+        status = [self.clear(ret_status=True, print_set=False)]
+        status.append(self.enable(ret_status=True, print_set=False))
+        status.append(self.set_state("Go", ret_status=True, print_set=False))
         return self._status_print(status, "Motor '{0}' is now ready.".format(
-            self.desc), print_set=print_set)
+            self.desc), print_set=print_set, ret_status=ret_status)
 
     def expert_screen(self, print_msg=True):
         """
