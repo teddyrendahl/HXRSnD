@@ -81,9 +81,9 @@ class AeroBase(EpicsMotor):
     home_reverse = Component(EpicsSignal, ".HOMR")
     dial = Component(EpicsSignalRO, ".DRBV")
 
-    def __init__(self, prefix, desc=None, *args, **kwargs):
-        self.desc = desc
-        super().__init__(prefix, *args, **kwargs)
+    def __init__(self, prefix, name=None, desc=None, *args, **kwargs):
+        self.desc = desc or name
+        super().__init__(prefix, name=name, *args, **kwargs)
         self.configuration_attrs.append("power")
         if self.desc is None:
             self.desc = self.name
