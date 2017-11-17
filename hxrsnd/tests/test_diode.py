@@ -29,7 +29,8 @@ from hxrsnd.utils import get_logger
 logger = get_logger(__name__, log_file=False)
 
 @using_fake_epics_pv
-@pytest.mark.parametrize("dev", get_classes_in_module(diode, Device))
+@pytest.mark.parametrize("dev", get_classes_in_module(diode, Device,
+                                                      blacklist=[diode.DiodeIO]))
 def test_diode_devices_instantiate_and_run_ophyd_functions(dev):
     device = fake_device(dev)
     assert(isinstance(device.read(), OrderedDict))
