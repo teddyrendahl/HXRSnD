@@ -22,6 +22,7 @@ from bluesky import RunEngine
 # SLAC #
 ########
 from pcdsdevices.device import Device
+from pcdsdevices.daq import Daq, make_daq_run_engine
 
 ##########
 # Module #
@@ -117,6 +118,9 @@ class SplitAndDelay(Device):
     E1_cc = Component(Energy1CCMacro, "", desc="CC Delay Energy")
     E2 = Component(Energy2Macro, "", desc="CC Energy")
     delay = Component(DelayMacro, "", desc="Delay")
+
+    # DAQ
+    daq = Component(Daq, None, platform=1)
     
     def __init__(self, prefix, name=None, desc=None, *args, **kwargs):
         super().__init__(prefix, name=name, *args, **kwargs)
@@ -126,10 +130,12 @@ class SplitAndDelay(Device):
         self._towers = self._delay_towers + self._channelcut_towers
         self._delay_diagnostics = [self.di, self.dd, self.do]
         self._channelcut_diagnostics = [self.dci, self.dcc, self.dco]
-        self._diagnostics = self._delay_diagnostics+self._channelcut_diagnostics        
-
+        self._diagnostics = self._delay_diagnostics+self._channelcut_diagnostics
         if self.desc is None:
             self.desc = self.name    
+
+        # Get the LCLS RunEngine
+        self.RE = make_daq_run_engine(self.daq)
 
     @property
     def theta1(self):
