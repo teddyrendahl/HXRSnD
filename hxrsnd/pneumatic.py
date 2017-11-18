@@ -32,11 +32,11 @@ class PneuBase(Device):
     Base class for the penumatics.
     """
 
-    def __init__(self, prefix, desc=None, *args, **kwargs):
-        self.desc = desc
-        super().__init__(prefix, *args, **kwargs)
+    def __init__(self, prefix, name=None, desc=None, *args, **kwargs):
+        self.desc = desc or name
+        super().__init__(prefix, name=name, *args, **kwargs)
         if self.desc is None:
-            self.desc = self.name    
+            self.desc = self.name
     
     def status(self, status="", offset=0, print_status=True, newline=False):
         """
@@ -240,9 +240,9 @@ class SndPneumatics(Device):
     t4_pressure = Component(PressureSwitch, ":N2:T4", desc="T4 Pressure")
     vac_pressure = Component(PressureSwitch, ":VAC", desc="Vacuum Pressure")
 
-    def __init__(self, prefix, desc=None, *args, **kwargs):
-        self.desc = desc
-        super().__init__(prefix, *args, **kwargs)
+    def __init__(self, prefix, name=None, desc=None, *args, **kwargs):
+        self.desc = desc or name
+        super().__init__(prefix, name=name, *args, **kwargs)
         self._valves = [self.t1_valve, self.t4_valve, self.vac_valve]
         self._pressure_switches = [self.t1_pressure, self.t4_pressure,
                                    self.vac_pressure]

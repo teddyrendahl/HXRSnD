@@ -22,7 +22,7 @@ from pcdsdevices.sim.pv import using_fake_epics_pv
 ##########
 # Module #
 ##########
-from .conftest import get_classes_in_module
+from .conftest import get_classes_in_module, fake_device
 from hxrsnd import tower
 from hxrsnd.utils import get_logger
 from hxrsnd.sndsystem import DelayTower, ChannelCutTower
@@ -33,7 +33,7 @@ logger = get_logger(__name__, log_file=False)
 @using_fake_epics_pv
 @pytest.mark.parametrize("dev", get_classes_in_module(tower, Device))
 def test_devices_instantiate_and_run_ophyd_functions(dev):
-    device = dev("TEST")
+    device = fake_device(dev, "TEST:SND:T1")
     assert(isinstance(device.read(), OrderedDict))
     assert(isinstance(device.describe(), OrderedDict))
     assert(isinstance(device.describe_configuration(), OrderedDict))
@@ -41,7 +41,7 @@ def test_devices_instantiate_and_run_ophyd_functions(dev):
 
 @using_fake_epics_pv
 def test_DelayTower_does_not_move_if_motors_not_ready():
-    tower = DelayTower("TEST")
+    tower = fake_device(DelayTower, "TEST:SND:T1")
     tower.disable()
     time.sleep(.5)
     tower.tth.limits = (-100, 100)
@@ -61,7 +61,7 @@ def test_DelayTower_does_not_move_if_motors_not_ready():
 
 @using_fake_epics_pv
 def test_ChannelCutTower_does_not_move_if_motors_not_ready():
-    tower = ChannelCutTower("TEST")
+    tower = fake_device(ChannelCutTower, "TEST:SND:T1")
     tower.disable()
     time.sleep(.5)
     tower.th.limits = (-100, 100)

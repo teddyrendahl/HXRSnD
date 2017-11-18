@@ -39,9 +39,9 @@ class MacroBase(Device):
     c = 0.299792458             # mm/ps
     gap = 55                    # m
 
-    def __init__(self, prefix, desc=None, *args, **kwargs):
-        self.desc = desc
-        super().__init__(prefix, *args, **kwargs)
+    def __init__(self, prefix, name=None, desc=None, *args, **kwargs):
+        self.desc = desc or name
+        super().__init__(prefix, name=name, *args, **kwargs)
         
         # Make sure this is used
         if self.parent is None:

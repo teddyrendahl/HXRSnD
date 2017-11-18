@@ -32,7 +32,8 @@ class DiodeBase(Device):
     """
     Base class for the diode.
     """
-    pass
+    def __init__(self, prefix, name=None, *args, **kwargs):
+        super().__init__(prefix, name=name, *args, **kwargs)
 
 
 class HamamatsuDiode(DiodeBase):
@@ -48,6 +49,8 @@ class HamamatsuXMotionDiode(Device):
     """
     diode = Component(HamamatsuDiode, ":DIODE")
     x = Component(DiodeAero, ":X")
+    def __init__(self, prefix, name=None, *args, **kwargs):
+        super().__init__(prefix, name=name, *args, **kwargs)
 
 
 class HamamatsuXYMotionCamDiode(HamamatsuXMotionDiode):
