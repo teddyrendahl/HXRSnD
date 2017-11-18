@@ -92,5 +92,5 @@ def get_classes_in_module(module, subcls=None, blacklist=None):
 # Create a fake epics device
 @using_fake_epics_pv
 def fake_device(device, name="TEST"):
-    return device(name)
+    return device(name, name=name)
 
