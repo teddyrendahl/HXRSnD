@@ -8,7 +8,7 @@ from imp import reload
 # Third Party #
 ###############
 from bluesky import RunEngine
-from bluesky.plans import run_wrapper
+from bluesky.preprocessors import run_wrapper
 
 ########
 # SLAC #
