@@ -5,7 +5,6 @@
 ############
 import logging
 import time
-from collections import OrderedDict
 import pytest
 
 ###############
@@ -32,7 +31,7 @@ logger = get_logger(__name__, log_file=False)
 @pytest.mark.parametrize("dev", get_classes_in_module(macromotor, Device))
 def test_devices_instantiate_and_run_ophyd_functions(dev):
     device = fake_device(dev)
-    assert(isinstance(device.read(), OrderedDict))
-    assert(isinstance(device.describe(), OrderedDict))
-    assert(isinstance(device.describe_configuration(), OrderedDict))
-    assert(isinstance(device.read_configuration(), OrderedDict))
+    assert(isinstance(device.read(), dict))
+    assert(isinstance(device.describe(), dict))
+    assert(isinstance(device.describe_configuration(), dict))
+    assert(isinstance(device.read_configuration(), dict))
