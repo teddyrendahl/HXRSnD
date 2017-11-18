@@ -1,0 +1,954 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Form</class>
+ <widget class="QWidget" name="Form">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1041</width>
+    <height>845</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout_2">
+   <item row="0" column="0">
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+     <widget class="QWidget" name="tab">
+      <attribute name="title">
+       <string>Raw</string>
+      </attribute>
+      <layout class="QGridLayout" name="gridLayout">
+       <item row="0" column="0">
+        <layout class="QGridLayout" name="raw">
+         <item row="8" column="1">
+          <widget class="PyDMTimePlot" name="PyDMTimePlot_6">
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="whatsThis">
+            <string/>
+           </property>
+           <property name="title" stdset="0">
+            <string/>
+           </property>
+           <property name="showLegend" stdset="0">
+            <bool>false</bool>
+           </property>
+           <property name="curves" stdset="0">
+            <stringlist>
+             <string>{&quot;channel&quot;: &quot;ca://XCS:SND:DIO:_peakT_15&quot;, &quot;name&quot;: &quot;Diode 7&quot;, &quot;color&quot;: &quot;white&quot;}</string>
+            </stringlist>
+           </property>
+           <property name="bufferSize" stdset="0">
+            <number>15000</number>
+           </property>
+           <property name="timeSpan" stdset="0">
+            <double>90.000000000000000</double>
+           </property>
+           <property name="updateInterval" stdset="0">
+            <double>0.500000000000000</double>
+           </property>
+           <property name="autoRangeY" stdset="0">
+            <bool>true</bool>
+           </property>
+           <property name="minYRange" stdset="0">
+            <double>-502.000000000000000</double>
+           </property>
+           <property name="maxYRange" stdset="0">
+            <double>1000.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="PyDMLabel" name="PyDMLabel">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>14</pointsize>
+             <weight>75</weight>
+             <bold>true</bold>
+             <kerning>false</kerning>
+            </font>
+           </property>
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="whatsThis">
+            <string>
+    A QLabel with support for Channels and more from PyDM
+
+    Parameters
+    ----------
+    parent : QWidget
+        The parent widget for the Label
+    init_channel : str, optional
+        The channel to be used by the widget.
+    </string>
+           </property>
+           <property name="text">
+            <string>t1.d</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="label">
+           <property name="font">
+            <font>
+             <pointsize>14</pointsize>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>di</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="1">
+          <widget class="PyDMTimePlot" name="PyDMTimePlot_4">
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="whatsThis">
+            <string/>
+           </property>
+           <property name="title" stdset="0">
+            <string/>
+           </property>
+           <property name="showLegend" stdset="0">
+            <bool>false</bool>
+           </property>
+           <property name="curves" stdset="0">
+            <stringlist>
+             <string>{&quot;channel&quot;: &quot;ca://XCS:SND:DIO:_peakT_13&quot;, &quot;name&quot;: &quot;Diode 5&quot;, &quot;color&quot;: &quot;white&quot;}</string>
+            </stringlist>
+           </property>
+           <property name="bufferSize" stdset="0">
+            <number>15000</number>
+           </property>
+           <property name="timeSpan" stdset="0">
+            <double>90.000000000000000</double>
+           </property>
+           <property name="updateInterval" stdset="0">
+            <double>0.500000000000000</double>
+           </property>
+           <property name="autoRangeY" stdset="0">
+            <bool>true</bool>
+           </property>
+           <property name="minYRange" stdset="0">
+            <double>-502.000000000000000</double>
+           </property>
+           <property name="maxYRange" stdset="0">
+            <double>1000.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="8" column="0">
+          <widget class="PyDMTimePlot" name="PyDMTimePlot_5">
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="whatsThis">
+            <string/>
+           </property>
+           <property name="title" stdset="0">
+            <string/>
+           </property>
+           <property name="showLegend" stdset="0">
+            <bool>false</bool>
+           </property>
+           <property name="curves" stdset="0">
+            <stringlist>
+             <string>{&quot;channel&quot;: &quot;ca://XCS:SND:DIO:_peakT_14&quot;, &quot;name&quot;: &quot;Diode 6&quot;, &quot;color&quot;: &quot;white&quot;}</string>
+            </stringlist>
+           </property>
+           <property name="bufferSize" stdset="0">
+            <number>15000</number>
+           </property>
+           <property name="timeSpan" stdset="0">
+            <double>90.000000000000000</double>
+           </property>
+           <property name="updateInterval" stdset="0">
+            <double>0.500000000000000</double>
+           </property>
+           <property name="autoRangeY" stdset="0">
+            <bool>true</bool>
+           </property>
+           <property name="minYRange" stdset="0">
+            <double>-502.000000000000000</double>
+           </property>
+           <property name="maxYRange" stdset="0">
+            <double>1000.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1">
+          <widget class="PyDMLabel" name="PyDMLabel_3">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>14</pointsize>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="whatsThis">
+            <string>
+    A QLabel with support for Channels and more from PyDM
+
+    Parameters
+    ----------
+    parent : QWidget
+        The parent widget for the Label
+    init_channel : str, optional
+        The channel to be used by the widget.
+    </string>
+           </property>
+           <property name="text">
+            <string>dd</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="0">
+          <widget class="PyDMLabel" name="PyDMLabel_2">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>14</pointsize>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="whatsThis">
+            <string>
+    A QLabel with support for Channels and more from PyDM
+
+    Parameters
+    ----------
+    parent : QWidget
+        The parent widget for the Label
+    init_channel : str, optional
+        The channel to be used by the widget.
+    </string>
+           </property>
+           <property name="text">
+            <string>dci</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="PyDMTimePlot" name="PyDMTimePlot">
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="whatsThis">
+            <string/>
+           </property>
+           <property name="title" stdset="0">
+            <string/>
+           </property>
+           <property name="showLegend" stdset="0">
+            <bool>false</bool>
+           </property>
+           <property name="curves" stdset="0">
+            <stringlist>
+             <string>{&quot;channel&quot;: &quot;ca://XCS:SND:DIO:_peakT_8&quot;, &quot;name&quot;: &quot;Diode 0&quot;, &quot;color&quot;: &quot;white&quot;}</string>
+            </stringlist>
+           </property>
+           <property name="bufferSize" stdset="0">
+            <number>15000</number>
+           </property>
+           <property name="timeSpan" stdset="0">
+            <double>90.000000000000000</double>
+           </property>
+           <property name="updateInterval" stdset="0">
+            <double>2.000000000000000</double>
+           </property>
+           <property name="autoRangeY" stdset="0">
+            <bool>true</bool>
+           </property>
+           <property name="minYRange" stdset="0">
+            <double>-502.000000000000000</double>
+           </property>
+           <property name="maxYRange" stdset="0">
+            <double>1000.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="0">
+          <widget class="PyDMLabel" name="PyDMLabel_4">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>14</pointsize>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="whatsThis">
+            <string>
+    A QLabel with support for Channels and more from PyDM
+
+    Parameters
+    ----------
+    parent : QWidget
+        The parent widget for the Label
+    init_channel : str, optional
+        The channel to be used by the widget.
+    </string>
+           </property>
+           <property name="text">
+            <string>dcc</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="0">
+          <widget class="PyDMTimePlot" name="PyDMTimePlot_3">
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="whatsThis">
+            <string/>
+           </property>
+           <property name="title" stdset="0">
+            <string/>
+           </property>
+           <property name="showLegend" stdset="0">
+            <bool>false</bool>
+           </property>
+           <property name="curves" stdset="0">
+            <stringlist>
+             <string>{&quot;channel&quot;: &quot;ca://XCS:SND:DIO:_peakT_12&quot;, &quot;name&quot;: &quot;Diode 4&quot;, &quot;color&quot;: &quot;white&quot;}</string>
+            </stringlist>
+           </property>
+           <property name="bufferSize" stdset="0">
+            <number>15000</number>
+           </property>
+           <property name="timeSpan" stdset="0">
+            <double>90.000000000000000</double>
+           </property>
+           <property name="updateInterval" stdset="0">
+            <double>0.500000000000000</double>
+           </property>
+           <property name="autoRangeY" stdset="0">
+            <bool>true</bool>
+           </property>
+           <property name="minYRange" stdset="0">
+            <double>-502.000000000000000</double>
+           </property>
+           <property name="maxYRange" stdset="0">
+            <double>1000.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="1">
+          <widget class="PyDMTimePlot" name="PyDMTimePlot_8">
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="whatsThis">
+            <string/>
+           </property>
+           <property name="title" stdset="0">
+            <string/>
+           </property>
+           <property name="showLegend" stdset="0">
+            <bool>false</bool>
+           </property>
+           <property name="curves" stdset="0">
+            <stringlist>
+             <string>{&quot;channel&quot;: &quot;ca://XCS:SND:DIO:_peakT_11&quot;, &quot;name&quot;: &quot;Diode 3&quot;, &quot;color&quot;: &quot;white&quot;}</string>
+            </stringlist>
+           </property>
+           <property name="bufferSize" stdset="0">
+            <number>15000</number>
+           </property>
+           <property name="timeSpan" stdset="0">
+            <double>90.000000000000000</double>
+           </property>
+           <property name="updateInterval" stdset="0">
+            <double>0.500000000000000</double>
+           </property>
+           <property name="autoRangeY" stdset="0">
+            <bool>true</bool>
+           </property>
+           <property name="minYRange" stdset="0">
+            <double>-502.000000000000000</double>
+           </property>
+           <property name="maxYRange" stdset="0">
+            <double>1000.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="PyDMTimePlot" name="PyDMTimePlot_2">
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="whatsThis">
+            <string/>
+           </property>
+           <property name="title" stdset="0">
+            <string/>
+           </property>
+           <property name="showLegend" stdset="0">
+            <bool>false</bool>
+           </property>
+           <property name="curves" stdset="0">
+            <stringlist>
+             <string>{&quot;channel&quot;: &quot;ca://XCS:SND:DIO:_peakT_9&quot;, &quot;name&quot;: &quot;Diode 1&quot;, &quot;color&quot;: &quot;white&quot;}</string>
+            </stringlist>
+           </property>
+           <property name="bufferSize" stdset="0">
+            <number>15000</number>
+           </property>
+           <property name="timeSpan" stdset="0">
+            <double>90.000000000000000</double>
+           </property>
+           <property name="updateInterval" stdset="0">
+            <double>0.500000000000000</double>
+           </property>
+           <property name="autoRangeY" stdset="0">
+            <bool>true</bool>
+           </property>
+           <property name="minYRange" stdset="0">
+            <double>-502.000000000000000</double>
+           </property>
+           <property name="maxYRange" stdset="0">
+            <double>1000.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="0">
+          <widget class="PyDMTimePlot" name="PyDMTimePlot_7">
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="whatsThis">
+            <string/>
+           </property>
+           <property name="title" stdset="0">
+            <string/>
+           </property>
+           <property name="showLegend" stdset="0">
+            <bool>false</bool>
+           </property>
+           <property name="curves" stdset="0">
+            <stringlist>
+             <string>{&quot;channel&quot;: &quot;ca://XCS:SND:DIO:_peakT_10&quot;, &quot;name&quot;: &quot;Diode 2&quot;, &quot;color&quot;: &quot;white&quot;}</string>
+            </stringlist>
+           </property>
+           <property name="bufferSize" stdset="0">
+            <number>15000</number>
+           </property>
+           <property name="timeSpan" stdset="0">
+            <double>90.000000000000000</double>
+           </property>
+           <property name="updateInterval" stdset="0">
+            <double>0.500000000000000</double>
+           </property>
+           <property name="autoRangeY" stdset="0">
+            <bool>true</bool>
+           </property>
+           <property name="minYRange" stdset="0">
+            <double>-502.000000000000000</double>
+           </property>
+           <property name="maxYRange" stdset="0">
+            <double>1000.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="1">
+          <widget class="PyDMLabel" name="PyDMLabel_5">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>14</pointsize>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="whatsThis">
+            <string>
+    A QLabel with support for Channels and more from PyDM
+
+    Parameters
+    ----------
+    parent : QWidget
+        The parent widget for the Label
+    init_channel : str, optional
+        The channel to be used by the widget.
+    </string>
+           </property>
+           <property name="text">
+            <string>t4.d</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="7" column="0">
+          <widget class="PyDMLabel" name="PyDMLabel_6">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>14</pointsize>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="whatsThis">
+            <string>
+    A QLabel with support for Channels and more from PyDM
+
+    Parameters
+    ----------
+    parent : QWidget
+        The parent widget for the Label
+    init_channel : str, optional
+        The channel to be used by the widget.
+    </string>
+           </property>
+           <property name="text">
+            <string>dco</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="7" column="1">
+          <widget class="PyDMLabel" name="PyDMLabel_7">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>14</pointsize>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="whatsThis">
+            <string>
+    A QLabel with support for Channels and more from PyDM
+
+    Parameters
+    ----------
+    parent : QWidget
+        The parent widget for the Label
+    init_channel : str, optional
+        The channel to be used by the widget.
+    </string>
+           </property>
+           <property name="text">
+            <string>do</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tab_2">
+      <attribute name="title">
+       <string>Correlation</string>
+      </attribute>
+      <layout class="QGridLayout" name="gridLayout_3">
+       <item row="0" column="0">
+        <widget class="PyDMLabel" name="PyDMLabel_8">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>14</pointsize>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="whatsThis">
+          <string>
+    A QLabel with support for Channels and more from PyDM
+
+    Parameters
+    ----------
+    parent : QWidget
+        The parent widget for the Label
+    init_channel : str, optional
+        The channel to be used by the widget.
+    </string>
+         </property>
+         <property name="text">
+          <string>dco x dcc</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="PyDMLabel" name="PyDMLabel_9">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>14</pointsize>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="whatsThis">
+          <string>
+    A QLabel with support for Channels and more from PyDM
+
+    Parameters
+    ----------
+    parent : QWidget
+        The parent widget for the Label
+    init_channel : str, optional
+        The channel to be used by the widget.
+    </string>
+         </property>
+         <property name="text">
+          <string>t4.d x dd</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="0">
+        <widget class="PyDMLabel" name="PyDMLabel_10">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>14</pointsize>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="whatsThis">
+          <string>
+    A QLabel with support for Channels and more from PyDM
+
+    Parameters
+    ----------
+    parent : QWidget
+        The parent widget for the Label
+    init_channel : str, optional
+        The channel to be used by the widget.
+    </string>
+         </property>
+         <property name="text">
+          <string>t4d x dco</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="1">
+        <widget class="PyDMLabel" name="PyDMLabel_11">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>14</pointsize>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="whatsThis">
+          <string>
+    A QLabel with support for Channels and more from PyDM
+
+    Parameters
+    ----------
+    parent : QWidget
+        The parent widget for the Label
+    init_channel : str, optional
+        The channel to be used by the widget.
+    </string>
+         </property>
+         <property name="text">
+          <string>do x di</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="PyDMScatterPlot" name="PyDMScatterPlot">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="whatsThis">
+          <string>
+    PyDMScatterPlot is a widget to plot one scalar value against another.
+    Multiple scalar pairs can be plotted on the same plot.  Each pair has
+    a buffer which stores previous values.  All values in the buffer are
+    drawn.  The buffer size for each pair is user configurable.
+
+    Parameters
+    ----------
+    parent : optional
+        The parent of this widget.
+    init_x_channels: optional
+        init_x_channels can be a string with the address for a channel, or a list of
+        strings, each containing an address for a channel.  If not specified, y-axis
+        waveforms will be plotted against their indices.  If a list is specified for
+        both init_x_channels and init_y_channels, they both must have the same length.
+        If a single x channel was specified, and a list of y channels are specified, all
+        y channels will be plotted against the same x channel.
+    init_y_channels: optional
+        init_y_channels can be a string with the address for a channel, or a list of
+        strings, each containing an address for a channel.  If a list is specified for
+        both init_x_channels and init_y_channels, they both must have the same length.
+        If a single x channel was specified, and a list of y channels are specified, all
+        y channels will be plotted against the same x channel.
+    background: optional
+        The background color for the plot.  Accepts any arguments that pyqtgraph.mkColor
+        will accept.
+    </string>
+         </property>
+         <property name="curves" stdset="0">
+          <stringlist>
+           <string>{&quot;y_channel&quot;: &quot;ca://XCS:SND:DIO:_peakT_9&quot;, &quot;x_channel&quot;: &quot;ca://XCS:SND:DIO:_peakT_8&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 0, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: &quot;o&quot;, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+          </stringlist>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="PyDMScatterPlot" name="PyDMScatterPlot_3">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="whatsThis">
+          <string>
+    PyDMScatterPlot is a widget to plot one scalar value against another.
+    Multiple scalar pairs can be plotted on the same plot.  Each pair has
+    a buffer which stores previous values.  All values in the buffer are
+    drawn.  The buffer size for each pair is user configurable.
+
+    Parameters
+    ----------
+    parent : optional
+        The parent of this widget.
+    init_x_channels: optional
+        init_x_channels can be a string with the address for a channel, or a list of
+        strings, each containing an address for a channel.  If not specified, y-axis
+        waveforms will be plotted against their indices.  If a list is specified for
+        both init_x_channels and init_y_channels, they both must have the same length.
+        If a single x channel was specified, and a list of y channels are specified, all
+        y channels will be plotted against the same x channel.
+    init_y_channels: optional
+        init_y_channels can be a string with the address for a channel, or a list of
+        strings, each containing an address for a channel.  If a list is specified for
+        both init_x_channels and init_y_channels, they both must have the same length.
+        If a single x channel was specified, and a list of y channels are specified, all
+        y channels will be plotted against the same x channel.
+    background: optional
+        The background color for the plot.  Accepts any arguments that pyqtgraph.mkColor
+        will accept.
+    </string>
+         </property>
+         <property name="curves" stdset="0">
+          <stringlist>
+           <string>{&quot;y_channel&quot;: &quot;ca://XCS:SND:DIO:_peakT_15&quot;, &quot;x_channel&quot;: &quot;ca://XCS:SND:DIO:_peakT_12&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 0, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: &quot;o&quot;, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+          </stringlist>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="0">
+        <widget class="PyDMScatterPlot" name="PyDMScatterPlot_4">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="whatsThis">
+          <string>
+    PyDMScatterPlot is a widget to plot one scalar value against another.
+    Multiple scalar pairs can be plotted on the same plot.  Each pair has
+    a buffer which stores previous values.  All values in the buffer are
+    drawn.  The buffer size for each pair is user configurable.
+
+    Parameters
+    ----------
+    parent : optional
+        The parent of this widget.
+    init_x_channels: optional
+        init_x_channels can be a string with the address for a channel, or a list of
+        strings, each containing an address for a channel.  If not specified, y-axis
+        waveforms will be plotted against their indices.  If a list is specified for
+        both init_x_channels and init_y_channels, they both must have the same length.
+        If a single x channel was specified, and a list of y channels are specified, all
+        y channels will be plotted against the same x channel.
+    init_y_channels: optional
+        init_y_channels can be a string with the address for a channel, or a list of
+        strings, each containing an address for a channel.  If a list is specified for
+        both init_x_channels and init_y_channels, they both must have the same length.
+        If a single x channel was specified, and a list of y channels are specified, all
+        y channels will be plotted against the same x channel.
+    background: optional
+        The background color for the plot.  Accepts any arguments that pyqtgraph.mkColor
+        will accept.
+    </string>
+         </property>
+         <property name="curves" stdset="0">
+          <stringlist>
+           <string>{&quot;y_channel&quot;: &quot;ca://XCS:SND:DIO:_peakT_15&quot;, &quot;x_channel&quot;: &quot;ca://XCS:SND:DIO:_peakT_9&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 0, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: &quot;o&quot;, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+          </stringlist>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="1">
+        <widget class="PyDMScatterPlot" name="PyDMScatterPlot_2">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="whatsThis">
+          <string>
+    PyDMScatterPlot is a widget to plot one scalar value against another.
+    Multiple scalar pairs can be plotted on the same plot.  Each pair has
+    a buffer which stores previous values.  All values in the buffer are
+    drawn.  The buffer size for each pair is user configurable.
+
+    Parameters
+    ----------
+    parent : optional
+        The parent of this widget.
+    init_x_channels: optional
+        init_x_channels can be a string with the address for a channel, or a list of
+        strings, each containing an address for a channel.  If not specified, y-axis
+        waveforms will be plotted against their indices.  If a list is specified for
+        both init_x_channels and init_y_channels, they both must have the same length.
+        If a single x channel was specified, and a list of y channels are specified, all
+        y channels will be plotted against the same x channel.
+    init_y_channels: optional
+        init_y_channels can be a string with the address for a channel, or a list of
+        strings, each containing an address for a channel.  If a list is specified for
+        both init_x_channels and init_y_channels, they both must have the same length.
+        If a single x channel was specified, and a list of y channels are specified, all
+        y channels will be plotted against the same x channel.
+    background: optional
+        The background color for the plot.  Accepts any arguments that pyqtgraph.mkColor
+        will accept.
+    </string>
+         </property>
+         <property name="curves" stdset="0">
+          <stringlist>
+           <string>{&quot;y_channel&quot;: &quot;ca://XCS:SND:DIO:_peakT_10&quot;, &quot;x_channel&quot;: &quot;ca://XCS:SND:DIO:_peakT_14&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 0, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: &quot;o&quot;, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+          </stringlist>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>PyDMTimePlot</class>
+   <extends>QGraphicsView</extends>
+   <header>pydm.widgets.timeplot</header>
+  </customwidget>
+  <customwidget>
+   <class>PyDMScatterPlot</class>
+   <extends>QGraphicsView</extends>
+   <header>pydm.widgets.scatterplot</header>
+  </customwidget>
+  <customwidget>
+   <class>PyDMLabel</class>
+   <extends>QLabel</extends>
+   <header>pydm.widgets.label</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>
