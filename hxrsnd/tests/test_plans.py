@@ -12,6 +12,12 @@ from lmfit.models           import LorentzianModel
 from bluesky.preprocessors  import run_wrapper
 from ophyd.sim              import SynSignal, SynAxis
 
+########
+# SLAC #
+########
+from pcdsdevices.device import Device
+from pcdsdevices.component import Component
+
 ##########
 # Module #
 ##########
@@ -70,6 +76,52 @@ class Diode(SynSignal):
         # Instantiate Reader
         super().__init__(name=name, func=func, **kwargs)
 
+
+class SynCentroid(SynSignal):
+    """
+    Synthetic centroid signal.
+    """
+    def __init__(self, motor, motor_field=None, noise_multiplier=None, 
+                 name=None, *args, **kwargs):
+        # Eliminate noise if not requested
+        noise = noise_multiplier or 0.
+        
+        # Get the field with the name
+        field = motor_field or motor.name
+        
+        def func():
+            # Evaluate position in distribution
+            pos = motor.read()[field]['value']
+            # Add uniform noise
+            pos += int(np.round(np.random.uniform(-1, 1) * noise))
+            return pos
+        
+        # Instantiate the synsignal
+        super().__init__(name=name, func=func, **kwargs)
+            
+
+class SynCamera(Device):
+    """
+    Simulated camera that has centroids as components. 
+    """
+    def __init__(self, motor1, motor2, name=None, *args, **kwargs):
+        # Create the base class
+        super().__init__("SYN:CAMERA", name=name, *args, **kwargs)
+        
+        # Define the centroid components using the inputted motors
+        self.centroid_x = SynCentroid(name="centroid_x", motor=motor1)
+        self.centroid_y = SynCentroid(name="centroid_y", motor=motor2)
+        
+        # Add them to signals
+        self._signals['centroid_x'] = self.centroid_x
+        self._signals['centroid_y'] = self.centroid_y
+
+        # Add them to the read_attrs
+        self.read_attrs = ["centroid_x", "centroid_y"]
+
+    def trigger(self):
+        return self.a.trigger() & self.b.trigger()
+    
 # Simulated Crystal motor that goes where you tell it
 crystal = SynAxis(name='angle')
 
