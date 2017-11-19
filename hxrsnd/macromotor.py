@@ -13,6 +13,7 @@ import logging
 # Third Party #
 ###############
 import numpy as np
+import pandas as pd
 from ophyd.utils import LimitError
 from ophyd.status import wait as status_wait
 
@@ -39,9 +40,9 @@ class MacroBase(Device):
     c = 0.299792458             # mm/ps
     gap = 55                    # m
 
-    def __init__(self, prefix, desc=None, *args, **kwargs):
-        self.desc = desc
-        super().__init__(prefix, *args, **kwargs)
+    def __init__(self, prefix, name=None, desc=None, *args, **kwargs):
+        self.desc = desc or name
+        super().__init__(prefix, name=name, *args, **kwargs)
         
         # Make sure this is used
         if self.parent is None:
@@ -53,6 +54,7 @@ class MacroBase(Device):
             self._channelcut_towers = [self.parent.t2, self.parent.t3]
         if self.desc is None:
             self.desc = self.name
+        self._calib = {}
 
     @property
     def position(self):
@@ -131,7 +133,7 @@ class MacroBase(Device):
         logger.info("\nMove completed.")
 
     def set(self, position, wait=True, verify_move=True, ret_status=True, 
-            use_diag=True):
+            use_diag=True, use_calib=True):
         """
         Moves the macro-motor to the inputted position, optionally waiting for
         the motors to complete their moves.
@@ -155,6 +157,9 @@ class MacroBase(Device):
 
         use_diag : bool, optional
             Move the daignostic motors to align with the beam.
+
+        use_calib : bool, optional
+            Use the configurated calibration parameters
         
         Returns
         -------
@@ -170,8 +175,12 @@ class MacroBase(Device):
             return
 
         # Send the move commands to all the motors
-        self._status = flatten(self._move_towers_and_diagnostics(
+        status = flatten(self._move_towers_and_diagnostics(
             position, diag_pos, use_diag=use_diag))
+        if use_calib and self._calib:
+            self._status = status & self._calib_compensate(position)
+        else:
+            self._status = status
             
         # Wait for all the motors to finish moving
         if wait:
@@ -184,8 +193,137 @@ class MacroBase(Device):
             # number of status objects
             return self._status[0]
 
+    def configure(self, *, calib=None):
+        """
+        Configure the macro-motor's move parameters.
+
+        Parameters
+        ----------
+        calib : DataFrame or dict, optional
+            Lookup table for move calibration. This represents set positions of
+            auxiliary movers that should be chosen as we move our main macro.
+            If a DataFrame, the index should be the primary axis of motion, the
+            argument to the move or set functions. The columns should be the
+            desired set positions of each auxiliary mover at each index point.
+            The columns should be labeled with the name of the mover. The names
+            are interpreted as attribute access of the parent object, e.g.
+            name=t1 ------> snd.t1
+            name=t1.chi1 -> snd.t1.chi1
+            If a dict, I'm either expecting the arguments to create a dataframe
+            e.g. data=dict(name=array, name2=array2), index=array3
+            OR a dictionary of names to functions of single variables, taking
+            in the main axis position and outputing the mover's adjustment.
+
+        Returns
+        -------
+        configs : tuple of dict
+            old_config, new_config
+        """
+        # Save prev for return statement
+        prev_config = self.read_configuration()
+        self._config_calib(calib)
+        return prev_config, self.read_configuration()
+
+    def _config_calib(self, calib):
+        """
+        Handle calib arg from configure
+        """
+        # Interpret calib
+        if calib is None:
+            save_calib = {}
+        elif isinstance(calib, pd.DataFrame):
+            save_calib = calib
+        elif isinstance(calib, dict):
+            try:
+                save_calib = pd.Dataframe(**calib)
+            except Exception:
+                save_calib = calib
+        else:
+            raise TypeError("Invalid calib type {}".format(type(calib)))
+
+        # Check for valid inputs
+        if isinstance(save_calib, pd.DataFrame):
+            names = save_calib.columns
+        elif isinstance(save_calib, dict):
+            for name, func in save_calib.items():
+                if not callable(func):
+                    err = 'Recieved non-callable for {}'.format(name)
+                    raise TypeError(err)
+            names = save_calib.keys()
+        for name in names:
+            try:
+                self._get_calib_obj(name)
+            except AttributeError:
+                raise TypeError("Invalid calib key {}!".format(name))
+
+        self._calib = save_calib
+
+    def _calib_compensate(self, position, *args, **kwargs):
+        """
+        Do the calib adjust move
+        """
+        calib = self._calib
+        statuses = []
+        if isinstance(calib, dict):
+            for name, func in calib.items():
+                obj = self._get_calib_obj(name)
+                stat = obj.set(func(position), *args, **kwargs)
+                statuses.append(stat)
+        elif isinstance(calib, pd.DataFrame):
+            lower = calib.index[0]
+            upper = calib.index[-1]
+            # Find largest lower, smallest upper such that
+            # lower <= position <= upper
+            for i in sorted(calib.index):
+                if lower < i <= position:
+                    lower = i
+                elif position <= i < upper:
+                    upper = i
+                    break
+            # Interpolate
+            if upper != lower:
+                portion = (position - lower) / (upper - lower)
+            for name in calib.columns:
+                if lower == upper:
+                    calib_pos = lower
+                else:
+                    low_pt = calib[name][lower]
+                    high_pt = calib[name][upper]
+                    calib_pos = (high_pt - low_pt) * portion + low_pt
+                obj = self._get_calib_obj(name)
+                stat = obj.set(calib_pos, *args, **kwargs)
+                statuses.append(stat)
+        for i, stat in enumerate(statuses):
+            if i == 0:
+                return_status = stat
+            else:
+                return_status = return_status & stat
+        return return_status
+
+    def _get_calib_obj(self, name):
+        """
+        Given str name path, find obj that calib needs
+        """
+        parts = name.split('.')
+        obj = self.parent
+        for part in parts:
+            obj = getattr(obj, part)
+        return obj
+
+    def read_configuration(self):
+        return dict(calib=self._calib)
+
+    def describe_configuration(self):
+        if isinstance(self._calib, dict):
+            shape = [len(self._calib)]
+        else:
+            shape = self._calib.shape
+        return dict(calib=dict(source='calibrate',
+                               dtype='array',
+                               shape=shape))
+
     def move(self, position, wait=True, verify_move=True, ret_status=True, 
-             use_diag=True):
+             use_diag=True, use_calib=True):
         """
         Moves the macro-motor to the inputted position, optionally waiting for
         the motors to complete their moves. Alias for set().
@@ -209,6 +347,9 @@ class MacroBase(Device):
         
         use_diag : bool, optional
             Move the daignostic motors to align with the beam.
+
+        use_calib : bool, optional
+            Use the configurated calibration parameters
         
         Returns
         -------
@@ -216,10 +357,11 @@ class MacroBase(Device):
             List of status objects for each motor that was involved in the move.
         """
         return self.set(position, wait=wait, verify_move=verify_move,
-                        ret_status=ret_status, use_diag=use_diag)
+                        ret_status=ret_status, use_diag=use_diag,
+                        use_calib=use_calib)
 
     def move_rel(self, position_rel, wait=True, verify_move=True, 
-                 ret_status=True, use_diag=True):
+                 ret_status=True, use_diag=True, use_calib=True):
         """
         Performs a relative moves of the macro parameters.  For energy, this 
         moves the energies of both lines, energy1 moves just the delay line, 
@@ -246,7 +388,10 @@ class MacroBase(Device):
 
         use_diag : bool, optional
             Move the daignostic motors to align with the beam.
-        
+
+        use_calib : bool, optional
+            Use the configurated calibration parameters
+
         Returns
         -------
         status : list
@@ -255,7 +400,7 @@ class MacroBase(Device):
         # Perform the move
         return self.move(self.position + position_rel, wait=wait, 
                          verify_move=verify_move, ret_status=ret_status, 
-                         use_diag=use_diag)
+                         use_diag=use_diag, use_calib=use_calib)
 
     def _catch_motor_exceptions(self, clbl, *args, **kwargs):
         """

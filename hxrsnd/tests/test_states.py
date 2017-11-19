@@ -45,6 +45,9 @@ class PuckStateMachine(StateMachine):
 class Puck(OphydMachine):
     machine  = PuckStateMachine
     readback = None
+    def __init__(self, prefix, name=None, *args, **kwargs):
+        super().__init__(prefix, name=name, *args, **kwargs)
+
 
 def test_ophydmachine_creation():
     Puck.show_states() == ['locked', 'landed', 'flying', 'gliding']

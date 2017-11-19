@@ -82,10 +82,10 @@ class AeroBase(EpicsMotor):
     dial = Component(EpicsSignalRO, ".DRBV")
     state_component = Component(EpicsSignal, ".SPMG")
 
-    def __init__(self, prefix, desc=None, timeout=2, *args, **kwargs):
-        self.desc = desc
-        self._timeout = timeout
-        super().__init__(prefix, *args, **kwargs)
+    def __init__(self, prefix, name=None, desc=None, timeout=2, *args, 
+                 **kwargs):
+        self.desc = desc or name
+        super().__init__(prefix, name=name, *args, **kwargs)
         self.configuration_attrs.append("power")
         self._state_list = ["Stop", "Pause", "Move", "Go"]
         if self.desc is None:

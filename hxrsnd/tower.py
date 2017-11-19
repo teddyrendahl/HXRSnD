@@ -35,18 +35,19 @@ class TowerBase(Device):
     """
     Base tower class.
     """
-    def __init__(self, prefix, desc=None, pos_inserted=None, pos_removed=None,
-                 *args, **kwargs):
-        self.desc = desc
+    def __init__(self, prefix, name=None, desc=None, pos_inserted=None, 
+                 pos_removed=None, *args, **kwargs):
+        self.desc = desc or name
         self.pos_inserted = pos_inserted
         self.pos_removed = pos_removed
-        super().__init__(prefix, *args, **kwargs)
+        super().__init__(prefix, name=name, *args, **kwargs)
         if self.desc is None:
-            self.desc = self.name
+            self.desc = self.name or self.prefix
+        # import ipdb; ipdb.set_trace()
         self.desc_short = "".join([s[0] for s in self.desc.split(" ")])
         
         # Add Tower short name to desc
-        for sig_name in self.signal_names:
+        for sig_name in self.component_names:
             signal = getattr(self, sig_name)
             if hasattr(signal, "desc"):
                 signal.desc = "{0} {1}".format(self.desc_short, signal.desc)
@@ -182,7 +183,7 @@ class TowerBase(Device):
         """
         ret = []
         # Check if each signal is a subclass of subclass then run the method
-        for sig_name in self.signal_names:
+        for sig_name in self.component_names:
             signal = getattr(self, sig_name)
             if issubclass(type(signal), subclass):
                 ret.append(getattr(signal, method)(*method_args,

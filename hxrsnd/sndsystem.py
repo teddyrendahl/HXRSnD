@@ -122,21 +122,20 @@ class SplitAndDelay(Device):
     # DAQ
     daq = Component(Daq, None, platform=1)
     
-    def __init__(self, prefix, desc=None, RE=None, *args, **kwargs):
-        self.desc = desc
-        super().__init__(prefix, *args, **kwargs)
+    def __init__(self, prefix, name=None, desc=None, *args, **kwargs):
+        super().__init__(prefix, name=name, *args, **kwargs)
+        self.desc = desc or name
         self._delay_towers = [self.t1, self.t4]
         self._channelcut_towers = [self.t2, self.t3]
         self._towers = self._delay_towers + self._channelcut_towers
         self._delay_diagnostics = [self.di, self.dd, self.do]
         self._channelcut_diagnostics = [self.dci, self.dcc, self.dco]
-        self._diagnostics = self._delay_diagnostics+self._channelcut_diagnostics        
-        
-        # Get the LCLS RunEngine
-        self.RE = make_daq_run_engine(self.daq)
-
+        self._diagnostics = self._delay_diagnostics+self._channelcut_diagnostics
         if self.desc is None:
             self.desc = self.name    
+
+        # Get the LCLS RunEngine
+        self.RE = make_daq_run_engine(self.daq)
 
     @property
     def theta1(self):

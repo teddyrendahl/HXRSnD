@@ -42,6 +42,12 @@ class EccController(Device):
     _firm_month = Component(EpicsSignalRO, ":CALC:FIRMMONTH")
     _firm_year = Component(EpicsSignalRO, ":CALC:FIRMYEAR")
     _flash = Component(EpicsSignal, ":RDB:FLASH", write_pv=":CMD:FLASH")
+
+    def __init__(self, prefix, name=None, desc=None, *args, **kwargs):
+        self.desc = desc or name
+        super().__init__(prefix, name=name, *args, **kwargs)
+        if self.desc is None:
+            self.desc = self.name        
     
     @property 
     def firmware(self):
@@ -93,10 +99,10 @@ class EccBase(Device, PositionerBase):
     motor_reset = Component(EpicsSignal, ":CMD:RESET.PROC")
     motor_enable = Component(EpicsSignal, ":CMD:ENABLE")
 
-    def __init__(self, prefix, desc=None, *args, **kwargs):
-        self.desc=desc
-        super().__init__(prefix, *args, **kwargs)
-        if desc is None:
+    def __init__(self, prefix, name=None, desc=None, *args, **kwargs):
+        self.desc = desc or name
+        super().__init__(prefix, name=name, *args, **kwargs)
+        if self.desc is None:
             self.desc = self.name
 
     @property

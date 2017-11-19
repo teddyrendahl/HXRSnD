@@ -24,14 +24,14 @@ from pcdsdevices.sim.pv import using_fake_epics_pv
 from hxrsnd import pneumatic
 from hxrsnd.utils import get_logger
 from hxrsnd.pneumatic import ProportionalValve, PressureSwitch, SndPneumatics
-from .conftest import get_classes_in_module
+from .conftest import get_classes_in_module, fake_device
 
 logger = get_logger(__name__, log_file=False)
 
 @using_fake_epics_pv
 @pytest.mark.parametrize("dev", get_classes_in_module(pneumatic, Device))
 def test_devices_instantiate_and_run_ophyd_functions(dev):
-    device = dev("TEST")
+    device = fake_device(dev)
     assert(isinstance(device.read(), OrderedDict))
     assert(isinstance(device.describe(), OrderedDict))
     assert(isinstance(device.describe_configuration(), OrderedDict))
@@ -39,7 +39,7 @@ def test_devices_instantiate_and_run_ophyd_functions(dev):
 
 @using_fake_epics_pv
 def test_ProportionalValve_opens_and_closes_correctly():
-    valve = ProportionalValve("TEST")
+    valve = fake_device(ProportionalValve)
     valve.open()
     assert valve.position == "OPEN"
     assert valve.opened is True
@@ -51,7 +51,7 @@ def test_ProportionalValve_opens_and_closes_correctly():
 
 @using_fake_epics_pv
 def test_PressureSwitch_reads_correctly():
-    press = PressureSwitch("TEST")
+    press = fake_device(PressureSwitch)
     press.pressure._read_pv._value = 0
     assert press.position == "GOOD"
     assert press.good is True
@@ -59,12 +59,11 @@ def test_PressureSwitch_reads_correctly():
     press.pressure._read_pv._value = 1
     assert press.position == "BAD"
     assert press.good is False
-    assert press.bad is True
-    
+    assert press.bad is True    
 
 @using_fake_epics_pv    
 def test_SndPneumatics_open_and_close_methods():
-    vac = SndPneumatics("TEST")
+    vac = fake_device(SndPneumatics)
     for valve in vac._valves:
         valve.close()
     vac.open()
