@@ -43,7 +43,7 @@ class SplitAndDelay(Device):
     Hard X-Ray Split and Delay System.
 
     Components
-    ----------
+
     t1 : DelayTower
         Tower 1 in the split and delay system.
 
