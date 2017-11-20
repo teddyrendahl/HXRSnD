@@ -1,6 +1,6 @@
-===========================================================
-Welcome to the Hard X-Ray Split and Delay Alignment System!
-===========================================================
+====================================================================
+Welcome to the Hard X-Ray Split and Delay Automated Controls System!
+====================================================================
 .. image:: https://travis-ci.org/slaclab/HXRSnD.svg?branch=master
     :target: https://travis-ci.org/slaclab/HXRSnD
 
@@ -36,7 +36,7 @@ script: ::
 The shell will have all the SnD objects instantiated and ready for use.
 
 .. note:: This is a softlink to the launcher script which lives in
-``HXRSnD/bin/``
+          ``HXRSnD/bin/``
 
 Instrument Screens
 ------------------
@@ -47,10 +47,11 @@ above: ::
 
   $ ./snd_main  
 
-*Note* - This is a softlink to the launcher script which lives in
-``HXRSnD/screens/``
+.. note:: This is a softlink to the launcher script which lives in
+          ``HXRSnD/screens/``
   
 To view diode correlation plots, run the following launcher script from the
 directory listed above: ::
 
   $ ./show_diodes.sh
+

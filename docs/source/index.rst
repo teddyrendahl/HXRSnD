@@ -13,7 +13,7 @@
 
    
 .. toctree::
-   :maxdepth: 
+   :maxdepth: 2
    :caption: Devices
 
    sndsystem.rst
@@ -29,6 +29,7 @@
 .. toctree::
    :maxdepth: 2
    :caption: Plans
+
    plans.rst
    scans.rst
 
@@ -36,6 +37,7 @@
 .. toctree::
    :maxdepth: 2
    :caption: Miscellaneous
+             
    bragg.rst
    utils.rst
    exceptions.rst
@@ -63,4 +65,12 @@
 
    SLAC <https://github.com/slaclab/>
    PCDS <https://github.com/pcdshub/>
+   
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
    

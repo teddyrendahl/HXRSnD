@@ -5,7 +5,6 @@ Basic Usage
 Once the the ``HXRSnD`` module has been installed along with its dependencies,
 simply run the shell script in the ``bin`` folder. From the top level of
 ``HXRSnD`` the command to run is: ::
-
   ./bin/run_snd
 
 This should set up the ``IPython`` shell with the system instantiated.
@@ -117,7 +116,6 @@ Bragg Calculations
 ==================
 The bragg angle and energy calculations used to perform the energy macro-motions
 are in following script: ::
-
   HXRSnD/hxrsnd/bragg.py
 
 They were both pulled from ``blutil`` and the script should contain all the
