@@ -69,7 +69,8 @@ class TowerBase(Device):
         E : float
             Energy of the delay line.
         """
-        return int(np.round(bragg_energy(self.theta)))
+        # Please forgive me, wasnt having a good day
+        return int(np.round(bragg_energy(self.theta)*100))/100
 
     @energy.setter
     def energy(self, E):

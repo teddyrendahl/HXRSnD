@@ -29,7 +29,7 @@ from pcdsdevices.daq import Daq, make_daq_run_engine
 ##########
 from .state import OphydMachine
 from .pneumatic import SndPneumatics
-from .utils import flatten
+from .utils import flatten, absolute_submodule_path
 from .bragg import bragg_angle, cosd, sind
 from .tower import DelayTower, ChannelCutTower
 from .diode import HamamatsuXMotionDiode, HamamatsuXYMotionCamDiode
@@ -165,7 +165,7 @@ class SplitAndDelay(Device):
         """
         return self.t2.theta    
 
-    def main_screen(self):
+    def main_screen(self, print_msg=True):
         """
         Launches the main SnD screen.
         """
