@@ -12,8 +12,6 @@ import logging
 ###############
 import numpy as np
 from lmfit.models               import LorentzianModel
-from pswalker.callbacks         import LiveBuild
-from pswalker.plans             import measure_average
 from bluesky                    import Msg
 from bluesky.preprocessors      import msg_mutator, subs_decorator
 from bluesky.preprocessors      import stage_decorator, run_decorator
@@ -24,12 +22,18 @@ from bluesky.utils              import short_uid as _short_uid
 ##########
 # Module #
 ##########
+from pswalker.callbacks         import LiveBuild
+from pswalker.plans             import measure_average
+
+##########
+# Module #
+##########
 from .errors import UndefinedBounds
 
 logger = logging.getLogger(__name__)
 
-#Used to strip `run_wrapper` off of plan
-#Should probably be added as bluesky PR
+# Used to strip `run_wrapper` off of plan
+# Should probably be added as bluesky PR
 def block_run_control(msg):
     """
     Block open and close run messages
@@ -88,7 +92,7 @@ def maximize_lorentz(detector, motor, read_field, step_size=1,
         `amplitude`
     """
     average = average or 1
-    #Define bounds
+    # Define bounds
     if not bounds:
         try:
             bounds = motor.limits
@@ -98,50 +102,50 @@ def maximize_lorentz(detector, motor, read_field, step_size=1,
         except AttributeError as exc:
             raise UndefinedBounds("Bounds are not defined by motor {} or "
                                   "plan".format(motor.name)) from exc
-    #Calculate steps
+    # Calculate steps
     steps = np.arange(bounds[0], bounds[1], step_size)
-    #Include the last step even if this is smaller than the step_size
+    # Include the last step even if this is smaller than the step_size
     steps = np.append(steps, bounds[1])
-    #Create Lorentz fit and live model build
+    # Create Lorentz fit and live model build
     fit    = LorentzianModel(missing='drop')
     i_vars = {'x' : position_field}
     model  = LiveBuild(fit, read_field, i_vars, filters=filters,
                        average=average, init_guess=initial_guess)#,
-                       #update_every=len(steps)) #Set to fit only on last step
+                       # update_every=len(steps)) # Set to fit only on last step
 
-    #Create per_step plan
+    # Create per_step plan
     def measure(detectors, motor, step):
-        #Perform step
+        # Perform step
         logger.debug("Measuring average at step %s ...", step)
         yield from checkpoint()
         yield from abs_set(motor, step, wait=True)
-        #Measure the average
+        # Measure the average
         return (yield from measure_average([motor, detector],
                                            num=average,
                                            filters=filters))
-    #Create linear scan
+    # Create linear scan
     plan = list_scan([detector], motor, steps, per_step=measure)
 
     @subs_decorator(model)
     def inner():
-        #Run plan (stripping open/close run messages)
+        # Run plan (stripping open/close run messages)
         yield from msg_mutator(plan, block_run_control)
 
-        #Yield result of Lorentz model
+        # Yield result of Lorentz model
         logger.debug(model.result.fit_report())
         max_position = model.result.values['center']
 
-        #Check that the estimated position is reasonable
+        # Check that the estimated position is reasonable
         if not bounds[0] < max_position  < bounds[1]:
             raise ValueError("Predicted maximum position of {} is outside the "
                              "bounds {}".format(max_position, bounds))
-        #Order move to maximum position
+        # Order move to maximum position
         logger.debug("Travelling to maximum of Lorentz at %s", max_position)
         yield from abs_set(motor, model.result.values['center'], wait=True)
 
-    #Run the assembled plan
+    # Run the assembled plan
     yield from inner()
-    #Return the fit 
+    # Return the fit 
     return model
 
 
@@ -200,7 +204,7 @@ def rocking_curve(detector, motor, read_field, coarse_step, fine_step,
     show_plot : bool, optional
         Create a plot displaying the progress of the `rocking_curve`
     """
-    #Define bounds
+    # Define bounds
     if not bounds:
         try:
             bounds = motor.limits
@@ -211,10 +215,10 @@ def rocking_curve(detector, motor, read_field, coarse_step, fine_step,
             raise UndefinedBounds("Bounds are not defined by motor {} or "
                                   "plan".format(motor.name)) from exc
     if show_plot:
-        #Create plot
-        #subscribe first plot to rough_scan
+        # Create plot
+        # subscribe first plot to rough_scan
         pass
-    #Run the initial rough scan
+    # Run the initial rough scan
     try:
         model = yield from maximize_lorentz(detector, motor, read_field,
                                             step_size=coarse_step,
@@ -224,7 +228,7 @@ def rocking_curve(detector, motor, read_field, coarse_step, fine_step,
     except ValueError as exc:
         raise ValueError("Unable to find a proper maximum value"
                          "during rough scan") from exc
-    #Define new bounds
+    # Define new bounds
     center = model.result.values['center']
     bounds = (max(center - fine_space, bounds[0]),
               min(center + fine_space, bounds[1]))
@@ -234,11 +238,11 @@ def rocking_curve(detector, motor, read_field, coarse_step, fine_step,
                 center, bounds[0], bounds[1])
 
     if show_plot:
-        #Highlight search space on first plot
-        #Subscribe secondary plot
+        # Highlight search space on first plot
+        # Subscribe secondary plot
         pass
 
-    #Run the initial rough scan
+    # Run the initial rough scan
     try:
         fit = yield from maximize_lorentz(detector, motor, read_field,
                                           step_size=fine_step, bounds=bounds,
@@ -250,7 +254,7 @@ def rocking_curve(detector, motor, read_field, coarse_step, fine_step,
                          "during fine scan") from exc
 
     if show_plot:
-        #Draw final calculated max on plots
+        # Draw final calculated max on plots
         pass
 
     return fit
@@ -328,4 +332,41 @@ def linear_scan(motor, start, stop, num, use_diag=True, return_to_start=True,
 
     return (yield from inner_scan())
     
-        
+
+def calibrate_delay(detector, motor, start, stop, steps, dco_motor=None,
+                    average=None, detector_fields=['centroid_x', 'centroid_y',],
+                    filters=None, *args, **kwargs):
+    """
+    Runs the calibration routine to compensate for the delay straighness.
+    """
+    average = average or 1
+
+    # Create per_step plan
+    def measure(detectors, motor, step):
+        # Perform step
+        logger.debug("Measuring average at step %s ...", step)
+        yield from checkpoint()
+        yield from abs_set(motor, step, wait=True)
+        # Measure the average
+        read = (yield from measure_average([motor, detector],
+                                           num=average,
+                                           filters=filters))
+        # Return the detector fields
+        yield [read[fld] for fld in detector_fields]
+
+    # Define the scan
+    plan = scan([detector], motor, start, stop, steps, per_step=measure)
+
+    def inner():
+        # Lets move dco out of the way if it is provided
+        if dco_motor is not None:
+            Msg('set', dco_motor, dco_motor.position + 12.5)
+            
+        yield from plan
+
+    yield from inner()
+    
+    
+     
+
+    

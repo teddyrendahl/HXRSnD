@@ -112,7 +112,7 @@ class SynCamera(Device):
         self.centroid_x = SynCentroid(name="centroid_x", motor=motor1)
         self.centroid_y = SynCentroid(name="centroid_y", motor=motor2)
         
-        # Add them to signals
+        # Add them to _signals
         self._signals['centroid_x'] = self.centroid_x
         self._signals['centroid_y'] = self.centroid_y
 
@@ -120,7 +120,7 @@ class SynCamera(Device):
         self.read_attrs = ["centroid_x", "centroid_y"]
 
     def trigger(self):
-        return self.a.trigger() & self.b.trigger()
+        return self.centroid_x.trigger() & self.centroid_y.trigger()
     
 # Simulated Crystal motor that goes where you tell it
 crystal = SynAxis(name='angle')
@@ -145,7 +145,7 @@ def test_lorentz_maximize(fresh_RE):
 def test_rocking_curve(fresh_RE):
     # Simulated diode readout
     diode = Diode('intensity', crystal, 'angle', 10.0, noise_multiplier=None)
-    # Create plan to maximize the signal
+    # Create plan to maximize the signalplan
     plan  = run_wrapper(rocking_curve(diode, crystal, 'intensity',
                                       coarse_step=0.1, fine_step=0.05,
                                       bounds=(5., 15.), fine_space=2.5,
