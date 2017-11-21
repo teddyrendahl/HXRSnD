@@ -8,7 +8,6 @@ Exceptions for the SnD system.
 ############
 import logging
 
-
 logger = logging.getLogger(__name__)
 
 # Exceptions
