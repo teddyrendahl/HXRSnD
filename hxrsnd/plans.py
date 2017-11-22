@@ -11,6 +11,7 @@ import logging
 # Third Party #
 ###############
 import numpy as np
+import pandas as pd
 from lmfit.models               import LorentzianModel
 from bluesky                    import Msg
 from bluesky.preprocessors      import msg_mutator, subs_decorator
@@ -330,42 +331,48 @@ def linear_scan(motor, start, stop, num, use_diag=True, return_to_start=True,
                       **kwargs)
             yield Msg('wait', None, group=grp)
 
-    return (yield from inner_scan())
-    
+    return (yield from inner_scan())    
 
-def calibrate_delay(detector, motor, start, stop, steps, dco_motor=None,
-                    average=None, detector_fields=['centroid_x', 'centroid_y',],
-                    filters=None, *args, **kwargs):
+def centroid_scan(detector, motor, start, stop, steps, dco_motor=None,
+                  average=None, detector_fields=['centroid_x', 'centroid_y',],
+                  filters=None, raw_centroids=False, *args, **kwargs):
     """
     Runs the calibration routine to compensate for the delay straighness.
     """
     average = average or 1
+    df = pd.DataFrame(index=range(start, stop, steps), columns=detector_fields)
 
-    # Create per_step plan
+    # Create a basic measuring plan
     def measure(detectors, motor, step):
         # Perform step
-        logger.debug("Measuring average at step %s ...", step)
+        logger.debug("Measuring average at step {0} ...".format(step))
         yield from checkpoint()
         yield from abs_set(motor, step, wait=True)
         # Measure the average
-        read = (yield from measure_average([motor, detector],
-                                           num=average,
+        read = (yield from measure_average([motor, detector], num=average,
                                            filters=filters))
-        # Return the detector fields
-        yield [read[fld] for fld in detector_fields]
-
-    # Define the scan
+        # Fill the dataframe at this step with the centroid difference
+        df.loc[step] = [read[fld] for fld in detector_fields]
+                
+    # Define the generic scans
     plan = scan([detector], motor, start, stop, steps, per_step=measure)
 
-    def inner():
+    # Define the overall inner scan
+    def inner_scan():
         # Lets move dco out of the way if it is provided
         if dco_motor is not None:
-            Msg('set', dco_motor, dco_motor.position + 12.5)
-            
-        yield from plan
+            yield Msg('set', dco_motor, dco_motor.position + 12.5)                        
+        # Run plan (stripping open/close run messages)
+        yield from msg_mutator(plan, block_run_control)
+        
+    # Yield from the inner scan
+    yield from inner_scan()
 
-    yield from inner()
-    
+    # Remove the initial centroid position to see amount beam moved
+    if not raw_centroids:
+        df -= df.loc[start]
+    # Return the filled dataframe
+    return df
     
      
 

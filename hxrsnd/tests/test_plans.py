@@ -21,7 +21,7 @@ from pcdsdevices.component import Component
 ##########
 # Module #
 ##########
-from hxrsnd import maximize_lorentz, rocking_curve
+from hxrsnd import maximize_lorentz, rocking_curve, centroid_scan
 
 logger = logging.getLogger(__name__)
 
@@ -81,20 +81,20 @@ class SynCentroid(SynSignal):
     """
     Synthetic centroid signal.
     """
-    def __init__(self, motor, motor_field=None, noise_multiplier=None, 
+    def __init__(self, motors, weights, motor_field=None, noise_multiplier=None, 
                  name=None, *args, **kwargs):
         # Eliminate noise if not requested
         noise = noise_multiplier or 0.
         
-        # Get the field with the name
-        field = motor_field or motor.name
         
         def func():
-            # Evaluate position in distribution
-            pos = motor.read()[field]['value']
+            # Evaluate the positions of each motor
+            pos = [m.read()[motor_field or m.name]['value'] for m in motors]
+            # Get the centroid position
+            cent = np.dot(pos, weights)
             # Add uniform noise
-            pos += int(np.round(np.random.uniform(-1, 1) * noise))
-            return pos
+            cent += int(np.round(np.random.uniform(-1, 1) * noise))
+            return cent
         
         # Instantiate the synsignal
         super().__init__(name=name, func=func, **kwargs)
@@ -104,13 +104,15 @@ class SynCamera(Device):
     """
     Simulated camera that has centroids as components. 
     """
-    def __init__(self, motor1, motor2, name=None, *args, **kwargs):
+    def __init__(self, motor1, motor2, delay, name=None, *args, **kwargs):
         # Create the base class
         super().__init__("SYN:CAMERA", name=name, *args, **kwargs)
         
         # Define the centroid components using the inputted motors
-        self.centroid_x = SynCentroid(name="centroid_x", motor=motor1)
-        self.centroid_y = SynCentroid(name="centroid_y", motor=motor2)
+        self.centroid_x = SynCentroid(name="centroid_x", motors=[motor1, delay],
+                                      weights=[1,.25])
+        self.centroid_y = SynCentroid(name="centroid_y", motors=[motor2, delay],
+                                      weights=[1,-.25])
         
         # Add them to _signals
         self._signals['centroid_x'] = self.centroid_x
@@ -124,6 +126,9 @@ class SynCamera(Device):
     
 # Simulated Crystal motor that goes where you tell it
 crystal = SynAxis(name='angle')
+m1 = SynAxis(name="m1")
+m2 = SynAxis(name="m2")
+delay = SynAxis(name="delay")
 
 def test_lorentz_maximize(fresh_RE):
     # Simulated diode readout
@@ -160,5 +165,15 @@ def test_rocking_curve(fresh_RE):
     assert np.isclose(diode.read()['intensity']['value'], 1.0, 0.1)
 
 
+def test_calibrate_delay(fresh_RE):
+    # Simulated camera
+    camera = SynCamera(m1, m2, delay, name="camera")
+    # Create the plan
+    def test_plan():
+        delay_scan = (yield from centroid_scan(camera, delay, -5, 5, 11))
+        print(delay_scan)
 
+    plan = run_wrapper(test_plan())
+    # Run the plan(
+    fresh_RE(plan)
 
