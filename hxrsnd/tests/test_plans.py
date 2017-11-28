@@ -22,6 +22,7 @@ from pcdsdevices.component import Component
 # Module #
 ##########
 from hxrsnd import maximize_lorentz, rocking_curve, centroid_scan
+from hxrsnd.plans import euclidean_distance, calibration_scan
 
 logger = logging.getLogger(__name__)
 
@@ -164,6 +165,33 @@ def test_rocking_curve(fresh_RE):
     # Check that we were within 10%
     assert np.isclose(diode.read()['intensity']['value'], 1.0, 0.1)
 
+def test_euclidean_distance(fresh_RE):
+    camera = SynCamera(m1, m2, delay, name="camera")    
+    # Define the distance plan that makes the assertion
+    def test_plan():
+        distance = yield from euclidean_distance(
+            camera, ['centroid_x', 'centroid_y'], [1,1])
+        assert np.isclose(distance, math.sqrt(2))
+    
+    # Wrap the plan
+    plan = run_wrapper(test_plan())
+    # And now run it
+    fresh_RE(plan)
+
+def test_calibration_scan(fresh_RE):
+    camera = SynCamera(m1, m2, delay, name="camera")    
+    def test_plan():
+        # import ipdb; ipdb.set_trace()
+        scan = calibration_scan(camera, ['centroid_x', 'centroid_y'], delay, 
+                                [m1, m2], -5, 5, 11,)
+        df = yield from scan
+        print(df)
+    
+    # Wrap the plan
+    plan = run_wrapper(test_plan())
+    # And now run it
+    fresh_RE(plan)
+    
 
 def test_calibrate_delay(fresh_RE):
     # Simulated camera
@@ -174,6 +202,6 @@ def test_calibrate_delay(fresh_RE):
         print(delay_scan)
 
     plan = run_wrapper(test_plan())
-    # Run the plan(
+    # Run the plan
     fresh_RE(plan)
 

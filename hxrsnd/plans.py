@@ -6,6 +6,7 @@ Hold all of the Bluesky plans for HXRSnD operations
 ############
 import time
 import logging
+import math 
 
 ###############
 # Third Party #
@@ -17,6 +18,7 @@ from bluesky                    import Msg
 from bluesky.preprocessors      import msg_mutator, subs_decorator
 from bluesky.preprocessors      import stage_decorator, run_decorator
 from bluesky.plan_stubs         import abs_set, checkpoint, trigger_and_read
+from bluesky.plan_stubs         import rel_set
 from bluesky.plans              import scan, list_scan
 from bluesky.utils              import short_uid as _short_uid
 
@@ -24,11 +26,12 @@ from bluesky.utils              import short_uid as _short_uid
 # Module #
 ##########
 from pswalker.callbacks         import LiveBuild
-from pswalker.plans             import measure_average
+from pswalker.plans             import measure_average, walk_to_pixel
 
 ##########
 # Module #
 ##########
+from .utils import as_list
 from .errors import UndefinedBounds
 
 logger = logging.getLogger(__name__)
@@ -43,7 +46,6 @@ def block_run_control(msg):
         return None
 
     return msg
-
 
 def maximize_lorentz(detector, motor, read_field, step_size=1,
                      bounds=None, average=None, filters=None,
@@ -333,9 +335,94 @@ def linear_scan(motor, start, stop, num, use_diag=True, return_to_start=True,
 
     return (yield from inner_scan())    
 
-def centroid_scan(detector, motor, start, stop, steps, dco_motor=None,
-                  average=None, detector_fields=['centroid_x', 'centroid_y',],
-                  filters=None, raw_centroids=False, *args, **kwargs):
+def euclidean_distance(device, device_fields, targets, average=None,
+                       filters=None):
+    """
+    Calculates the euclidean distance between the centroids in the detector and
+    the inputted centroids
+    """
+    average = average or 1
+    # Turn things into lists
+    device_fields = as_list(device_fields)
+    targets = as_list(targets)
+    # Make sure the number of device fields and targets is the same
+    if len(device_fields) != len(targets): 
+        raise ValueError("Number of device fields and targets must be the same."
+                         "Got {0} and {1}".format(len(device_fields, 
+                                                      len(targets))))
+    # Measure the average
+    read = (yield from measure_average([device], num=average, filters=filters))
+    # Get the squared differences between the centroids
+    squared_differences = [(read[fld]-target)**2 for fld, target in zip(
+        device_fields, targets)]
+    # Combine into euclidean distance
+    distance = math.sqrt(sum(squared_differences))
+    return distance
+
+def calibration_scan(detector, detector_fields, motor, calib_motors, start, 
+                     stop, steps, first_step=0.1, average=None, filters=None,                     
+                     *args, **kwargs):
+    # Perform all the initial necessities
+    average = average or 1
+    calib_motors = as_list(calib_motors)
+    first_step = as_list(first_step)
+    if len(first_step) == 1:
+        first_step *= len(calib_motors)
+    if len(first_step) != len(calib_motors):
+        raise ValueError("Must have same number of first steps as calibration "
+                         "_motors.")
+    # Define the dataframe that will hold all the calibrations
+    df = pd.DataFrame(index=range(start, stop, steps), 
+                      columns=[m.name for m in calib_motors])
+    df.func_calls = 0
+
+    # Define the per_step plan
+    def per_step(detectors, motor, step):
+        logger.debug("Beginning step '{0}'".format(step))
+        # Move the delay motor to the step
+        yield from checkpoint()
+        yield from abs_set(motor, step, wait=True)
+        
+        # Walk each motor to its respective target on the detector
+        for fld, cmotor, target in zip(detector_fields, calib_motors, 
+                                       start_values):
+            last_shot, model = (yield from walk_to_pixel(
+                detector, 
+                cmotor, 
+                target, 
+                filters=filters, 
+                start=None,
+                gradient=None,
+                models=[],
+                target_fields=[fld, 'readback'],
+                first_step=1.,
+                tolerance=1,
+                system=None,
+                average=average,
+                delay=None,
+                max_steps=None,
+                drop_missing=True))
+            
+        # Add the corrected positions to the dataframe
+        df.loc[step] = [m.read()[m.name]["value"] for m in calib_motors]
+
+    # Begin the plan
+    logger.debug("Beginning calibration scan")
+    # yield checkpoint()
+    # Move to the first position to get the starting positions
+    yield from abs_set(motor, start, wait=True)
+    read = (yield from measure_average([detector], num=average, filters=filters))
+    start_values = [read[fld]for fld in detector_fields]
+    logger.debug("Using {0} as starting values".format(start_values))
+    
+    # Begin the main scan and then return the dataframe
+    plan = scan([detector], motor, start, stop, steps, per_step=per_step)
+    yield from msg_mutator(plan, block_run_control)
+    return df
+
+def centroid_scan(detector, motor, start, stop, steps, average=None, 
+                  detector_fields=['centroid_x', 'centroid_y',], filters=None, 
+                  raw_centroids=False, *args, **kwargs):
     """
     Runs the calibration routine to compensate for the delay straighness.
     """
@@ -373,7 +460,4 @@ def centroid_scan(detector, motor, start, stop, steps, dco_motor=None,
         df -= df.loc[start]
     # Return the filled dataframe
     return df
-    
-     
-
     
