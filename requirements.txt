@@ -4,5 +4,5 @@ lmfit
 numpy
 simplejson
 pandas
-yaml
+pyyaml
 coloredlogs
