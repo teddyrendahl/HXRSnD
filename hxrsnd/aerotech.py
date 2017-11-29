@@ -64,7 +64,6 @@ class AeroBase(EpicsMotor):
     config : EpicsSignal, ":CONFIG"
         Signal to reconfig the motor.
     """
-    _status = None
     # Remove when these have been figured out
     low_limit_switch = Component(FakeSignal)
     high_limit_switch = Component(FakeSignal)
@@ -88,12 +87,12 @@ class AeroBase(EpicsMotor):
                  **kwargs):
         self.desc = desc or name
         super().__init__(prefix, name=name, *args, **kwargs)
+        self.motor_done_move.unsubscribe(self._move_changed)
+        self.user_readback.unsubscribe(self._pos_changed)
         self.configuration_attrs.append("power")
         self._state_list = ["Stop", "Pause", "Move", "Go"]
         if self.desc is None:
             self.desc = self.name
-            
-#        self.__str__ = lambda self: self.status(print_status=False)
 
     def _status_print(self, status, msg=None, ret_status=False, print_set=True,
                       wait=True, reraise=False):
@@ -800,9 +799,7 @@ class AeroBase(EpicsMotor):
         status : str
             Status string.
         """
-        # return self.status(print_status=False)
-        print(self.faulted, self.axis_status.connected, self.name)
-        return str(self.__repr__)
+        return self.status(print_status=False)
 
 class InterlockedAero(AeroBase):
     """

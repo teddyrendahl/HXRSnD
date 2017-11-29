@@ -6,8 +6,8 @@ formatters:
     stream:
         format: "%(message)s"
     file:
-        # format: "%(message)4s"
-        format: "%(asctime)s:%(filename)s:%(lineno)4s - %(funcName)s():    %(levelname)-8s %(message)4s"
+        format: "%(asctime)s - %(process)d - %(filename)s:%(lineno)4s - %(funcName)s():    %(levelname)-8s %(message)4s"
+        datefmt: '%Y-%m-%d %H:%M:%S'
 
         
 handlers:
