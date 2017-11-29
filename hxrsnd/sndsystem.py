@@ -200,7 +200,7 @@ class SplitAndDelay(Device):
             logger.debug(status)
             return status
 
-    def __repr__(self):
+    def __str__(self):
         """
         Returns the status of the device. Alias for status().
 

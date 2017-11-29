@@ -4,10 +4,10 @@ disable_existing_loggers: false
 
 formatters:
     stream:
-        format: "%(message)4s"
+        format: "%(message)s"
     file:
-        format: "%(message)4s"
-#        format: "%(asctime)s:%(filename)s:%(lineno)4s - %(funcName)s():    %(levelname)-8s %(message)4s"
+        # format: "%(message)4s"
+        format: "%(asctime)s:%(filename)s:%(lineno)4s - %(funcName)s():    %(levelname)-8s %(message)4s"
 
         
 handlers:
@@ -70,7 +70,7 @@ handlers:
         
 root:
     level: DEBUG
-    handlers: [info_file_handler, error_file_handler, critical_file_handler, debug_file_handler, warn_file_handler]
+    handlers: [console, info_file_handler, error_file_handler, critical_file_handler, debug_file_handler, warn_file_handler]
     propogate: no
 
     

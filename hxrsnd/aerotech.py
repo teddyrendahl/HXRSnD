@@ -8,6 +8,7 @@ Aerotech devices
 ############
 import logging
 import os
+import time
 
 ###############
 # Third Party #
@@ -63,6 +64,7 @@ class AeroBase(EpicsMotor):
     config : EpicsSignal, ":CONFIG"
         Signal to reconfig the motor.
     """
+    _status = None
     # Remove when these have been figured out
     low_limit_switch = Component(FakeSignal)
     high_limit_switch = Component(FakeSignal)
@@ -90,6 +92,8 @@ class AeroBase(EpicsMotor):
         self._state_list = ["Stop", "Pause", "Move", "Go"]
         if self.desc is None:
             self.desc = self.name
+            
+#        self.__str__ = lambda self: self.status(print_status=False)
 
     def _status_print(self, status, msg=None, ret_status=False, print_set=True,
                       wait=True, reraise=False):
@@ -568,7 +572,10 @@ class AeroBase(EpicsMotor):
         faulted
             Fault enumeration.
         """
-        return bool(self.axis_fault.value)
+        if self.axis_fault.connected:
+            return bool(self.axis_fault.value)
+        else:
+            return None
     
     def zero_all(self, ret_status=False, print_set=True):
         """
@@ -784,7 +791,7 @@ class AeroBase(EpicsMotor):
         else:
             return status
 
-    def __repr__(self):
+    def __str__(self):
         """
         Returns the status of the motor. Alias for status().
 
@@ -793,7 +800,9 @@ class AeroBase(EpicsMotor):
         status : str
             Status string.
         """
-        return self.status(print_status=False)
+        # return self.status(print_status=False)
+        print(self.faulted, self.axis_status.connected, self.name)
+        return str(self.__repr__)
 
 class InterlockedAero(AeroBase):
     """

@@ -69,7 +69,7 @@ class PneuBase(Device):
         else:
             return status
 
-    def __repr__(self):
+    def __str__(self):
         """
         Returns the status of the valve. Alias for status().
 
@@ -322,7 +322,7 @@ class SndPneumatics(Device):
             status += pressure.status(print_status=False)
         logger.info(status)
 
-    def __repr__(self):
+    def __str__(self):
         """
         Returns the status of the device. Alias for status().
 
