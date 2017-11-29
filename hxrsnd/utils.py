@@ -23,7 +23,8 @@ logger = logging.getLogger(__name__)
 class RotatingFileHandlerRelativePath(logging.handlers.RotatingFileHandler):
     """
     Extension of the filehandler class that appends the current directory to the
-    inputted filename.
+    inputted filename. This is so the log files can be found relative to this 
+    file rather than from wherever the script is run.
     """
     def __init__(self, filename, *args, **kwargs):
         filename_full = os.path.join(os.path.dirname(__file__), filename)
@@ -59,11 +60,25 @@ def absolute_submodule_path(submodule, cur_dir=inspect.stack()[0][1]):
 DIR_MODULE = Path(absolute_submodule_path("HXRSnD/"))
 DIR_LOGS = DIR_MODULE / "logs"
 
-def setup_logging(path_yaml=None, dir_logs=DIR_LOGS, 
-                  default_level=logging.INFO):
+def setup_logging(path_yaml=None, dir_logs=None, default_level=logging.INFO):
     """
-    | **@author:** Prathyush SP
-    | Logging Setup
+    Sets up the logging module to make a properly configured logger.
+
+    This will go into the ``logging.yaml`` file in the top level directory, and
+    try to load the logging configuration. If it fails for any reason, it will
+    just use the default configuration. For more details on how the logger will
+    be configured, see the ``logging.yaml`` file.
+
+    Parameters
+    ----------
+    path_yaml : str or Path, optional
+        Path to the yaml file.
+
+    dir_logs : str or Path, optional
+        Path to the log directory.
+        
+    default_level : logging.LEVEL, optional
+        Logging level for the default logging setup if the yaml fails.
     """
     # Get the yaml path
     if path_yaml is None:
@@ -71,7 +86,12 @@ def setup_logging(path_yaml=None, dir_logs=DIR_LOGS,
     # Make sure we are using Path objects
     else: 
         path_yaml = Path(path_yaml)
-    dir_logs = Path(dir_logs)
+    # Get the log directory
+    if dir_logs is None:
+        dir_logs = DIR_LOGS
+    # Make sure we are using Path objects
+    else:
+        dir_logs = Path(dir_logs)
         
     # Make the log directory if it doesn't exist
     if not dir_logs.exists(): 
@@ -93,9 +113,9 @@ def setup_logging(path_yaml=None, dir_logs=DIR_LOGS,
                 logging.config.dictConfig(config)
                 # coloredlogs.install()
             except Exception as e:
-                print(e)
                 print('Error in Logging Configuration. Using default configs')
                 logging.basicConfig(level=default_level)
+                logging.error(e)
                 # coloredlogs.install(level=default_level)
 
     # Just use the normal configuration
