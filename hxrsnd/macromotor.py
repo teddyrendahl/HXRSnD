@@ -157,7 +157,6 @@ class MacroBase(Device):
 
         use_diag : bool, optional
             Move the daignostic motors to align with the beam.
-
         use_calib : bool, optional
             Use the configurated calibration parameters
         
@@ -747,31 +746,31 @@ class DelayMacro(DelayTowerMacro):
     """
     Macro-motor for the delay macro-motor.
     """
-    @property
-    def aligned(self, rtol=0, atol=0.001):
-        """
-        Checks to see if the towers are in aligned in energy and delay.
+    # @property
+    # def aligned(self, rtol=0, atol=0.001):
+    #     """
+    #     Checks to see if the towers are in aligned in energy and delay.
 
-        Parameters
-        ----------
-        rtol : float, optional
-            Relative tolerance to use when comparing value differences.
+    #     Parameters
+    #     ----------
+    #     rtol : float, optional
+    #         Relative tolerance to use when comparing value differences.
         
-        atol : float, optional
-            Absolute tolerance to use when comparing value differences.
+    #     atol : float, optional
+    #         Absolute tolerance to use when comparing value differences.
 
-        Returns
-        -------
-        is_aligned : bool
-            True if the towers are aligned, False if not.
-        """
-        t1_delay = self._length_to_delay(self.parent.t1.length)
-        t4_delay = self._length_to_delay(self.parent.t4.length)
-        is_aligned = np.isclose(t1_delay, t4_delay, atol=atol, rtol=rtol)
-        if not is_aligned:
-            logger.warning("Delay mismatch between t1 and t4. t1: {0:.3f}ps, "
-                           "t4: {1:.3f}ps".format(t1_delay, t4_delay))
-        return is_aligned
+    #     Returns
+    #     -------
+    #     is_aligned : bool
+    #         True if the towers are aligned, False if not.
+    #     """
+    #     t1_delay = self._length_to_delay(self.parent.t1.length)
+    #     t4_delay = self._length_to_delay(self.parent.t4.length)
+    #     is_aligned = np.isclose(t1_delay, t4_delay, atol=atol, rtol=rtol)
+    #     if not is_aligned:
+    #         logger.warning("Delay mismatch between t1 and t4. t1: {0:.3f}ps, "
+    #                        "t4: {1:.3f}ps".format(t1_delay, t4_delay))
+    #     return is_aligned
 
     def _length_to_delay(self, L=None, theta1=None, theta2=None):
         """
@@ -841,13 +840,13 @@ class DelayMacro(DelayTowerMacro):
         # Convert to length and add the body of the string
         length = self._delay_to_length(delay)
         for tower in self._delay_towers:
-            string += "\n{:<15}|{:^15.3f}|{:^15.3f}".format(
+            string += "\n{:<15}|{:^15.4f}|{:^15.4f}".format(
                 tower.L.desc, tower.length, length)
 
         # Add the diagnostic move
         if use_diag:
             position_dd = self._get_delay_diagnostic_position(delay)
-            string += "\n{:<15}|{:^15.3f}|{:^15.3f}".format(
+            string += "\n{:<15}|{:^15.4f}|{:^15.4f}".format(
                 self.parent.dd.x.desc, self.parent.dd.x.position, position_dd)
 
         # Prompt the user for a confirmation or return the string
@@ -970,7 +969,8 @@ class DelayMacro(DelayTowerMacro):
         """
         return self._length_to_delay()
     
-    def set_position(self, delay=None, print_set=True, use_diag=True):
+    def set_position(self, delay=None, print_set=True, use_diag=True,
+                     verify_move=True):
         """
         Sets the current positions of the motors in the towers to be the 
         calculated positions based on the inputted energies or delay.
@@ -982,7 +982,16 @@ class DelayMacro(DelayTowerMacro):
         
         print_set : bool, optional
             Print a message to the console that the set has been made.
+
+        verify_move : bool, optional
+            Prints the current system state and a proposed system state and
+            then prompts the user to accept the proposal before changing the
+            system.
         """            
+        # Prompt the user about the move before making it
+        if verify_move and self._verify_move(delay, use_diag=use_diag):
+            return
+
         length = self._delay_to_length(delay)
         
         # Set the position of each delay stage
@@ -991,7 +1000,7 @@ class DelayMacro(DelayTowerMacro):
                 
         # Diagnostic
         if use_diag:
-            position_dd = self._get_delay_diagnostic_position(E1, E2, delay)
+            position_dd = self._get_delay_diagnostic_position(delay=delay)
             self.parent.dd.x.set_position(position_dd, print_set=False)            
 
         if print_set:
@@ -1001,31 +1010,31 @@ class Energy1Macro(DelayTowerMacro):
     """
     Macro-motor for the energy 1 macro-motor.
     """
-    @property
-    def aligned(self, rtol=0, atol=0.001):
-        """
-        Checks to see if the towers are in aligned in energy and delay.
+    # @property
+    # def aligned(self, rtol=0, atol=0.001):
+    #     """
+    #     Checks to see if the towers are in aligned in energy and delay.
 
-        Parameters
-        ----------
-        rtol : float, optional
-            Relative tolerance to use when comparing value differences.
+    #     Parameters
+    #     ----------
+    #     rtol : float, optional
+    #         Relative tolerance to use when comparing value differences.
         
-        atol : float, optional
-            Absolute tolerance to use when comparing value differences.
+    #     atol : float, optional
+    #         Absolute tolerance to use when comparing value differences.
 
-        Returns
-        -------
-        is_aligned : bool
-            True if the towers are aligned, False if not.
-        """
-        t1 = self.parent.t1
-        t4 = self.parent.t4
-        is_aligned = np.isclose(t1.energy, t4.energy, atol=atol, rtol=rtol)
-        if not is_aligned:
-            logger.warning("Energy mismatch between t1 and t4. t1: {0:.3f}  eV,"
-                           " t4: {1:.3f} eV".format(t1.energy, t4.energy))                        
-        return is_aligned
+    #     Returns
+    #     -------
+    #     is_aligned : bool
+    #         True if the towers are aligned, False if not.
+    #     """
+    #     t1 = self.parent.t1
+    #     t4 = self.parent.t4
+    #     is_aligned = np.isclose(t1.energy, t4.energy, atol=atol, rtol=rtol)
+    #     if not is_aligned:
+    #         logger.warning("Energy mismatch between t1 and t4. t1: {0:.3f}  eV,"
+    #                        " t4: {1:.3f} eV".format(t1.energy, t4.energy))                        
+    #     return is_aligned
 
 
     def _length_to_delay(self, L=None, theta1=None, theta2=None):
@@ -1097,12 +1106,12 @@ class Energy1Macro(DelayTowerMacro):
         for tower in self._delay_towers:
             for motor, position in zip(tower._energy_motors,
                                        tower._get_move_positions(E1)):
-                string += "\n{:<15}|{:^15.3f}|{:^15.3f}".format(
+                string += "\n{:<15}|{:^15.4f}|{:^15.4f}".format(
                     motor.desc, motor.position, position)
 
         if use_diag:
             position_dd = self._get_delay_diagnostic_position(E1)
-            string += "\n{:<15}|{:^15.3f}|{:^15.3f}".format(
+            string += "\n{:<15}|{:^15.4f}|{:^15.4f}".format(
                 self.parent.dd.x.desc, self.parent.dd.x.position, position_dd)
 
         # Prompt the user for a confirmation or return the string
@@ -1218,7 +1227,8 @@ class Energy1Macro(DelayTowerMacro):
         """
         return self.parent.t1.energy
 
-    def set_position(self, E1=None, print_set=True):
+    def set_position(self, E1=None, print_set=True, verify_move=True,
+                     use_diag=True):
         """
         Sets the current positions of the motors in the towers to be the 
         calculated positions based on the inputted energies or delay.
@@ -1230,18 +1240,29 @@ class Energy1Macro(DelayTowerMacro):
         
         print_set : bool, optional
             Print a message to the console that the set has been made.
+
+        verify_move : bool, optional
+            Prints the current system state and a proposed system state and
+            then prompts the user to accept the proposal before changing the
+            system.
+
+        use_diag : bool, optional
+            Move the daignostic motors to align with the beam.
         """
-        theta1 = bragg_angle(E=E1)
+        # Prompt the user about the move before making it
+        if verify_move and self._verify_move(E1, use_diag=use_diag):
+            return
 
         # Set position of each E1 motor in each delay tower
         for tower in self._delay_towers:
             for motor, pos in zip(tower._energy_motors,
-                                  tower._get_move_positions(theta1)):
+                                  tower._get_move_positions(E1)):
                 motor.set_position(pos, print_set=False)
 
         # Set the diagnostic
-        position_dd = self._get_delay_diagnostic_position(E1=E1)
-        self.parent.dd.x.set_position(position_dd, print_set=False)
+        if use_diag:
+            position_dd = self._get_delay_diagnostic_position(E1=E1)
+            self.parent.dd.x.set_position(position_dd, print_set=False)
 
         # Log the set
         if print_set is True:
@@ -1286,12 +1307,12 @@ class Energy1CCMacro(Energy1Macro):
 
         # Get move for each motor in the delay towers
         for tower in self._delay_towers:
-            string += "\n{:<15}|{:^15.3f}|{:^15.3f}".format(
+            string += "\n{:<15}|{:^15.4f}|{:^15.4f}".format(
                     tower.tth.desc, tower.tth.position, 2*bragg_angle(E1))
 
         if use_diag:
             position_dd = self._get_delay_diagnostic_position(E1)
-            string += "\n{:<15}|{:^15.3f}|{:^15.3f}".format(
+            string += "\n{:<15}|{:^15.4f}|{:^15.4f}".format(
                 self.parent.dd.x.desc, self.parent.dd.x.position, position_dd)
 
         # Prompt the user for a confirmation or return the string
@@ -1382,7 +1403,8 @@ class Energy1CCMacro(Energy1Macro):
 
         return status
 
-    def set_position(self, E1=None, print_set=True):
+    def set_position(self, E1=None, print_set=True, verify_move=True,
+                     use_diag=True):
         """
         Sets the current positions of the motors in the towers to be the 
         calculated positions based on the inputted energies or delay.
@@ -1394,18 +1416,27 @@ class Energy1CCMacro(Energy1Macro):
         
         print_set : bool, optional
             Print a message to the console that the set has been made.
+
+        verify_move : bool, optional
+            Prints the current system state and a proposed system state and
+            then prompts the user to accept the proposal before changing the
+            system.
+
+        use_diag : bool, optional
+            Move the daignostic motors to align with the beam.
         """
-        theta1 = bragg_angle(E=E1)
+        # Prompt the user about the move before making it
+        if verify_move and self._verify_move(E1, use_diag=use_diag):
+            return
 
         # Set position of each E1 motor in each delay tower
         for tower in self._delay_towers:
-            for motor, pos in zip(tower._energy_motors,
-                                  tower._get_move_positions(theta1)):
-                motor.set_position(pos, print_set=False)
+            tower.tth.set_position(2*bragg_angle(E1), print_set=False)
 
         # Set the diagnostic
-        position_dd = self._get_delay_diagnostic_position(E1=E1)
-        self.parent.dd.x.set_position(position_dd, print_set=False)
+        if use_diag:
+            position_dd = self._get_delay_diagnostic_position(E1=E1)
+            self.parent.dd.x.set_position(position_dd, print_set=False)
 
         # Log the set
         if print_set is True:
@@ -1443,31 +1474,31 @@ class Energy2Macro(MacroBase):
         position = 2*cosd(theta2)*self.gap
         return position
     
-    @property
-    def aligned(self, rtol=0, atol=0.001):
-        """
-        Checks to see if the towers are in aligned in energy and delay.
+    # @property
+    # def aligned(self, rtol=0, atol=0.001):
+    #     """
+    #     Checks to see if the towers are in aligned in energy and delay.
 
-        Parameters
-        ----------
-        rtol : float, optional
-            Relative tolerance to use when comparing value differences.
+    #     Parameters
+    #     ----------
+    #     rtol : float, optional
+    #         Relative tolerance to use when comparing value differences.
         
-        atol : float, optional
-            Absolute tolerance to use when comparing value differences.
+    #     atol : float, optional
+    #         Absolute tolerance to use when comparing value differences.
 
-        Returns
-        -------
-        is_aligned : bool
-            True if the towers are aligned, False if not.
-        """
-        t2 = self.parent.t2
-        t3 = self.parent.t3
-        is_aligned = np.isclose(t2.energy, t3.energy, atol=atol, rtol=rtol)
-        if not is_aligned:
-            logger.warning("Energy mismatch between t2 and t3. t1: {0:.3f} eV, "
-                           "t4: {1:.3f} eV".format(t2.energy, t3.energy))
-        return is_aligned
+    #     Returns
+    #     -------
+    #     is_aligned : bool
+    #         True if the towers are aligned, False if not.
+    #     """
+    #     t2 = self.parent.t2
+    #     t3 = self.parent.t3
+    #     is_aligned = np.isclose(t2.energy, t3.energy, atol=atol, rtol=rtol)
+    #     if not is_aligned:
+    #         logger.warning("Energy mismatch between t2 and t3. t1: {0:.3f} eV, "
+    #                        "t4: {1:.3f} eV".format(t2.energy, t3.energy))
+    #     return is_aligned
 
     def _verify_move(self, E2, string="", use_header=True, confirm_move=True,
                      use_diag=True):
@@ -1506,13 +1537,13 @@ class Energy2Macro(MacroBase):
         for tower in self._channelcut_towers:
             for motor, position in zip(tower._energy_motors,
                                        tower._get_move_positions(E2)):
-                string += "\n{:<15}|{:^15.3f}|{:^15.3f}".format(
+                string += "\n{:<15}|{:^15.4f}|{:^15.4f}".format(
                     motor.desc, motor.position, position)
 
         # Get move for the channel cut diagnostic
         if use_diag:
             position_dcc = self._get_channelcut_diagnostic_position(E2)
-            string += "\n{:<15}|{:^15.3f}|{:^15.3f}".format(
+            string += "\n{:<15}|{:^15.4f}|{:^15.4f}".format(
                 self.parent.dcc.x.desc, self.parent.dcc.x.position, 
                 position_dcc)
             
@@ -1609,7 +1640,8 @@ class Energy2Macro(MacroBase):
         """
         return self.parent.t2.energy
 
-    def set_position(self, E2=None, print_set=True):
+    def set_position(self, E2=None, print_set=True, verify_move=True,
+                     use_diag=True):
         """
         Sets the current positions of the motors in the towers to be the 
         calculated positions based on the inputted energies or delay.
@@ -1621,13 +1653,23 @@ class Energy2Macro(MacroBase):
         
         print_set : bool, optional
             Print a message to the console that the set has been made.
+
+        verify_move : bool, optional
+            Prints the current system state and a proposed system state and
+            then prompts the user to accept the proposal before changing the
+            system.
+
+        use_diag : bool, optional
+            Move the daignostic motors to align with the beam.
         """
-        theta2 = bragg_angle(E=E2)
+        # Prompt the user about the move before making it
+        if verify_move and self._verify_move(E2, use_diag=use_diag):
+            return
 
         # Set position of each E2 motor in each channel cut tower
         for tower in self._channelcut_towers:
             for motor, pos in zip(tower._energy_motors, 
-                                  tower._get_move_positions(theta1)):
+                                  tower._get_move_positions(E2)):
                 motor.set_position(pos, print_set=False)
 
         # Move the cc diagnostic as well
@@ -1637,11 +1679,3 @@ class Energy2Macro(MacroBase):
         # Log the set
         if print_set is True:
             logger.info("Setting positions for E2 to {0}.".format(E2))
-
-
-# Notes
-
-# Add checks for faults after the move
-# Add signal for stop and go pv
-# For E, if each energy is off by more than 1 eV, then report a warning, but
-# then do a relative move on each of their current positions.
