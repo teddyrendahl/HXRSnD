@@ -29,7 +29,7 @@ from hxrsnd.tower import DelayTower, ChannelCutTower
 from hxrsnd.bragg import bragg_angle, bragg_energy, sind, cosd
 from hxrsnd.diode import HamamatsuXMotionDiode, HamamatsuXYMotionCamDiode
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("hxrsnd")
 
 try:
     # Base PV
