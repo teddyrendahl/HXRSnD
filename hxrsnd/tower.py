@@ -340,7 +340,7 @@ class TowerBase(Device):
         else:
             return status
 
-    def __str__(self):
+    def __repr__(self):
         """
         Returns the status of the device. Alias for status().
 
