@@ -21,8 +21,8 @@ from pcdsdevices.component import Component
 ##########
 # Module #
 ##########
-from hxrsnd import maximize_lorentz, rocking_curve, centroid_scan
-from hxrsnd.plans import euclidean_distance, calibration_scan
+from hxrsnd import maximize_lorentz, rocking_curve
+from hxrsnd.plans import euclidean_distance, calibration_scan, centroid_scan
 
 logger = logging.getLogger(__name__)
 
@@ -182,24 +182,22 @@ def test_calibration_scan(fresh_RE):
     camera = SynCamera(m1, m2, delay, name="camera")    
     def test_plan():
         # import ipdb; ipdb.set_trace()
-        scan = calibration_scan(camera, ['centroid_x', 'centroid_y'], delay, 
-                                [m1, m2], -5, 5, 11,)
-        df = yield from scan
+        df = yield from calibration_scan(camera, ['centroid_x', 'centroid_y'], 
+                                         delay, [m1, m2], -5, 5, 11,)
         print(df)
     
     # Wrap the plan
     plan = run_wrapper(test_plan())
     # And now run it
-    fresh_RE(plan)
-    
+    fresh_RE(plan)    
 
-def test_calibrate_delay(fresh_RE):
+def test_centroid_scan(fresh_RE):
     # Simulated camera
     camera = SynCamera(m1, m2, delay, name="camera")
     # Create the plan
     def test_plan():
         delay_scan = (yield from centroid_scan(camera, delay, -5, 5, 11))
-        print(delay_scan)
+        assert True not in delay_scan.isnull().values
 
     plan = run_wrapper(test_plan())
     # Run the plan

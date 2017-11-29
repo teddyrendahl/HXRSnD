@@ -424,7 +424,7 @@ def centroid_scan(detector, motor, start, stop, steps, average=None,
                   detector_fields=['centroid_x', 'centroid_y',], filters=None, 
                   raw_centroids=False, *args, **kwargs):
     """
-    Runs the calibration routine to compensate for the delay straighness.
+    Returns the delays of the centroids at each step of a scan
     """
     average = average or 1
     df = pd.DataFrame(index=range(start, stop, steps), columns=detector_fields)
@@ -441,19 +441,9 @@ def centroid_scan(detector, motor, start, stop, steps, average=None,
         # Fill the dataframe at this step with the centroid difference
         df.loc[step] = [read[fld] for fld in detector_fields]
                 
-    # Define the generic scans
+    # Define the generic scans and run it
     plan = scan([detector], motor, start, stop, steps, per_step=measure)
-
-    # Define the overall inner scan
-    def inner_scan():
-        # Lets move dco out of the way if it is provided
-        if dco_motor is not None:
-            yield Msg('set', dco_motor, dco_motor.position + 12.5)                        
-        # Run plan (stripping open/close run messages)
-        yield from msg_mutator(plan, block_run_control)
-        
-    # Yield from the inner scan
-    yield from inner_scan()
+    yield from msg_mutator(plan, block_run_control)
 
     # Remove the initial centroid position to see amount beam moved
     if not raw_centroids:
