@@ -29,13 +29,13 @@ from pcdsdevices.daq import Daq, make_daq_run_engine
 ##########
 from .state import OphydMachine
 from .pneumatic import SndPneumatics
-from .utils import flatten, get_logger
+from .utils import flatten
 from .bragg import bragg_angle, cosd, sind
 from .tower import DelayTower, ChannelCutTower
 from .diode import HamamatsuXMotionDiode, HamamatsuXYMotionCamDiode
 from .macromotor import Energy1Macro, Energy1CCMacro, Energy2Macro, DelayMacro
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class SplitAndDelay(Device):

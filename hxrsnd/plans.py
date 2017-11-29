@@ -24,10 +24,9 @@ from bluesky.utils              import short_uid as _short_uid
 ##########
 # Module #
 ##########
-from .utils import get_logger
 from .errors import UndefinedBounds
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 #Used to strip `run_wrapper` off of plan
 #Should probably be added as bluesky PR

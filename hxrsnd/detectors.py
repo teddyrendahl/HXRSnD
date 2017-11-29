@@ -17,9 +17,8 @@ from pcdsdevices.epics.areadetector.detectors import DetectorBase
 ##########
 # Module #
 ##########
-from .utils import get_logger
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class GigeCam(CamBase):

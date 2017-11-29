@@ -75,7 +75,7 @@ def get_logger(name, stream_level=logging.INFO, log_file=True,
     logger.setLevel(logging.DEBUG)
     
     # One format to display the user and another for debugging
-    format_stream = "%(message)4s"
+    format_stream = "%(message)s"
     format_debug = "%(asctime)s:%(filename)s:%(lineno)4s - " \
       "%(funcName)s():    %(levelname)-8s %(message)4s"
     # Prevent logging from propagating to the root logger
@@ -227,3 +227,55 @@ def flatten(inp_iter):
         The contents of the iterable as a flat list
     """
     return list(_flatten(inp_iter))
+
+def as_list(obj, length=None, tp=None, iter_to_list=True):
+    """
+    Force an argument to be a list, optionally of a given length, optionally
+    with all elements cast to a given type if not None.
+
+    Paramters
+    ---------
+    obj : Object
+        The obj we want to convert to a list.
+
+    length : int or None, optional
+        Length of new list. Applies if the inputted obj is not an iterable and
+        iter_to_list is false.
+
+    tp : type, optional
+        Type to cast the values inside the list as.
+
+    iter_to_list : bool, optional
+        Determines if we should cast an iterable (not str) obj as a list or to
+        enclose it in one.
+
+    Returns
+    -------
+    obj : list
+        The object enclosed or cast as a list.
+    """
+    # If the obj is None, return empty list or fixed-length list of Nones
+    if obj is None:
+        if length is None:
+            return []
+        return [None] * length
+    
+    # If it is already a list do nothing
+    elif isinstance(obj, list):
+        pass
+
+    # If it is an iterable (and not str), convert it to a list
+    elif isiterable(obj) and iter_to_list:
+        obj = list(obj)
+        
+    # Otherwise, just enclose in a list making it the inputted length
+    else:
+        try:
+            obj = [obj] * length
+        except TypeError:
+            obj = [obj]
+        
+    # Cast to type; Let exceptions here bubble up to the top.
+    if tp is not None:
+        obj = [tp(o) for o in obj]
+    return obj

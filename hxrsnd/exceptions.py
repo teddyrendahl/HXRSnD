@@ -8,12 +8,8 @@ Exceptions for the SnD system.
 ############
 import logging
 
-##########
-# Module #
-##########
-from .utils import get_logger
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 # Exceptions
 
