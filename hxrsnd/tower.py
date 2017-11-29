@@ -22,14 +22,13 @@ from pcdsdevices.device import Device
 # Module #
 ##########
 from .rtd import OmegaRTD
-from .utils import get_logger
 from .diode import HamamatsuDiode
 from .bragg import bragg_angle, bragg_energy
 from .attocube import EccBase, TranslationEcc, GoniometerEcc, DiodeEcc
 from .aerotech import (AeroBase, RotationAero, InterRotationAero,
                        LinearAero, InterLinearAero)
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 class TowerBase(Device):
     """

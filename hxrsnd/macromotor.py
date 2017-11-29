@@ -25,7 +25,7 @@ from pcdsdevices.device import Device
 ##########
 # Module #
 ##########
-from .utils import flatten
+from .utils import as_list, flatten
 from .bragg import bragg_angle, cosd, sind
 from .exceptions import MotorDisabled, MotorFaulted, BadN2Pressure
 

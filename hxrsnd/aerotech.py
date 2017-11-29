@@ -8,6 +8,7 @@ Aerotech devices
 ############
 import logging
 import os
+import time
 
 ###############
 # Third Party #
@@ -86,6 +87,8 @@ class AeroBase(EpicsMotor):
                  **kwargs):
         self.desc = desc or name
         super().__init__(prefix, name=name, *args, **kwargs)
+        self.motor_done_move.unsubscribe(self._move_changed)
+        self.user_readback.unsubscribe(self._pos_changed)
         self.configuration_attrs.append("power")
         self._state_list = ["Stop", "Pause", "Move", "Go"]
         if self.desc is None:
@@ -568,7 +571,10 @@ class AeroBase(EpicsMotor):
         faulted
             Fault enumeration.
         """
-        return bool(self.axis_fault.value)
+        if self.axis_fault.connected:
+            return bool(self.axis_fault.value)
+        else:
+            return None
     
     def zero_all(self, ret_status=False, print_set=True):
         """

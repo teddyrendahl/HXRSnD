@@ -24,9 +24,8 @@ from pcdsdevices.sim.pv import  using_fake_epics_pv
 ##########
 from .conftest import get_classes_in_module, fake_device
 from hxrsnd import rtd
-from hxrsnd.utils import get_logger
 
-logger = get_logger(__name__, log_file=False)
+logger = logging.getLogger(__name__)
 
 @using_fake_epics_pv
 @pytest.mark.parametrize("dev", get_classes_in_module(rtd, Device))
