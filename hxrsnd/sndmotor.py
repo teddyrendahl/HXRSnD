@@ -13,7 +13,11 @@ class SndMotor(EpicsMotor, Device):
     """
     Base Sndmotor class
     """
-    pass
+    def __init__(self, prefix, name=None, desc=None, *args, **kwargs):
+        self.desc = desc or name
+        super().__init__(prefix, name=name, *args, **kwargs)
+        if self.desc is None:
+            self.desc = self.name
 
 
 class SamMotor(SndMotor):
@@ -21,6 +25,7 @@ class SamMotor(SndMotor):
     direction_of_travel = Component(FakeSignal)
     home_forward = Component(FakeSignal)
     home_reverse = Component(FakeSignal)
+
 
     def check_value(self, value, retries=5):
         """

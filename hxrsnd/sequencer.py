@@ -29,11 +29,11 @@ class SeqBase(Device):
     """
     state_control = Component(EpicsSignal, ":PLYCTL")
 
-    def __init__(self, prefix, desc=None, *args, **kwargs):
-        self.desc = desc
-        super().__init__(prefix, *args, **kwargs)
+    def __init__(self, prefix, name=None, desc=None, *args, **kwargs):
+        self.desc = desc or name
+        super().__init__(prefix, name=name, *args, **kwargs)
         if self.desc is None:
-            self.desc = self.name    
+            self.desc = self.name
     
     def start(self):
         """

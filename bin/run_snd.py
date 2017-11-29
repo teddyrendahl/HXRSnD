@@ -28,6 +28,8 @@ from hxrsnd.sndsystem import SplitAndDelay
 from hxrsnd.tower import DelayTower, ChannelCutTower
 from hxrsnd.bragg import bragg_angle, bragg_energy, sind, cosd
 from hxrsnd.diode import HamamatsuXMotionDiode, HamamatsuXYMotionCamDiode
+from hxrsnd.sequencer import SeqBase
+from hxrsnd.sndmotor import SamMotor
 
 logger = logging.getLogger("hxrsnd")
 
