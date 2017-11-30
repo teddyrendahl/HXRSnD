@@ -1,11 +1,14 @@
+"""
+HXRSnD IPython Shell
+"""
 ############
 # Standard #
 ############
+import os
+import socket
 import logging
 from imp import reload
-from logging.handlers import RotatingFileHandler
 from pathlib import Path
-import socket
 
 ###############
 # Third Party #
@@ -22,14 +25,10 @@ from pcdsdevices.daq import make_daq_run_engine
 # Module #
 ##########
 from hxrsnd.plans import linear_scan
-from hxrsnd.utils import setup_logging
-from hxrsnd.pneumatic import SndPneumatics
-from hxrsnd.sndsystem import SplitAndDelay
-from hxrsnd.tower import DelayTower, ChannelCutTower
-from hxrsnd.bragg import bragg_angle, bragg_energy, sind, cosd
-from hxrsnd.diode import HamamatsuXMotionDiode, HamamatsuXYMotionCamDiode
-from hxrsnd.sequencer import SeqBase
 from hxrsnd.sndmotor import SamMotor
+from hxrsnd.sequencer import SeqBase
+from hxrsnd.utils import setup_logging
+from hxrsnd.sndsystem import SplitAndDelay
 
 logger = logging.getLogger("hxrsnd")
 
@@ -49,8 +48,28 @@ try:
     # Logging
     setup_logging()
     logger = logging.getLogger("hxrsnd")
-    logger.info("Successfully initialized new SnD session on '{0}'".format(
+    logger.debug("Successfully created SplitAndDelay class on '{0}'".format(
         socket.gethostname()))
+
 except Exception as e:
-    logging.error(e)
+    logging.error("Failed to create SplitAndDelay class on '{0}'. Got error: "
+                  "{1}".format(socket.gethostname(), e))
     raise
+
+# Try importing from the scripts file if we succeeded at making the snd object
+else:
+    try:
+        path_scripts = Path(os.path.dirname(__file__)) / "../scripts.py"
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("scripts", path_scripts)
+        from scripts import *
+        logger.debug("Successfully loaded scripts.")
+    # There was some problem in the file
+    except Exception as e:
+        logger.warning("Failed to load scripts file, got the following error: "
+                       "{0}".format(e))
+        raise
+    # Notify the user that everything went smoothly
+    else:
+        logger.info("Successfully initialized new SnD session on '{0}'".format(
+            socket.gethostname()))
