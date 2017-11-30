@@ -63,6 +63,14 @@ logger = logging.getLogger(__name__)
 # It is that simple, that the message will now be archived in the info level
 # (HXRSnD/logs/info.log) and debug level (HXRSnD/logs/debug.log) log files.
 
+# #                              Leave Comments                              # #
+################################################################################
+
+# This seems like it may not be that important, but the purpose of this file is
+# to temporarily hold scripts developed during beamtime to then be migrated by
+# us (PCDS) into the module. By leaving comments, you make it easier for 
+# everyone to understand what the code is doing. 
+
 
 ################################################################################
 #                              Insert Code Below                               #
