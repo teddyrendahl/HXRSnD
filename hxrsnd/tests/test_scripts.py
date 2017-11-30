@@ -15,10 +15,8 @@ import numpy as np
 ##########
 # Module #
 ##########
-from .conftest import requires_epics
 from hxrsnd.utils import absolute_submodule_path
 
-@requires_epics
 def test_scripts_import():
     # Get the absolute path to the scripts file
     scripts_local_path = "HXRSnD/scripts.py"
