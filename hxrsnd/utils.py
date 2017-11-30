@@ -97,13 +97,16 @@ def setup_logging(path_yaml=None, dir_logs=None, default_level=logging.INFO):
     if not dir_logs.exists(): 
         dir_logs.mkdir()
 
-    # Make the log files if they don't exist
     log_files = ['info.log', 'errors.log', 'debug.log',  'critical.log', 
                  'warn.log']
     for log_file in log_files:
         path_log_file = dir_logs / log_file
+        # Make the log files if they don't exist
         if not path_log_file.exists():
             path_log_file.touch()
+        # Set permissions to be accessible to everyone
+        if path_log_file.stat().st_mode != 33279:
+            path_log_file.chmod(0o777)        
 
     # Set up everything if the yaml file is present
     if path_yaml.exists():
