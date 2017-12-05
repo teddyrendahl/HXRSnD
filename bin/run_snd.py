@@ -9,7 +9,7 @@ import socket
 import logging
 from imp import reload
 from pathlib import Path
-
+import warnings
 ###############
 # Third Party #
 ###############
@@ -29,6 +29,9 @@ from hxrsnd.sndmotor import SamMotor
 from hxrsnd.sequencer import SeqBase
 from hxrsnd.utils import setup_logging
 from hxrsnd.sndsystem import SplitAndDelay
+
+# Ignore python warnings
+warnings.filterwarnings('ignore')
 
 logger = logging.getLogger("hxrsnd")
 
@@ -52,8 +55,8 @@ try:
         socket.gethostname()))
 
 except Exception as e:
-    logging.error("Failed to create SplitAndDelay class on '{0}'. Got error: "
-                  "{1}".format(socket.gethostname(), e))
+    logger.error("Failed to create SplitAndDelay class on '{0}'. Got error: "
+                 "{1}".format(socket.gethostname(), e))
     raise
 
 # Try importing from the scripts file if we succeeded at making the snd object
