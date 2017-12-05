@@ -8,7 +8,6 @@ Aerotech devices
 ############
 import logging
 import os
-import time
 
 ###############
 # Third Party #

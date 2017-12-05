@@ -7,6 +7,11 @@ unset PYTHONPATH
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/reg/common/package/epicsca/3.14.12/lib/rhel6-x86_64
 export PATH=/reg/g/pcds/pyps/conda/py36/bin:$PATH
 
+# Source the EPICS env first before the conda env
+source /reg/g/pcds/setup/epicsenv-cur.sh
+# This must happen here before the source activate conda-env otherwise some
+# shared libraries do not load properly.
+
 # These have to be included otherwise there you get the following error then a
 # seg fault:
 #       QXcbConnection: Could not connect to display
