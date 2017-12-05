@@ -360,13 +360,14 @@ class AeroBase(EpicsMotor):
         # Catch all the common motor exceptions        
         except LimitError:
             logger.warning("Requested move '{0}' is outside the soft limits "
-                           "{1}.".format(position, self.limits))
+                           "{1} for motor {2}".format(position, self.limits,
+                                                      self.desc))
         except MotorDisabled:
-            logger.warning("Cannot move - motor is currently disabled. Try "
-                           "running 'motor.enable()'.")
+            logger.warning("Cannot move - motor {0} is currently disabled. Try "
+                           "running 'motor.enable()'.".format(self.desc))
         except MotorFaulted:
-            logger.warning("Cannot move - motor is currently faulted. Try "
-                           "running 'motor.clear()'.")
+            logger.warning("Cannot move - motor {0} is currently faulted. Try "
+                           "running 'motor.clear()'.".format(self.desc))
 
     def mvr(self, rel_position, wait=True, ret_status=False, print_move=True, 
             *args, **kwargs):
@@ -430,12 +431,12 @@ class AeroBase(EpicsMotor):
             If the motor is faulted.
         """
         if not self.enabled:
-            err = "Motor must be enabled before moving."
+            err = "Motor {0} must be enabled before moving.".format(self)
             logger.error(err)
             raise MotorDisabled(err)
 
         if self.faulted:
-            err = "Motor is currently faulted."
+            err = "Motor {0} is currently faulted.".format(self.desc)
             logger.error(err)
             raise MotorFaulted(err)
 
@@ -790,16 +791,41 @@ class AeroBase(EpicsMotor):
         else:
             return status
 
-    def __repr__(self):
+    def st(self, *args, **kwargs):
         """
-        Returns the status of the motor. Alias for status().
+        Returns the status of the device. Alias for status().
+        
+        Parameters
+        ----------
+        status : str, optional
+            The string to append the status to.
+            
+        offset : int, optional
+            Amount to offset each line of the status.
+
+        print_status : bool, optional
+            Determines whether the string is printed or returned.
+
+        newline : bool, optional
+            Adds a new line to the end of the string.
 
         Returns
         -------
         status : str
             Status string.
         """
-        return self.status(print_status=False)
+        return self.status(*args, **kwargs) 
+
+    # def __str__(self):
+    #     """
+    #     Returns the status of the motor. Alias for status().
+
+    #     Returns
+    #     -------
+    #     status : str
+    #         Status string.
+    #     """
+    #     return self.status(print_status=False)
 
 class InterlockedAero(AeroBase):
     """
