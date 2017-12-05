@@ -42,7 +42,6 @@ class TowerBase(Device):
         super().__init__(prefix, name=name, *args, **kwargs)
         if self.desc is None:
             self.desc = self.name or self.prefix
-        # import ipdb; ipdb.set_trace()
         self.desc_short = "".join([s[0] for s in self.desc.split(" ")])
         
         # Add Tower short name to desc
@@ -69,7 +68,8 @@ class TowerBase(Device):
         E : float
             Energy of the delay line.
         """
-        return int(np.round(bragg_energy(self.theta)))
+        # Please forgive me, wasnt having a good day
+        return int(np.round(bragg_energy(self.theta)*100))/100
 
     @energy.setter
     def energy(self, E):

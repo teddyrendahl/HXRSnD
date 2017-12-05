@@ -1,5 +1,5 @@
 """
-Tests for pyutils.pyutils
+Tests for the bin ipython shell
 """
 ############
 # Standard #

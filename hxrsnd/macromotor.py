@@ -855,27 +855,6 @@ class DelayMacro(DelayTowerMacro):
         else:
             return string
 
-    def _get_delay_diagnostic_position(self, delay=None):
-        """
-        Gets the position the delay diagnostic needs to move to based on the 
-        inputted energies and delay or the current bragg angles and current 
-        delay of the system.
-
-        Parameters
-        ----------
-        delay : float or None, optional
-            Delay in picoseconds to use for the calculation. Uses current delay
-            if None is inputted.
-
-        Returns
-        -------
-        position : float
-            Position in mm the delay diagnostic should move to given the 
-            inputted parameters.
-        """
-        return super()._get_delay_diagnostic_position(delay=delay)
-
-
     def _check_towers_and_diagnostics(self, delay, use_diag=True):
         """
         Checks the staus of the delay stages on the delay towers. Raises the 
@@ -1005,6 +984,7 @@ class DelayMacro(DelayTowerMacro):
 
         if print_set:
             logger.info("Setting positions for delay to {0}.".format(delay))
+
 
 class Energy1Macro(DelayTowerMacro):
     """
@@ -1267,6 +1247,7 @@ class Energy1Macro(DelayTowerMacro):
         # Log the set
         if print_set is True:
             logger.info("Setting positions for E1 to {0}.".format(E1))
+
 
 class Energy1CCMacro(Energy1Macro):
     """

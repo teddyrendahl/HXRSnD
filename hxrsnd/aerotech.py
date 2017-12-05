@@ -8,7 +8,6 @@ Aerotech devices
 ############
 import logging
 import os
-import time
 
 ###############
 # Third Party #
@@ -86,6 +85,7 @@ class AeroBase(EpicsMotor):
     def __init__(self, prefix, name=None, desc=None, timeout=2, *args, 
                  **kwargs):
         self.desc = desc or name
+        self._timeout = timeout
         super().__init__(prefix, name=name, *args, **kwargs)
         self.motor_done_move.unsubscribe(self._move_changed)
         self.user_readback.unsubscribe(self._pos_changed)
