@@ -851,7 +851,7 @@ class DelayMacro(DelayTowerMacro):
 
         # Add the diagnostic move
         if use_diag:
-            position_dd = self._get_delay_diagnostic_position(delay)
+            position_dd = self._get_delay_diagnostic_position(delay=delay)
             string += "\n{:<15}|{:^15.4f}|{:^15.4f}".format(
                 self.parent.dd.x.desc, self.parent.dd.x.position, position_dd)
 
