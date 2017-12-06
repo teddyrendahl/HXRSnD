@@ -372,12 +372,12 @@ class EccBase(Device, PositionerBase):
             If the motor has an error.
         """
         if not self.enabled:
-            err = "Motor must be enabled before moving."
+            err = "Motor '{0}' is currently disabled.".format(self.desc)
             logger.error(err)
             raise MotorDisabled(err)
 
         if self.error:
-            err = "Motor currently has an error."
+            err = "Motor '{0}' currently has an error.".format(self.desc)
             logger.error(err)
             raise MotorError(err)
 

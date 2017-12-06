@@ -28,7 +28,7 @@ from pcdsdevices.epics.signal import (EpicsSignal, EpicsSignalRO, FakeSignal)
 ##########
 from .pneumatic import PressureSwitch
 from .utils import absolute_submodule_path, as_list
-from .exceptions import MotorDisabled, MotorFaulted, BadN2Pressure
+from .exceptions import MotorDisabled, MotorFaulted, MotorStopped, BadN2Pressure
 
 logger = logging.getLogger(__name__)
 
@@ -348,6 +348,9 @@ class AeroBase(EpicsMotor):
         MotorFaulted
             Error raised if the motor is disabled and the move is requested.
 
+        MotorStopped
+            Error raised if the motor is stopped and the move is requested.
+
         Returns
         -------
         status : MoveStatus        
@@ -368,6 +371,10 @@ class AeroBase(EpicsMotor):
         except MotorFaulted:
             logger.warning("Cannot move - motor {0} is currently faulted. Try "
                            "running 'motor.clear()'.".format(self.desc))
+        except MotorStopped:
+            logger.warning("Cannot move - motor {0} is currently stopped. Try "
+                           "running 'motor.state='Go''.".format(self.desc))
+
 
     def mvr(self, rel_position, wait=True, ret_status=False, print_move=True, 
             *args, **kwargs):
@@ -404,6 +411,9 @@ class AeroBase(EpicsMotor):
         MotorFaulted
             Error raised if the motor is disabled and the move is requested.
 
+        MotorStopped
+            Error raised If the motor is stopped and a move is requested.
+
         Returns
         -------
         status : MoveStatus        
@@ -429,16 +439,24 @@ class AeroBase(EpicsMotor):
         
         MotorFaulted
             If the motor is faulted.
+
+        MotorStopped
+            If the motor is stopped.
         """
         if not self.enabled:
-            err = "Motor {0} must be enabled before moving.".format(self)
+            err = "Motor '{0}' is currently disabled".format(self.desc)
             logger.error(err)
             raise MotorDisabled(err)
 
         if self.faulted:
-            err = "Motor {0} is currently faulted.".format(self.desc)
+            err = "Motor '{0}' is currently faulted.".format(self.desc)
             logger.error(err)
             raise MotorFaulted(err)
+
+        if self.state == "Stop":
+            err = "Motor '{0}' is currently stopped.".format(self.desc)
+            logger.error(err)
+            raise MotorStopped(err)
 
         # Check if the move is valid
         self.check_value(position)        
@@ -634,7 +652,11 @@ class AeroBase(EpicsMotor):
         Status
             The status object for setting the state signal.        
         """
-        return self.set_state(val, ret_status, print_set)
+        try:
+            return self.set_state(val, ret_status, print_set)
+        except ValueError:
+            logger.info("State must be one of the following: {0}".format(
+                self._state_list))
 
     def set_state(self, state, ret_status=True, print_set=False):
         """
@@ -664,15 +686,16 @@ class AeroBase(EpicsMotor):
 
         # Make sure it is a valid state or enum
         if val not in self._state_list + list(range(len(self._state_list))):
-            error = "Invalid state inputted, '{0}'.".format(val)
+            error = "Invalid state inputted: '{0}'.".format(val)
             logger.error(error)
             raise ValueError(error)
         
         # Lets enforce it's a string or value
         status = self.state_component.set(val)
 
-        return self._status_print(status, "Changed state to '{0}'.".format(
-            val), print_set=print_set, ret_status=ret_status)
+        return self._status_print(
+            status, "Changed state of '{0} to '{1}'.".format(self.desc, val), 
+            print_set=print_set, ret_status=ret_status)
 
     def ready_motor(self, ret_status=False, print_set=True):
         """
@@ -695,8 +718,9 @@ class AeroBase(EpicsMotor):
         status = [self.clear(ret_status=True, print_set=False)]
         status.append(self.enable(ret_status=True, print_set=False))
         status.append(self.set_state("Go", ret_status=True, print_set=False))
-        return self._status_print(status, "Motor '{0}' is now ready.".format(
-            self.desc), print_set=print_set, ret_status=ret_status)
+        return self._status_print(
+            status, "Motor '{0}' is now ready to move.".format(self.desc), 
+            print_set=print_set, ret_status=ret_status)
 
     def expert_screen(self, print_msg=True):
         """
@@ -858,6 +882,12 @@ class InterlockedAero(AeroBase):
         
         MotorFaulted
             If the motor is faulted.
+
+        MotorStopped
+            If the motor is stopped.
+
+        BadN2Pressure
+            If the pressure in the tower is bad.
         """
         if self._pressure.bad:
             err = "Cannot move - Pressure in {0} is bad.".format(self._tower)
@@ -900,8 +930,12 @@ class InterlockedAero(AeroBase):
         MotorDisabled
             Error raised if the motor is disabled and move is requested.
 
+
         MotorFaulted
             Error raised if the motor is disabled and the move is requested.
+
+        MotorStopped
+            Error raised If the motor is stopped and a move is requested.
 
         BadN2Pressure
             Error raised if the pressure in the tower is bad.

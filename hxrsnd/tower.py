@@ -247,9 +247,9 @@ class TowerBase(Device):
             try:
                 motor.check_status(position)
             except Exception as e:
-                err = "Motor {0} got an exception: {1}".format(motor.name, e)
+                err = "Motor {0} got an exception: {1}".format(motor.desc, e)
                 logger.error(err)
-                raise e    
+                raise e
 
     def stop(self):
         """

@@ -42,6 +42,14 @@ class MotorError(SndException):
     pass
 
 
+class MotorStopped(SndException):
+    """
+    Exception raised when an action requiring the motor to not be stopped is 
+    requested.
+    """
+    pass
+
+
 class BadN2Pressure(SndException):
     """
     Exception raised when an action requiring the N2 pressure be good is 
