@@ -27,6 +27,7 @@ from bluesky.utils              import short_uid as _short_uid
 ##########
 from pswalker.callbacks         import LiveBuild
 from pswalker.plans             import measure_average, walk_to_pixel
+from pswalker.utils             import field_prepend
 
 ##########
 # Module #
@@ -360,65 +361,98 @@ def euclidean_distance(device, device_fields, targets, average=None,
     return distance
 
 def calibration_scan(detector, detector_fields, motor, calib_motors, start, 
-                     stop, steps, first_step=0.1, average=None, filters=None,                     
-                     *args, **kwargs):
+                     stop, steps, first_step=0.1, average=None, filters=None,
+                     tolerance=.01, delay=None, max_steps=None, 
+                     drop_missing=True, gradients=None, *args, **kwargs):
+    """
+    Performs a scan using the inputted motor, and returns a dataframe containing
+    the positions of the calib_motors required to keep the detector_fields 
+    fixed. 
+    """
+    num = len(detector_fields)
+    if len(calib_motors) != num:
+        raise ValueError("Must have same number of calibration motors as "
+                         "detector fields.")
+
     # Perform all the initial necessities
     average = average or 1
     calib_motors = as_list(calib_motors)
-    first_step = as_list(first_step)
-    if len(first_step) == 1:
-        first_step *= len(calib_motors)
-    if len(first_step) != len(calib_motors):
-        raise ValueError("Must have same number of first steps as calibration "
-                         "_motors.")
+    first_step = as_list(first_step, num, float)
+    tolerance = as_list(tolerance, num)
+    gradients = as_list(gradients, num)
+    max_steps = as_list(max_steps, num)
+
+    # Get the full detector fields
+    prep_det_fields = [field_prepend(fld, detector) for fld in detector_fields]
+ 
+    # Columns of df contains the pre and post correction motors and detectors
+    columns = \
+      [m.name + pos for m in calib_motors for pos in ("_pre", "_post")] + \
+      [fld + pos for fld in prep_det_fields for pos in ("_pre", "_post")] + \
+      [motor.name + pos for pos in ["_pre", "_post"]]
+                
     # Define the dataframe that will hold all the calibrations
-    df = pd.DataFrame(index=range(start, stop, steps), 
-                      columns=[m.name for m in calib_motors])
-    df.func_calls = 0
+    df = pd.DataFrame(index=range(start, stop, steps), columns=columns)
 
     # Define the per_step plan
-    def per_step(detectors, motor, step):
+    def per_step(detector, motor, step):
         logger.debug("Beginning step '{0}'".format(step))
         # Move the delay motor to the step
-        yield from checkpoint()
+        # yield from checkpoint()
         yield from abs_set(motor, step, wait=True)
         
-        # Walk each motor to its respective target on the detector
-        for fld, cmotor, target in zip(detector_fields, calib_motors, 
-                                       start_values):
-            last_shot, model = (yield from walk_to_pixel(
-                detector, 
-                cmotor, 
-                target, 
-                filters=filters, 
-                start=None,
-                gradient=None,
-                models=[],
-                target_fields=[fld, 'readback'],
-                first_step=1.,
-                tolerance=1,
-                system=None,
-                average=average,
-                delay=None,
-                max_steps=None,
-                drop_missing=True))
+        # Store the pre-correction detector values and motor positions
+        reads = (yield from measure_average(detector+calib_motors, 
+                                           num=average, filters=filters))
+        # df.loc[step, motor.name+"_pre"] = reads[motor.name]
+        for fld in prep_det_fields:
+            df.loc[step, fld+"_pre"] = reads[fld]
+        for cmotor in calib_motors:
+            df.loc[step, cmotor.name+"_pre"] = reads[cmotor.name]
+        
+        # Walk each motor to the first pre-correction detector entry
+        for i, fld in enumerate(prep_det_fields):
+            yield from walk_to_pixel(detector[0], 
+                                     calib_motors[i], 
+                                     df.iloc[0][fld+"_pre"],
+                                     filters=filters, 
+                                     start=None,
+                                     gradient=gradients[i],
+                                     models=[],
+                                     target_fields=[fld, calib_motors[i].name],
+                                     first_step=first_step[i],
+                                     tolerance=tolerance[i],
+                                     system=None,
+                                     average=average,
+                                     delay=delay,
+                                     max_steps=max_steps[i],
+                                     drop_missing=drop_missing)
             
-        # Add the corrected positions to the dataframe
-        df.loc[step] = [m.read()[m.name]["value"] for m in calib_motors]
+        # Add the post-correction detector values and motor positions
+        reads = (yield from measure_average(detector+calib_motors, 
+                                           num=average, filters=filters))
+        # df.loc[step, motor.name+"_post"] = reads[motor.name]
+        for fld in prep_det_fields:
+            df.loc[step, fld+"_post"] = reads[fld]
+        for cmotor in calib_motors:
+            df.loc[step, cmotor.name+"_post"] = reads[cmotor.name]
 
     # Begin the plan
     logger.debug("Beginning calibration scan")
-    # yield checkpoint()
-    # Move to the first position to get the starting positions
-    yield from abs_set(motor, start, wait=True)
-    read = (yield from measure_average([detector], num=average, filters=filters))
-    start_values = [read[fld]for fld in detector_fields]
-    logger.debug("Using {0} as starting values".format(start_values))
-    
     # Begin the main scan and then return the dataframe
     plan = scan([detector], motor, start, stop, steps, per_step=per_step)
     yield from msg_mutator(plan, block_run_control)
     return df
+
+# def delay_calibration_scan(detector, detector_fields, delay_motor, calib_motors, 
+#                            start, stop, steps, first_step=0.1, average=None, 
+#                            filters=None, tolerance=.01, delay=None, 
+#                            max_steps=None, drop_missing=True, gradients=None, 
+#                            *args, **kwargs):
+#     """
+#     Performs a delay calibration scan on the delay motor
+#     """
+
 
 def centroid_scan(detector, motor, start, stop, steps, average=None, 
                   detector_fields=['centroid_x', 'centroid_y',], filters=None, 

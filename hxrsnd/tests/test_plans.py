@@ -110,10 +110,10 @@ class SynCamera(Device):
         super().__init__("SYN:CAMERA", name=name, *args, **kwargs)
         
         # Define the centroid components using the inputted motors
-        self.centroid_x = SynCentroid(name="centroid_x", motors=[motor1, delay],
-                                      weights=[1,.25])
-        self.centroid_y = SynCentroid(name="centroid_y", motors=[motor2, delay],
-                                      weights=[1,-.25])
+        self.centroid_x = SynCentroid(name="_".join([self.name, "centroid_x"]), 
+                                      motors=[motor1, delay], weights=[1,.25])
+        self.centroid_y = SynCentroid(name="_".join([self.name, "centroid_y"]), 
+                                      motors=[motor2, delay], weights=[1,-.25])
         
         # Add them to _signals
         self._signals['centroid_x'] = self.centroid_x
@@ -178,14 +178,11 @@ def test_euclidean_distance(fresh_RE):
     # And now run it
     fresh_RE(plan)
 
-def test_calibration_scan(fresh_RE):
-    camera = SynCamera(m1, m2, delay, name="camera")    
+def test_1_signal_calibration_scan(fresh_RE):
+    camera = SynCamera(m1, m2, delay, name="camera")
     def test_plan():
-        # import ipdb; ipdb.set_trace()
-        df = yield from calibration_scan(camera, ['centroid_x', 'centroid_y'], 
-                                         delay, [m1, m2], -5, 5, 11,)
-        print(df)
-    
+        df = yield from calibration_scan(camera, ['centroid_x'], 
+                                         delay, [m1], -5, 5, 11,)    
     # Wrap the plan
     plan = run_wrapper(test_plan())
     # And now run it
