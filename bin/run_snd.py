@@ -33,6 +33,8 @@ from hxrsnd.sndsystem import SplitAndDelay
 # Ignore python warnings
 warnings.filterwarnings('ignore')
 
+# Logging
+setup_logging()
 logger = logging.getLogger("hxrsnd")
 
 try:
@@ -47,10 +49,7 @@ try:
     seq = SeqBase("ECS:SYS0:4", desc="Sequencer Channel 4")
     sam_x = SamMotor("XCS:USR:MMN:01", name="sam_x")
     sam_y = SamMotor("XCS:USR:MMN:02", name="sam_y")
-
-    # Logging
-    setup_logging()
-    logger = logging.getLogger("hxrsnd")
+    # Success
     logger.debug("Successfully created SplitAndDelay class on '{0}'".format(
         socket.gethostname()))
 
