@@ -8,8 +8,8 @@ Everything added here is star (*) imported into the IPython shell after the
 recommended to run the specific unit-test to quickly ensure your inserted code 
 is syntactically correct. More specifically, it will test if this script is 
 importable. Of course this will not guarantee that the code works as intended,
-but it will pick up on any 'easy' mistakes, like a mismatched parenthesi.To run
- the test, in the top  level directory, first source the snd environment:
+but it will pick up on any 'easy' mistakes, like a mismatched parenthesi. To run
+the test, in the top level directory, first source the snd environment:
 
     source snd_env.sh
 

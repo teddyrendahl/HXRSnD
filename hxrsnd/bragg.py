@@ -380,3 +380,113 @@ def bragg_energy(theta, ID="Si", hkl=(2,2,0)):
     l = 2*d*sind(theta)
     E = lam2E(l)
     return E
+
+def snd_L(E1, E2, delay, gap=55):
+    """
+    Calculates the theta angles of the towers and the delay length based on the
+    desired energy and delay.
+
+    Parameters
+    ----------
+    E1 : float
+        Energy of the delay branch in eV
+    
+    E2 : float
+        Energy of the channel-cut branch in eV
+
+    delay : float
+        Delay of the system in picoseconds
+
+    gap : float, optional
+        Distance between the channel-cut crystals
+
+    Returns
+    -------
+    theta_L : float
+        The necessary angle of the delay branch in degrees.
+        
+    theta_cc : float
+        The necessary angle of the channel-cut branch in degrees.
+
+    L : float
+        The necessary length of the delay crystals in mm.
+    """
+    cl = 0.3
+    theta_L = bragg_angle('Si',(2,2,0),E1)
+    theta_cc= bragg_angle('Si',(2,2,0),E2)
+    # gap is the distance between the two faces of the channel cut crystal
+    L = (delay*cl/2.+gap*(1-cosd(2*theta_cc))/sind(theta_cc))/(1-cosd(
+        2*theta_L))
+    logger.info("t1.L = t4.L = {} mm".format(L))
+    logger.info("t1.tth = t4.tth = {} degree".format(2*theta_L))
+    logger.info("t1.th1=t1.th2=t4.th1=t4.th2 = {} degree".format(theta_L))
+    logger.info("t2.th=t3.th = {} degree".format(theta_cc))
+    return theta_L, theta_cc, L
+
+def snd_diag(E1, E2, delay, gap=55):
+    """
+    Calculates the positions of the middle diagnostics of the system based on
+    the inputted energy and delay.
+
+    Parameters
+    ----------
+    E1 : float
+        Energy of the delay branch in eV
+    
+    E2 : float
+        Energy of the channel-cut branch in eV
+
+    delay : float
+        Delay of the system in picoseconds
+
+    gap : float, optional
+        Distance between the channel-cut crystals
+
+    Returns
+    -------
+    dd_x : float
+        The necessary position of the middle delay diagnostic in mm
+        
+    dcc_x : float
+        The necessary position of the middle channel-cut diagnostic in mm
+    """
+    cl = 0.3
+    # speed of light
+    theta_L = bragg_angle('Si',(2,2,0),E1)
+    theta_cc= bragg_angle('Si',(2,2,0),E2)
+    dcc_x = 2*cosd(theta_cc)*gap
+    L = (delay*cl/2.+gap*(1-cosd(2*theta_cc))/sind(theta_cc))/(1-cosd(
+        2*theta_L))
+    dd_x = -L*sind(2*theta_L)
+    logger.info("dd.x = {}".format(dd_x))
+    logger.info("dcc.x = {}".format(dcc_x))
+    return dd_x, dcc_x
+
+def snd_delay(E1, E2, L, gap=55):
+    """
+    Calculates the delay of the system based on the inputted energies and the
+    delay length.
+
+    Parameters
+    ----------
+    E1 : float
+        Energy of the delay branch in eV
+    
+    E2 : float
+        Energy of the channel-cut branch in eV
+
+    L : float
+        Position of the delay crystals in mm
+
+    Returns
+    -------
+    delay : float
+        The delay of the system in picoseconds
+    """
+    cl = 0.3
+    theta_L = bragg_angle('Si',(2,2,0),E1)
+    theta_cc= bragg_angle('Si',(2,2,0),E2)
+    delay = 2*(L*(1-cosd(2*theta_L)) - gap*(1-cosd(2*theta_cc))/sind(
+        theta_cc))/cl 
+    return delay
+

@@ -7,11 +7,12 @@
 
    installation.rst
    basic_usage.rst
+   scripting.rst
    screens.rst
    running_scans.rst
    running_daq_scans.rst
 
-   
+
 .. toctree::
    :maxdepth: 2
    :caption: Devices

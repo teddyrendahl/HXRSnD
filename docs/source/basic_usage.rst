@@ -33,7 +33,7 @@ should be done. It has the following devices as attributes:
 
 Each of the devices has an assortment of motors that can be viewed from the
 'Component' section of the object's docstring. The easiest way to so is by using
-the ``ipython``, ``?``, operator.
+the ``IPython``, ``?``, operator.
 
 For convenience, each of the components (except the macromotors) are
 instantiated independently and should behave identically to when interfaced
