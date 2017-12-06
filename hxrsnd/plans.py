@@ -260,7 +260,8 @@ def linear_scan(motor, start, stop, num, use_diag=True, return_to_start=True,
     """
     Performs a linear scan using the inputted motor, optionally using the
     diagnostics, and optionally moving the motor back to the original start
-    position.
+    position. This scan is different from the regular scan because it does not
+    take a detector, and simply scans the motor.
 
     Parameters
     ----------

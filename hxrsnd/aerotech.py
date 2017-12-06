@@ -38,7 +38,7 @@ class AeroBase(EpicsMotor):
     Base Aerotech motor class.
 
     Components
-    ----------
+
     power : EpicsSignal, ".CNEN"
         Enables or disables power to the axis.
 

@@ -357,7 +357,7 @@ class DelayTower(TowerBase):
     Delay Tower
     
     Components
-    ----------
+
     tth : RotationAeroInterlocked
         Rotation axis of the entire delay arm.
 
@@ -482,7 +482,7 @@ class DelayTower(TowerBase):
         Sets the angles of the crystals in the delay line to maximize the
         inputted energy.        
     
-        Parmeters
+        Parameters
         ---------
         E : float
             Energy to use for the system.
@@ -572,7 +572,7 @@ class ChannelCutTower(TowerBase):
     Channel Cut tower.
 
     Components
-    ----------
+
     th : RotationAero
         Rotation stage of the channel cut crystal
 
@@ -606,7 +606,7 @@ class ChannelCutTower(TowerBase):
         Sets the angles of the crystals in the channel cut line to maximize the
         inputted energy.        
     
-        Parmeters
+        Parameters
         ---------
         E : float
             Energy to use for the system.
