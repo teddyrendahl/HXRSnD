@@ -372,12 +372,12 @@ class EccBase(Device, PositionerBase):
             If the motor has an error.
         """
         if not self.enabled:
-            err = "Motor must be enabled before moving."
+            err = "Motor '{0}' is currently disabled.".format(self.desc)
             logger.error(err)
             raise MotorDisabled(err)
 
         if self.error:
-            err = "Motor currently has an error."
+            err = "Motor '{0}' currently has an error.".format(self.desc)
             logger.error(err)
             raise MotorError(err)
 
@@ -510,13 +510,14 @@ class EccBase(Device, PositionerBase):
         # Catch all the common motor exceptions
         except LimitError:
             logger.warning("Requested move '{0}' is outside the soft limits "
-                           "{1}.".format(position, self.limits))
+                           "{1} for motor {2}".format(position, self.limits,
+                                                      self.desc))
         except MotorDisabled:
-            logger.warning("Cannot move - motor is currently disabled. Try "
-                           "running 'motor.enable()'.")
-        except MotorError:
-            logger.warning("Cannot move - motor currently has an error. Try "
-                           "running 'motor.clear()'.")
+            logger.warning("Cannot move - motor {0} is currently disabled. Try "
+                           "running 'motor.enable()'.".format(self.desc))
+        except MotorFaulted:
+            logger.warning("Cannot move - motor {0} is currently faulted. Try "
+                           "running 'motor.clear()'.".format(self.desc))
 
     def mvr(self, rel_position, ret_status=False, print_move=True, *args, 
             **kwargs):
@@ -726,16 +727,41 @@ class EccBase(Device, PositionerBase):
         else:
             return status
 
-    def __repr__(self):
+    def st(self, *args, **kwargs):
         """
-        Returns the status of the motor. Alias for status().
+        Returns the status of the device. Alias for status().
+        
+        Parameters
+        ----------
+        status : str, optional
+            The string to append the status to.
+            
+        offset : int, optional
+            Amount to offset each line of the status.
+
+        print_status : bool, optional
+            Determines whether the string is printed or returned.
+
+        newline : bool, optional
+            Adds a new line to the end of the string.
 
         Returns
         -------
         status : str
             Status string.
         """
-        return self.status(print_status=False)
+        return self.status(*args, **kwargs) 
+
+    # def __repr__(self):
+    #     """
+    #     Returns the status of the motor. Alias for status().
+
+    #     Returns
+    #     -------
+    #     status : str
+    #         Status string.
+    #     """
+    #     return self.status(print_status=False)
 
 
 class TranslationEcc(EccBase):

@@ -27,7 +27,7 @@ from pcdsdevices.device import Device
 ##########
 from .utils import as_list, flatten
 from .bragg import bragg_angle, cosd, sind
-from .exceptions import MotorDisabled, MotorFaulted, BadN2Pressure
+from .exceptions import MotorDisabled, MotorFaulted, MotorStopped, BadN2Pressure
 
 logger = logging.getLogger(__name__)
 
@@ -429,6 +429,9 @@ class MacroBase(Device):
         MotorFaulted
             Error raised if the motor is disabled and the move is requested.
 
+        MotorStopped
+            Error raised If the motor is stopped and a move is requested.
+
         BadN2Pressure
             Error raised if the pressure in the tower is bad.
 
@@ -444,14 +447,17 @@ class MacroBase(Device):
         except LimitError:
             logger.warning("Requested move is outside the soft limits")
         except MotorDisabled:
-            logger.warning("Cannot move - motor is currently disabled. Try "
-                           "running 'motor.enable()'.")
+            logger.warning("Cannot move '{0}' - a motor is currently disabled. "
+                           "Try running 'motor.enable()'.".format(self.desc))
         except MotorFaulted:
-            logger.warning("Cannot move - motor is currently faulted. Try "
-                           "running 'motor.clear()'.")
+            logger.warning("Cannot move '{0}' - a motor is currently faulted. "
+                           "Try running 'motor.clear()'.".format(self.desc))
+        except MotorStopped:
+            logger.warning("Cannot move '{0}' - a motor is currently stopped. "
+                           "Try running 'motor.state='Go''.".format(self.desc))
         except BadN2Pressure:
-            logger.warning("Cannot move - pressure in tower {0} is bad.".format(
-                self._tower))        
+            logger.warning("Cannot move '{0}' - pressure in tower {0} is bad."
+                           "".format(self._tower))
 
     def mv(self, position, wait=True, verify_move=True, ret_status=False, 
            use_diag=True):
@@ -845,7 +851,7 @@ class DelayMacro(DelayTowerMacro):
 
         # Add the diagnostic move
         if use_diag:
-            position_dd = self._get_delay_diagnostic_position(delay)
+            position_dd = self._get_delay_diagnostic_position(delay=delay)
             string += "\n{:<15}|{:^15.4f}|{:^15.4f}".format(
                 self.parent.dd.x.desc, self.parent.dd.x.position, position_dd)
 
@@ -878,6 +884,9 @@ class DelayMacro(DelayTowerMacro):
 
         MotorFaulted
             Error raised if the motor is disabled and the move is requested.
+
+        MotorStopped
+            Error raised If the motor is stopped and a move is requested.
 
         BadN2Pressure
             Error raised if the pressure in the tower is bad.
@@ -1124,6 +1133,9 @@ class Energy1Macro(DelayTowerMacro):
         MotorFaulted
             Error raised if the motor is disabled and the move is requested.
 
+        MotorStopped
+            Error raised If the motor is stopped and a move is requested.
+
         BadN2Pressure
             Error raised if the pressure in the tower is bad.
 
@@ -1326,6 +1338,9 @@ class Energy1CCMacro(Energy1Macro):
         MotorFaulted
             Error raised if the motor is disabled and the move is requested.
 
+        MotorStopped
+            Error raised If the motor is stopped and a move is requested.
+
         BadN2Pressure
             Error raised if the pressure in the tower is bad.
 
@@ -1336,13 +1351,7 @@ class Energy1CCMacro(Energy1Macro):
         """
         # Check each of the delay towers
         for tower in self._delay_towers:
-            try:
-                tower.tth.check_status(2*bragg_angle(E1))
-            except Exception as e:
-                err = "Motor {0} got an exception: {1}".format(
-                    tower.tth.name, e)
-                logger.error(err)
-                raise e
+            tower.tth.check_status(2*bragg_angle(E1))
 
         # Check the delay diagnostic position
         if use_diag:
@@ -1557,6 +1566,9 @@ class Energy2Macro(MacroBase):
 
         MotorFaulted
             Error raised if the motor is disabled and the move is requested.
+
+        MotorStopped
+            Error raised If the motor is stopped and a move is requested.
 
         BadN2Pressure
             Error raised if the pressure in the tower is bad.
