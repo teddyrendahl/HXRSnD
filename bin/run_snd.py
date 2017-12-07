@@ -24,11 +24,11 @@ from pcdsdevices.daq import make_daq_run_engine
 ##########
 # Module #
 ##########
-from hxrsnd.plans import linear_scan
 from hxrsnd.sndmotor import SamMotor
 from hxrsnd.sequencer import SeqBase
 from hxrsnd.utils import setup_logging
 from hxrsnd.sndsystem import SplitAndDelay
+from hxrsnd.plans.scans import linear_scan
 
 # Ignore python warnings
 warnings.filterwarnings('ignore')

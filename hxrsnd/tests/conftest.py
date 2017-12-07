@@ -1,13 +1,14 @@
 ############
 # Standard #
 ############
-import asyncio
 import sys
 import time
+import math
 import copy
 import random
 import logging
 import inspect
+import asyncio
 import threading
 from functools import wraps
 
@@ -15,16 +16,20 @@ from functools import wraps
 # Third Party #
 ###############
 import pytest
-from bluesky.run_engine import RunEngine
-from bluesky.tests.conftest import RE
 import epics
 import numpy as np
 import epics
+from ophyd.sim import SynSignal, SynAxis
+from bluesky.run_engine import RunEngine
+from bluesky.tests.conftest import RE
+from lmfit.models import LorentzianModel
 
 ########
 # SLAC #
 ########
 from pcdsdevices.sim.pv import  using_fake_epics_pv
+from pcdsdevices.device import Device
+from pcdsdevices.component import Component
 
 ##########
 # Module #
@@ -51,6 +56,110 @@ def pytest_addoption(parser):
     parser.addoption("--logfile", action="store", default=None,
                      help="Write the log output to specified file path")
 
+class Diode(SynSignal):
+    """
+    Simulated Diode
+
+    Evaluate a point on a Lorentz function based on the value of a motor
+
+    By default, the amplitude and sigma values will create a max signal of 1.0,
+    representing a normalized diode signal
+
+    Parameters
+    ----------
+    name : str
+
+    motor : obj
+
+    motor_field : str
+        Name of field to use as independent variable
+
+    center : float
+        Center position of Lorentz
+
+    sigma : float, optional
+        Width of distribution
+
+    amplitude : float, optional
+        Height of distribution
+
+    noise_multiplier : float, optional
+        Multipler for uniform noise of the diode. If left as None, no noise will
+        be applied
+    """
+    def __init__(self, name, motor, motor_field, center,
+                 sigma=1, amplitude=math.pi,
+                 noise_multiplier=None, **kwargs):
+        # Eliminate noise if not requested
+        noise = noise_multiplier or 0.
+        lorentz = LorentzianModel()
+
+        def func():
+            # Evaluate position in distribution
+            m = motor.read()[motor_field]['value']
+            v = lorentz.eval(x=np.array(m), amplitude=amplitude, sigma=sigma,
+                             center=center)
+            # Add uniform noise
+            v += np.random.uniform(-1, 1) * noise
+            return v
+
+        # Instantiate Reader
+        super().__init__(name=name, func=func, **kwargs)
+
+
+class SynCentroid(SynSignal):
+    """
+    Synthetic centroid signal.
+    """
+    def __init__(self, motors, weights, motor_field=None, noise_multiplier=None, 
+                 name=None, *args, **kwargs):
+        # Eliminate noise if not requested
+        noise = noise_multiplier or 0.
+        
+        
+        def func():
+            # Evaluate the positions of each motor
+            pos = [m.read()[motor_field or m.name]['value'] for m in motors]
+            # Get the centroid position
+            cent = np.dot(pos, weights)
+            # Add uniform noise
+            cent += int(np.round(np.random.uniform(-1, 1) * noise))
+            return cent
+        
+        # Instantiate the synsignal
+        super().__init__(name=name, func=func, **kwargs)
+            
+
+class SynCamera(Device):
+    """
+    Simulated camera that has centroids as components. 
+    """
+    def __init__(self, motor1, motor2, delay, name=None, *args, **kwargs):
+        # Create the base class
+        super().__init__("SYN:CAMERA", name=name, *args, **kwargs)
+        
+        # Define the centroid components using the inputted motors
+        self.centroid_x = SynCentroid(name="_".join([self.name, "centroid_x"]), 
+                                      motors=[motor1, delay], weights=[1,.25])
+        self.centroid_y = SynCentroid(name="_".join([self.name, "centroid_y"]), 
+                                      motors=[motor2, delay], weights=[1,-.25])
+        
+        # Add them to _signals
+        self._signals['centroid_x'] = self.centroid_x
+        self._signals['centroid_y'] = self.centroid_y
+
+        # Add them to the read_attrs
+        self.read_attrs = ["centroid_x", "centroid_y"]
+
+    def trigger(self):
+        return self.centroid_x.trigger() & self.centroid_y.trigger()
+    
+# Simulated Crystal motor that goes where you tell it
+crystal = SynAxis(name='angle')
+m1 = SynAxis(name="m1")
+m2 = SynAxis(name="m2")
+delay = SynAxis(name="delay")
+
 #Create a fixture to automatically instantiate logging setup
 @pytest.fixture(scope='session', autouse=True)
 def set_level(pytestconfig):
@@ -68,7 +177,6 @@ def set_level(pytestconfig):
 @pytest.fixture(scope='function')
 def fresh_RE(request):
     return RE(request)
-
 
 def get_classes_in_module(module, subcls=None, blacklist=None):
     classes = []
