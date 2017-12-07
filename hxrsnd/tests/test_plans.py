@@ -8,6 +8,7 @@ import logging
 # Third Party #
 ###############
 import numpy as np
+import pytest
 from lmfit.models           import LorentzianModel
 from bluesky.preprocessors  import run_wrapper
 from ophyd.sim              import SynSignal, SynAxis
@@ -178,11 +179,13 @@ def test_euclidean_distance(fresh_RE):
     # And now run it
     fresh_RE(plan)
 
-def test_1_signal_calibration_scan(fresh_RE):
+@pytest.mark.parametrize("inputs", [(['centroid_x'], [m1]),
+                                    (['centroid_x', 'centroid_y'], [m1,m2])])
+def test_calibration_scan(fresh_RE, inputs):
     camera = SynCamera(m1, m2, delay, name="camera")
     def test_plan():
-        df = yield from calibration_scan(camera, ['centroid_x'], 
-                                         delay, [m1], -5, 5, 11,)    
+        df = yield from calibration_scan(camera, inputs[0], delay, inputs[1], 
+                                         -5, 5, 11,)
     # Wrap the plan
     plan = run_wrapper(test_plan())
     # And now run it
@@ -195,7 +198,6 @@ def test_centroid_scan(fresh_RE):
     def test_plan():
         delay_scan = (yield from centroid_scan(camera, delay, -5, 5, 11))
         assert True not in delay_scan.isnull().values
-
     plan = run_wrapper(test_plan())
     # Run the plan
     fresh_RE(plan)

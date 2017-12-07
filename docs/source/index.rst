@@ -33,6 +33,7 @@
 
    plans.rst
    scans.rst
+   misc_plans.rst
 
    
 .. toctree::

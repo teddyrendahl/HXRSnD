@@ -266,6 +266,8 @@ def rocking_curve(detector, motor, read_field, coarse_step, fine_step,
 def linear_scan(motor, start, stop, num, use_diag=True, return_to_start=True, 
                 md=None, *args, **kwargs):
     """
+    Linear scan of a motor without a detector.
+    
     Performs a linear scan using the inputted motor, optionally using the
     diagnostics, and optionally moving the motor back to the original start
     position. This scan is different from the regular scan because it does not
@@ -339,13 +341,35 @@ def linear_scan(motor, start, stop, num, use_diag=True, return_to_start=True,
 def euclidean_distance(device, device_fields, targets, average=None,
                        filters=None):
     """
-    Calculates the euclidean distance between the centroids in the detector and
-    the inputted centroids
+    Calculates the euclidean distance between the device_fields and targets.
+
+    Parameters
+    ----------
+    device : :class:`.Device`
+        Device from which to take the value measurements
+
+    device_fields : iterable
+        Fields of the device to measure
+
+    targets : iterable
+        Target value to calculate the distance from
+
+    average : int, optional
+        Number of averages to take for each measurement
+    
+    Returns
+    -------
+    distance : float
+        The euclidean distance between the device fields and the targets.
     """
     average = average or 1
     # Turn things into lists
     device_fields = as_list(device_fields)
-    targets = as_list(targets)
+    targets = as_list(targets, len(device_fields))
+
+    # Get the full detector fields
+    prep_dev_fields = [field_prepend(fld, device) for fld in device_fields]
+
     # Make sure the number of device fields and targets is the same
     if len(device_fields) != len(targets): 
         raise ValueError("Number of device fields and targets must be the same."
@@ -355,19 +379,79 @@ def euclidean_distance(device, device_fields, targets, average=None,
     read = (yield from measure_average([device], num=average, filters=filters))
     # Get the squared differences between the centroids
     squared_differences = [(read[fld]-target)**2 for fld, target in zip(
-        device_fields, targets)]
+        prep_dev_fields, targets)]
     # Combine into euclidean distance
     distance = math.sqrt(sum(squared_differences))
     return distance
-
+ 
 def calibration_scan(detector, detector_fields, motor, calib_motors, start, 
                      stop, steps, first_step=0.1, average=None, filters=None,
                      tolerance=.01, delay=None, max_steps=None, 
                      drop_missing=True, gradients=None, *args, **kwargs):
     """
-    Performs a scan using the inputted motor, and returns a dataframe containing
-    the positions of the calib_motors required to keep the detector_fields 
-    fixed. 
+    Performs a scan using the motor while holding the initial detector values
+    steady using the calib_motors.
+
+    At every step of the scan, the values of the detector fields and the 
+    positions of the motor and calibration motors are saved before and after
+    the correction. The results are all returned in a pandas DataFrame where the
+    indices are the target motor positions.
+
+    Notes
+    -----
+    Each detector field will be corrected using the corresponding calibration
+    motor by index. This means the calibration scan requires the same number of
+    detector fields as calibration motors.
+
+    Parameters
+    ----------
+    detector : :class:`.BeamDetector`
+        Detector from which to take the value measurements
+
+    detector_fields : iterable
+        Fields of the detector to measure
+
+    motor : :class:`.Motor`
+        Main motor to perform the scan
+
+    calib_motors : iterable, :class:`.Motor`
+        Motor to calibrate each detector field with
+
+    start : float
+        Starting position of motor
+
+    stop : float
+        Ending position of motor
+
+    steps : int
+        Number of steps to take
+    
+    first_step : float, optional
+        First step to take on each calibration motor when performing the 
+        correction
+
+    average : int, optional
+        Number of averages to take for each measurement
+
+    delay : float, optional
+        Time to wait inbetween reads    
+
+    tolerance : float, optional
+        Tolerance to use when applying the correction to detector field
+
+    max_steps : int, optional
+        Limit the number of steps the correction will take before exiting
+    
+    gradient : float, optional
+        Assume an initial gradient for the relationship between detector value
+        and calibration motor position
+
+    Returns
+    -------
+    df : pd.DataFrame
+        DataFrame containing the positions of the detector fields, motor, and
+        calibration motors before and after the correction. The indices are the
+        target motor positions.
     """
     num = len(detector_fields)
     if len(calib_motors) != num:
@@ -381,6 +465,7 @@ def calibration_scan(detector, detector_fields, motor, calib_motors, start,
     tolerance = as_list(tolerance, num)
     gradients = as_list(gradients, num)
     max_steps = as_list(max_steps, num)
+    system = calib_motors + [motor]
 
     # Get the full detector fields
     prep_det_fields = [field_prepend(fld, detector) for fld in detector_fields]
@@ -398,40 +483,42 @@ def calibration_scan(detector, detector_fields, motor, calib_motors, start,
     def per_step(detector, motor, step):
         logger.debug("Beginning step '{0}'".format(step))
         # Move the delay motor to the step
-        # yield from checkpoint()
         yield from abs_set(motor, step, wait=True)
-        
-        # Store the pre-correction detector values and motor positions
-        reads = (yield from measure_average(detector+calib_motors, 
-                                           num=average, filters=filters))
-        # df.loc[step, motor.name+"_pre"] = reads[motor.name]
+
+        # Store the current motor position
+        reads = (yield from measure_average(detector+system, num=average, 
+                                            filters=filters))
+        df.loc[step, motor.name+"_pre"] = reads[motor.name]
         for fld in prep_det_fields:
             df.loc[step, fld+"_pre"] = reads[fld]
         for cmotor in calib_motors:
             df.loc[step, cmotor.name+"_pre"] = reads[cmotor.name]
         
-        # Walk each motor to the first pre-correction detector entry
-        for i, fld in enumerate(prep_det_fields):
+        for i, (fld, cmotor) in enumerate(zip(prep_det_fields, calib_motors)):
+            # Get a list of devices without the cmotor we are inputting
+            inp_system = list(system)
+            inp_system.remove(cmotor)
+            # Walk the cmotor to the first pre-correction detector entry
             yield from walk_to_pixel(detector[0], 
-                                     calib_motors[i], 
+                                     cmotor, 
                                      df.iloc[0][fld+"_pre"],
                                      filters=filters, 
                                      start=None,
                                      gradient=gradients[i],
                                      models=[],
-                                     target_fields=[fld, calib_motors[i].name],
+                                     target_fields=[fld, cmotor.name],
                                      first_step=first_step[i],
                                      tolerance=tolerance[i],
-                                     system=None,
+                                     system=inp_system,
                                      average=average,
                                      delay=delay,
                                      max_steps=max_steps[i],
                                      drop_missing=drop_missing)
             
         # Add the post-correction detector values and motor positions
-        reads = (yield from measure_average(detector+calib_motors, 
-                                           num=average, filters=filters))
-        # df.loc[step, motor.name+"_post"] = reads[motor.name]
+        reads = (yield from measure_average(detector+system, num=average, 
+                                            filters=filters))
+        df.loc[step, motor.name+"_post"] = reads[motor.name]
         for fld in prep_det_fields:
             df.loc[step, fld+"_post"] = reads[fld]
         for cmotor in calib_motors:
@@ -455,13 +542,70 @@ def calibration_scan(detector, detector_fields, motor, calib_motors, start,
 
 
 def centroid_scan(detector, motor, start, stop, steps, average=None, 
-                  detector_fields=['centroid_x', 'centroid_y',], filters=None, 
-                  raw_centroids=False, *args, **kwargs):
+                  detector_fields=['centroid_x', 'centroid_y',], filters=None,
+                  *args, **kwargs):
     """
-    Returns the delays of the centroids at each step of a scan
+    Performs a scan and returns the centroids of the inputted detector.
+
+    The returned centroids can be absolute or relative to the initial value. The
+    values are returned in a pandas DataFrame where the indices are the target
+    motor positions.
+
+    Parameters
+    ----------
+    detector : :class:`.BeamDetector`
+        Detector from which to take the value measurements
+
+    detector_fields : iterable
+        Fields of the detector to measure
+
+    motor : :class:`.Motor`
+        Main motor to perform the scan
+
+    calib_motors : iterable, :class:`.Motor`
+        Motor to calibrate each detector field with
+
+    start : float
+        Starting position of motor
+
+    stop : float
+        Ending position of motor
+
+    steps : int
+        Number of steps to take
+    
+    first_step : float, optional
+        First step to take on each calibration motor when performing the 
+        correction
+
+    average : int, optional
+        Number of averages to take for each measurement
+
+    delay : float, optional
+        Time to wait inbetween reads    
+
+    tolerance : float, optional
+        Tolerance to use when applying the correction to detector field
+
+    max_steps : int, optional
+        Limit the number of steps the correction will take before exiting
+    
+    gradient : float, optional
+        Assume an initial gradient for the relationship between detector value
+        and calibration motor position
+
+    Returns
+    -------
+    df : pd.DataFrame
+        DataFrame containing the centroids of the detector, 
     """
     average = average or 1
-    df = pd.DataFrame(index=range(start, stop, steps), columns=detector_fields)
+    # Get the full detector fields
+    prep_det_fields = [field_prepend(fld, detector) for fld in detector_fields]
+
+    # Build the dataframe with the centroids
+    df = pd.DataFrame(index=range(start, stop, steps), columns= 
+                      prep_det_fields + [motor.name])
 
     # Create a basic measuring plan
     def measure(detectors, motor, step):
@@ -470,18 +614,17 @@ def centroid_scan(detector, motor, start, stop, steps, average=None,
         yield from checkpoint()
         yield from abs_set(motor, step, wait=True)
         # Measure the average
-        read = (yield from measure_average([motor, detector], num=average,
-                                           filters=filters))
+        reads = (yield from measure_average([motor, detector], num=average,
+                                            filters=filters))
         # Fill the dataframe at this step with the centroid difference
-        df.loc[step] = [read[fld] for fld in detector_fields]
+        df.loc[step, motor.name] = reads[motor.name]
+        for fld in prep_det_fields:
+            df.loc[step, fld] = reads[fld]
                 
     # Define the generic scans and run it
     plan = scan([detector], motor, start, stop, steps, per_step=measure)
     yield from msg_mutator(plan, block_run_control)
 
-    # Remove the initial centroid position to see amount beam moved
-    if not raw_centroids:
-        df -= df.loc[start]
     # Return the filled dataframe
     return df
     
