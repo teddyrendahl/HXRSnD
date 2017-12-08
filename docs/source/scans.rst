@@ -2,8 +2,6 @@
 General Scans
 =============
 
-.. autofunction:: hxrsnd.plans.linear_scan
+.. autofunction:: hxrsnd.plans.scans.linear_scan
 
-.. autofunction:: hxrsnd.plans.calibration_scan
-                  
-.. autofunction:: hxrsnd.plans.centroid_scan
+.. autofunction:: hxrsnd.plans.scans.centroid_scan

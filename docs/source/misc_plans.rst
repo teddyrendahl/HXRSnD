@@ -2,5 +2,5 @@
 Miscellaneous
 =============
 
-.. autofunction:: hxrsnd.plans.euclidean_distance
+.. autofunction:: hxrsnd.plans.plan_stubs.euclidean_distance
 

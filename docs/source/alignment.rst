@@ -39,6 +39,6 @@ parameter would look like:
 
 Documentation
 -------------
-.. autofunction:: hxrsnd.rocking_curve
+.. autofunction:: hxrsnd.plans.alignment.rocking_curve
 
-.. autofunction:: hxrsnd.maximize_lorentz
+.. autofunction:: hxrsnd.plans.alignment.maximize_lorentz
