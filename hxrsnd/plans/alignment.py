@@ -1,5 +1,5 @@
 """
-Hold all of the Bluesky plans for HXRSnD operations
+Alignment plans for the HXRSnD
 """
 ############
 # Standard #

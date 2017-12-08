@@ -1,5 +1,5 @@
 """
-Hold all of the Bluesky plans for HXRSnD operations
+Scans for HXRSnD
 """
 ############
 # Standard #
