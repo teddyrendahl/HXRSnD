@@ -33,6 +33,7 @@ def test_calibration_scan(fresh_RE, inputs):
     def test_plan():
         df = yield from calibration_scan(camera, inputs[0], delay, inputs[1], 
                                          -5, 5, 11,)
+        assert True not in df.isnull().values
     # Wrap the plan
     plan = run_wrapper(test_plan())
     # And now run it
@@ -46,6 +47,8 @@ def test_motor_calibration(fresh_RE, inputs):
         df_calib, df_scan = yield from motor_calibration(camera, inputs[0], 
                                                          delay, inputs[1], -5, 
                                                          5, 11,)
+        assert True not in df_scan.isnull().values
+        assert True not in df_calib.isnull().values
     # Wrap the plan
     plan = run_wrapper(test_plan())
     # And now run it
