@@ -104,19 +104,19 @@ class SplitAndDelay(Device):
     ab = Component(SndPneumatics, "")
 
     # SnD and Delay line diagnostics
-    di = Component(HamamatsuXMotionDiode, ":DIA:DI", block_pos=-5, 
+    di = Component(HamamatsuXMotionDiode, ":DIA:DI", 
                    desc="DI")
-    dd = Component(HamamatsuXYMotionCamDiode, ":DIA:DD", block_pos=-5, 
+    dd = Component(HamamatsuXYMotionCamDiode, ":DIA:DD",
                    desc="DD")
-    do = Component(HamamatsuXMotionDiode, ":DIA:DO", block_pos=-5,
+    do = Component(HamamatsuXMotionDiode, ":DIA:DO",
                    desc="DO")
 
     # Channel Cut Diagnostics
-    dci = Component(HamamatsuXMotionDiode, ":DIA:DCI",
+    dci = Component(HamamatsuXMotionDiode, ":DIA:DCI", block_pos=-5,
                     desc="DCI")
-    dcc = Component(HamamatsuXYMotionCamDiode, ":DIA:DCC",
+    dcc = Component(HamamatsuXYMotionCamDiode, ":DIA:DCC", block_pos=-5,
                     desc="DCC")
-    dco = Component(HamamatsuXMotionDiode, ":DIA:DCO",
+    dco = Component(HamamatsuXMotionDiode, ":DIA:DCO",  block_pos=-5,
                     desc="DCO")
 
     # Macro motors
