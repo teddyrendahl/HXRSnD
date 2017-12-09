@@ -104,14 +104,20 @@ class SplitAndDelay(Device):
     ab = Component(SndPneumatics, "")
 
     # SnD and Delay line diagnostics
-    di = Component(HamamatsuXMotionDiode, ":DIA:DI")
-    dd = Component(HamamatsuXYMotionCamDiode, ":DIA:DD")
-    do = Component(HamamatsuXMotionDiode, ":DIA:DO")
+    di = Component(HamamatsuXMotionDiode, ":DIA:DI", block_pos=-5, 
+                   desc="DI")
+    dd = Component(HamamatsuXYMotionCamDiode, ":DIA:DD", block_pos=-5, 
+                   desc="DD")
+    do = Component(HamamatsuXMotionDiode, ":DIA:DO", block_pos=-5,
+                   desc="DO")
 
     # Channel Cut Diagnostics
-    dci = Component(HamamatsuXMotionDiode, ":DIA:DCI")
-    dcc = Component(HamamatsuXYMotionCamDiode, ":DIA:DCC")
-    dco = Component(HamamatsuXMotionDiode, ":DIA:DCO")
+    dci = Component(HamamatsuXMotionDiode, ":DIA:DCI",
+                    desc="DCI")
+    dcc = Component(HamamatsuXYMotionCamDiode, ":DIA:DCC",
+                    desc="DCC")
+    dco = Component(HamamatsuXMotionDiode, ":DIA:DCO",
+                    desc="DCO")
 
     # Macro motors
     E1 = Component(Energy1Macro, "", desc="Delay Energy")
@@ -136,6 +142,24 @@ class SplitAndDelay(Device):
 
         # Get the LCLS RunEngine
         self.RE = make_daq_run_engine(self.daq)
+
+        # Set the position calculators of dd and dcc
+        self.dd.pos_func = lambda : \
+          self.E1._get_delay_diagnostic_position()
+        self.dcc.pos_func = lambda : \
+          self.E2._get_channelcut_diagnostic_position()
+          
+    def diag_status(self):
+        """
+        Prints a string containing the blocking status and the position of the
+        motor.
+        """
+        status = "\n{0}{1:<14}|{2:^16}|{3:^16}\n{4}{5}".format(
+            " "*2, "Diagnostic", "Blocking", "Position", " "*2, "-"*50)
+        for diag in self._diagnostics:
+            status += "\n{0}{1:<14}|{2:^16}|{3:^16.3f}".format(
+                " "*2, diag.desc, str(diag.blocked), diag.x.position)
+        logger.info(status)
 
     @property
     def theta1(self):

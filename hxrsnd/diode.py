@@ -11,6 +11,7 @@ import logging
 ###############
 # Third Party #
 ###############
+import numpy as np
 from ophyd import EpicsSignalRO
 
 ########
@@ -49,16 +50,102 @@ class HamamatsuXMotionDiode(Device):
     """
     diode = C(HamamatsuDiode, ":DIODE")
     x = C(DiodeAero, ":X")
-    def __init__(self, prefix, name=None, *args, **kwargs):
+    def __init__(self, prefix, name=None, block_pos=5, unblock_pos=0, *args, 
+                 block_atol=0.001, desc=None, **kwargs):
         super().__init__(prefix, name=name, *args, **kwargs)
+        self.block_pos = block_pos
+        self.unblock_pos = unblock_pos
+        self.block_atol = block_atol
+        self.desc = desc or self.name
+
+    @property
+    def blocked(self):
+        """
+        Returns if the diode is in the blocked position.
+        """
+        if np.isclose(self.x.position, self.block_pos, atol=self.block_atol):
+            return True
+        elif np.isclose(self.x.position, self.unblock_pos, 
+                        atol=self.block_atol):
+            return False
+        else:
+            return "Unknown"            
+        
+    def block(self):
+        """
+        Moves the diode into the blocking position.
+        """
+        return self.x.mv(self.block_pos)
+
+    def unblock(self):
+        """
+        Moves the diode into the nonblocking position.
+        """
+        return self.x.mv(self.unblock_pos)
 
 
-class HamamatsuXYMotionCamDiode(HamamatsuXMotionDiode):
+class HamamatsuXYMotionCamDiode(Device):
     """
     Class for the Hamamatsu diode but with X and Y motors
     """
+    diode = C(HamamatsuDiode, ":DIODE")
+    x = C(DiodeAero, ":X")
     y = C(DiodeAero, ":Y")
     cam = C(GigeDetector, ":CAM")
+
+    def __init__(self, prefix, name=None, block_pos=5, pos_func=None, 
+                 block_atol=0.001, desc=None, *args, **kwargs):
+        super().__init__(prefix, name=name, *args, **kwargs)
+        self.block_pos = block_pos
+        self.pos_func = pos_func
+        self.block_atol = block_atol
+        self.desc = desc or self.name
+
+    @property
+    def blocked(self):
+        """
+        Returns if the diode is in the blocked position.
+
+        Returns
+        -------
+        blocked : bool or str
+            True or False if it is close to the blocked or unblocked positions.
+            Returns 'Unknown' if it is far from either of those positions.
+        """
+        if callable(self.pos_func):
+            if np.isclose(self.x.position, self.pos_func()+self.block_pos, 
+                          atol=self.block_atol):
+                return True
+            elif np.isclose(self.x.position, self.pos_func(), 
+                            atol=self.block_atol):
+                return False
+        return "Unknown"
+
+    def block(self):
+        """
+        Moves the diode by the blocking position defined by the position
+        function plus the block position.        
+        """
+        # Move to the blocked position if we aren't already there
+        if self.blocked is True:
+            # We are already in the blocked position
+            logger.info("Motor '{0}' is currently in the blocked position"
+                        "".format(self.x.desc))
+        else:
+            return self.x.mv(self.pos_func() + self.block_pos)
+
+    def unblock(self):
+        """
+        Moves the diode by the nonblocking position defined by the position
+        function
+        """
+        # Move to the blocked position if we aren't already there
+        if self.blocked is False:
+            # We are already in the blocked position
+            logger.info("Motor '{0}' is currently in the unblocked position"
+                        "".format(self.x.desc))
+        else:
+            return self.x.mv(self.pos_func())
 
 
 class DiodeIO(Device):
