@@ -251,10 +251,8 @@ def calibration_scan(detector, detector_fields, motor, calib_motors, start,
     prep_det_fields = [field_prepend(fld, detector) for fld in detector_fields]
  
     # Columns of df contains the pre and post correction motors and detectors
-    columns = \
-      [m.name + pos for m in calib_motors for pos in ("_pre", "_post")] + \
-      [fld + pos for fld in prep_det_fields for pos in ("_pre", "_post")] + \
-      [motor.name + pos for pos in ["_pre", "_post"]]
+    columns = [motor.name] + [fld for fld in prep_det_fields] + \
+      [m.name + pos for m in calib_motors for pos in ("_pre", "_post")]
                 
     # Define the dataframe that will hold all the calibrations
     df = pd.DataFrame(index=range(start, stop, steps), columns=columns)
@@ -264,51 +262,63 @@ def calibration_scan(detector, detector_fields, motor, calib_motors, start,
         logger.debug("Beginning step '{0}'".format(step))
         # Move the delay motor to the step
         yield from abs_set(motor, step, wait=True)
-
         # Store the current motor position
-        reads = (yield from measure_average(detector+system, num=average, 
-                                            filters=filters))
-        df.loc[step, motor.name+"_pre"] = reads[motor.name]
+        reads = (yield from measure_average(
+            detector+system, num=average, filters=filters))
+        df.loc[step, motor.name] = reads[motor.name]
         for fld in prep_det_fields:
-            df.loc[step, fld+"_pre"] = reads[fld]
+            df.loc[step, fld] = reads[fld]
         for cmotor in calib_motors:
-            df.loc[step, cmotor.name+"_pre"] = reads[cmotor.name]
-        
-        for i, (fld, cmotor) in enumerate(zip(prep_det_fields, calib_motors)):
-            # Get a list of devices without the cmotor we are inputting
-            inp_system = list(system)
-            inp_system.remove(cmotor)
-            # Walk the cmotor to the first pre-correction detector entry
-            yield from walk_to_pixel(detector[0], 
-                                     cmotor, 
-                                     df.iloc[0][fld+"_pre"],
-                                     filters=filters, 
-                                     start=None,
-                                     gradient=gradients[i],
-                                     models=[],
-                                     target_fields=[fld, cmotor.name],
-                                     first_step=first_step[i],
-                                     tolerance=tolerance[i],
-                                     system=inp_system,
-                                     average=average,
-                                     delay=delay,
-                                     max_steps=max_steps[i],
-                                     drop_missing=drop_missing)
-            
-        # Add the post-correction detector values and motor positions
-        reads = (yield from measure_average(detector+system, num=average, 
-                                            filters=filters))
-        df.loc[step, motor.name+"_post"] = reads[motor.name]
-        for fld in prep_det_fields:
-            df.loc[step, fld+"_post"] = reads[fld]
-        for cmotor in calib_motors:
-            df.loc[step, cmotor.name+"_post"] = reads[cmotor.name]
+            df.loc[step, cmotor.name+"_pre"] = reads[cmotor.name]        
 
     # Begin the plan
     logger.debug("Beginning calibration scan")
-    # Begin the main scan and then return the dataframe
+    # Begin the main scan
     plan = scan([detector], motor, start, stop, steps, per_step=per_step)
     yield from msg_mutator(plan, block_run_control)
+    
+    # Now let's get the detector value to motor position conversion for each fld
+    for i, (fld, cmotor) in enumerate(zip(prep_det_fields, calib_motors)):
+        # Get a list of devices without the cmotor we are inputting
+        inp_system = list(system)
+        inp_system.remove(cmotor)
+
+        # Store the current motor and detector value and position
+        reads = (yield from measure_average(
+            [detector]+system, num=average, filters=filters))
+        motor_start = reads[cmotor.name]
+        fld_start = reads[fld]
+        # Get the farthest detector value we know we can move to
+        idx_max = abs(df[fld]-fld_start).values.argmax()
+        
+        # Walk the cmotor to the first pre-correction detector entry
+        yield from walk_to_pixel(detector, 
+                                 cmotor, 
+                                 df.iloc[idx_max][fld],
+                                 filters=filters, 
+                                 start=None,
+                                 gradient=gradients[i],
+                                 models=[],
+                                 target_fields=[fld, cmotor.name],
+                                 first_step=first_step[i],
+                                 tolerance=tolerance[i],
+                                 system=inp_system,
+                                 average=average,
+                                 delay=delay,
+                                 max_steps=max_steps[i],
+                                 drop_missing=drop_missing)
+            
+        # Get the positions and values we moved to
+        reads = (yield from measure_average(
+            [detector]+system, num=average, filters=filters))
+        motor_end = reads[cmotor.name]
+        fld_end = reads[fld]
+
+        # Now lets find the conversion from pixels to motor distance
+        distance_per_value = (motor_end-motor_start)/(fld_end-fld_start)
+        # Use the conversion to create an expected correction table
+        df[cmotor.name+"_post"] = (df[fld]-df.loc[0,fld])*distance_per_value
+
     return df
 
 def get_df_calibration(df_calibration_scan, calib_motors, window_length=9, 
