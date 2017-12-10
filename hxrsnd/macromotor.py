@@ -7,6 +7,7 @@ All units of time are in picoseconds, units of length are in mm.
 # Standard #
 ############
 import os
+import time
 import logging
 
 ###############
@@ -21,6 +22,8 @@ from ophyd.status import wait as status_wait
 # SLAC #
 ########
 from pcdsdevices.device import Device
+from pcdsdevices.signal import Signal
+from pcdsdevices.component import Component
 
 ##########
 # Module #
@@ -31,18 +34,32 @@ from .exceptions import MotorDisabled, MotorFaulted, MotorStopped, BadN2Pressure
 
 logger = logging.getLogger(__name__)
 
+class PythonSignal(Signal):
+    """
+    Signal that returns the results of a python function.
+    """
+    def __init__(self, func, *args, **kwargs):
+        self._func = func
+        super().__init__(*args, **kwargs)
+        
+    def get(self):
+        return self._func()
+
 
 class MacroBase(Device):
     """
     Base pseudo-motor class for the SnD macro-motions.
     """
+    readback = Component(PythonSignal, lambda : None)
     # Constants
     c = 0.299792458             # mm/ps
     gap = 55                    # m
 
     def __init__(self, prefix, name=None, desc=None, *args, **kwargs):
         self.desc = desc or name
-        super().__init__(prefix, name=name, *args, **kwargs)
+        read_attrs=["readback"]
+        super().__init__(prefix, name=name, read_attrs=read_attrs, *args, **kwargs)
+        self.readback._func = lambda : self.position
         
         # Make sure this is used
         if self.parent is None:
@@ -229,26 +246,28 @@ class MacroBase(Device):
         """
         # Interpret calib
         if calib is None:
-            save_calib = {}
+            save_calib = {"calib" : {'value': {}, 'timestamp': time.time()}}
         elif isinstance(calib, pd.DataFrame):
-            save_calib = calib
+            save_calib = {"calib" : {'value': calib, 'timestamp': time.time()}}
         elif isinstance(calib, dict):
             try:
-                save_calib = pd.Dataframe(**calib)
+                save_calib = {"calib" : {'value': pd.Dataframe(**calib), 
+                                         'timestamp': time.time()}}
             except Exception:
-                save_calib = calib
+                save_calib = {"calib" : {'value': calib, 
+                                         'timestamp': time.time()}}
         else:
             raise TypeError("Invalid calib type {}".format(type(calib)))
 
         # Check for valid inputs
-        if isinstance(save_calib, pd.DataFrame):
-            names = save_calib.columns
-        elif isinstance(save_calib, dict):
-            for name, func in save_calib.items():
+        if isinstance(save_calib['value'], pd.DataFrame):
+            names = save_calib['value'].columns
+        elif isinstance(save_calib['value'], dict):
+            for name, func in save_calib['value'].items():
                 if not callable(func):
                     err = 'Recieved non-callable for {}'.format(name)
                     raise TypeError(err)
-            names = save_calib.keys()
+            names = save_calib['value'].keys()
         for name in names:
             try:
                 self._get_calib_obj(name)
@@ -261,7 +280,7 @@ class MacroBase(Device):
         """
         Do the calib adjust move
         """
-        calib = self._calib
+        calib = self._calib['value']
         statuses = []
         if isinstance(calib, dict):
             for name, func in calib.items():
@@ -310,16 +329,18 @@ class MacroBase(Device):
         return obj
 
     def read_configuration(self):
-        return dict(calib=self._calib)
+        return self._calib
 
     def describe_configuration(self):
+        if not self._calib:
+            return super().describe_configuration()
         if isinstance(self._calib, dict):
-            shape = [len(self._calib)]
+            shape = [len(self._calib['value'])]
         else:
-            shape = self._calib.shape
-        return dict(calib=dict(source='calibrate',
-                               dtype='array',
-                               shape=shape))
+            shape = self._calib['value'].shape
+        return {**dict(calib=dict(source='calibrate', dtype='array', 
+                                  shape=shape)), 
+                **super().describe_configuration()}
 
     def move(self, position, wait=True, verify_move=True, ret_status=True, 
              use_diag=True, use_calib=True):
