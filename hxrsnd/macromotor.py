@@ -612,7 +612,7 @@ class MacroBase(Device):
         """
         logger.info(string)
         try:
-            response = input("\nConfirm Move [y]: ")
+            response = input("\nConfirm Move [y/n]: ")
         except Exception as e:
             logger.info("Exception raised: {0}".format(e))
             response = "n"
