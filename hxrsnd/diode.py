@@ -3,26 +3,12 @@
 """
 Diodes
 """
-############
-# Standard #
-############
-import logging
 
-###############
-# Third Party #
-###############
+import logging
 import numpy as np
 from ophyd import EpicsSignalRO
-
-########
-# SLAC #
-########
 from pcdsdevices.device import Device
 from pcdsdevices.component import Component as C, FormattedComponent as FC
-
-##########
-# Module #
-##########
 from .aerotech import DiodeAero
 from .detectors import GigeDetector
 
@@ -71,17 +57,55 @@ class HamamatsuXMotionDiode(Device):
         else:
             return "Unknown"            
         
-    def block(self):
+    def block(self, *args, **kwargs):
         """
         Moves the diode into the blocking position.
-        """
-        return self.x.mv(self.block_pos)
 
-    def unblock(self):
+        Parameters
+        ----------
+        wait : bool, optional
+            Wait for the motor to complete the motion.
+
+        check_status : bool, optional
+            Check if the motors are in a valid state to move.
+
+        ret_status : bool, optional
+            Return the status object of the move.
+
+        print_move : bool, optional
+            Print a short statement about the move.
+
+        Returns
+        -------
+        status : MoveStatus        
+            Status object for the move.
+        """
+        return self.x.mv(self.block_pos, *args, **kwargs)
+
+    def unblock(self, *args, **kwargs):
         """
         Moves the diode into the nonblocking position.
+
+        Parameters
+        ----------
+        wait : bool, optional
+            Wait for the motor to complete the motion.
+
+        check_status : bool, optional
+            Check if the motors are in a valid state to move.
+
+        ret_status : bool, optional
+            Return the status object of the move.
+
+        print_move : bool, optional
+            Print a short statement about the move.
+
+        Returns
+        -------
+        status : MoveStatus        
+            Status object for the move.
         """
-        return self.x.mv(self.unblock_pos)
+        return self.x.mv(self.unblock_pos, *args, **kwargs)
 
 
 class HamamatsuXYMotionCamDiode(Device):
@@ -121,10 +145,29 @@ class HamamatsuXYMotionCamDiode(Device):
                 return False
         return "Unknown"
 
-    def block(self):
+    def block(self, *args, **kwargs):
         """
         Moves the diode by the blocking position defined by the position
         function plus the block position.        
+
+        Parameters
+        ----------
+        wait : bool, optional
+            Wait for the motor to complete the motion.
+
+        check_status : bool, optional
+            Check if the motors are in a valid state to move.
+
+        ret_status : bool, optional
+            Return the status object of the move.
+
+        print_move : bool, optional
+            Print a short statement about the move.
+
+        Returns
+        -------
+        status : MoveStatus        
+            Status object for the move.
         """
         # Move to the blocked position if we aren't already there
         if self.blocked is True:
@@ -132,12 +175,31 @@ class HamamatsuXYMotionCamDiode(Device):
             logger.info("Motor '{0}' is currently in the blocked position"
                         "".format(self.x.desc))
         else:
-            return self.x.mv(self.pos_func() + self.block_pos)
+            return self.x.mv(self.pos_func() + self.block_pos, *args, **kwargs)
 
-    def unblock(self):
+    def unblock(self, *args, **kwargs):
         """
         Moves the diode by the nonblocking position defined by the position
         function
+
+        Parameters
+        ----------
+        wait : bool, optional
+            Wait for the motor to complete the motion.
+
+        check_status : bool, optional
+            Check if the motors are in a valid state to move.
+
+        ret_status : bool, optional
+            Return the status object of the move.
+
+        print_move : bool, optional
+            Print a short statement about the move.
+
+        Returns
+        -------
+        status : MoveStatus        
+            Status object for the move.
         """
         # Move to the blocked position if we aren't already there
         if self.blocked is False:
@@ -145,7 +207,7 @@ class HamamatsuXYMotionCamDiode(Device):
             logger.info("Motor '{0}' is currently in the unblocked position"
                         "".format(self.x.desc))
         else:
-            return self.x.mv(self.pos_func())
+            return self.x.mv(self.pos_func(), *args, **kwargs)
 
 
 class DiodeIO(Device):
