@@ -3,40 +3,27 @@ Script to hold the energy macromotors
 
 All units of time are in picoseconds, units of length are in mm.
 """
-############
-# Standard #
-############
+
 import os
 import time
 import logging
-
-###############
-# Third Party #
-###############
 import numpy as np
 import pandas as pd
 from ophyd.utils import LimitError
 from ophyd.status import wait as status_wait
-
-########
-# SLAC #
-########
 from pcdsdevices.device import Device
 from pcdsdevices.signal import Signal
 from pcdsdevices.component import Component
-
-##########
-# Module #
-##########
 from .utils import as_list, flatten
 from .bragg import bragg_angle, cosd, sind
 from .exceptions import MotorDisabled, MotorFaulted, MotorStopped, BadN2Pressure
 
 logger = logging.getLogger(__name__)
 
+
 class PythonSignal(Signal):
     """
-    Signal that returns the results of a python function.
+    Signal that returns the results of a python function from the get method.
     """
     def __init__(self, func, *args, **kwargs):
         self._func = func
@@ -57,8 +44,7 @@ class MacroBase(Device):
 
     def __init__(self, prefix, name=None, desc=None, *args, **kwargs):
         self.desc = desc or name
-        read_attrs=["readback"]
-        super().__init__(prefix, name=name, read_attrs=read_attrs, *args, **kwargs)
+        super().__init__(prefix, name=name, *args, **kwargs)
         self.readback._func = lambda : self.position
         
         # Make sure this is used
