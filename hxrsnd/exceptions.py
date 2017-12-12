@@ -3,18 +3,24 @@
 """
 Exceptions for the SnD system.
 """
-############
-# Standard #
-############
+
 import logging
 
 logger = logging.getLogger(__name__)
 
 # Exceptions
 
+
 class SndException(Exception):
     """
     Base aerotech motor exceptions.
+    """
+    pass
+
+
+class UndefinedBounds(Exception):
+    """
+    Exception when bounds of plan are not defined
     """
     pass
 

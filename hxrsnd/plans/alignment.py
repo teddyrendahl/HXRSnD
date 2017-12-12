@@ -1,33 +1,19 @@
 """
 Alignment plans for the HXRSnD
 """
-############
-# Standard #
-############
+
 import logging
-
-###############
-# Third Party #
-###############
 import numpy as np
-from lmfit.models               import LorentzianModel
-from bluesky                    import Msg
-from bluesky.plans              import scan, list_scan
-from bluesky.utils              import short_uid as _short_uid
-from bluesky.plan_stubs         import abs_set, checkpoint, trigger_and_read
-from bluesky.preprocessors      import msg_mutator, subs_decorator
-
-########
-# SLAC #
-########
-from pswalker.plans             import measure_average
-from pswalker.callbacks         import LiveBuild
-
-##########
-# Module #
-##########
+from lmfit.models import LorentzianModel
+from bluesky import Msg
+from bluesky.plans import scan, list_scan
+from bluesky.utils import short_uid as _short_uid
+from bluesky.plan_stubs import abs_set, checkpoint, trigger_and_read
+from bluesky.preprocessors import msg_mutator, subs_decorator
+from pswalker.plans import measure_average
+from pswalker.callbacks import LiveBuild
 from .plan_stubs import block_run_control
-from ..errors import UndefinedBounds
+from ..exceptions import UndefinedBounds
 
 logger = logging.getLogger(__name__)
 
