@@ -87,12 +87,12 @@ class SplitAndDelay(Device):
         Delay pseudomotor.
     """
     # Delay Towers
-    t1 = Component(DelayTower, ":T1", y1="A:ACT0", y2="A:ACT1",
-                   chi1="A:ACT2", chi2="B:ACT0", dh="B:ACT1",
-                   pos_inserted=21.1, pos_removed=0, desc="Tower 1")
-    t4 = Component(DelayTower, ":T4", y1="C:ACT0", y2="C:ACT1",
-                   chi1="C:ACT2", chi2="D:ACT0", dh="D:ACT1",
-                   pos_inserted=21.1, pos_removed=0, desc="Tower 4")
+    t1 = Component(DelayTower, ":T1", y1="A:M0", y2="A:M1", chi1="A:M2", 
+                   chi2="B:M0", dh="B:M1", pos_inserted=21.1, pos_removed=0, 
+                   desc="Tower 1")
+    t4 = Component(DelayTower, ":T4", y1="C:M0", y2="C:M1", chi1="C:M2", 
+                   chi2="D:M0", dh="D:M1", pos_inserted=21.1, pos_removed=0, 
+                   desc="Tower 4")
 
     # Channel Cut Towers
     t2 = Component(ChannelCutTower, ":T2", pos_inserted=None, 
