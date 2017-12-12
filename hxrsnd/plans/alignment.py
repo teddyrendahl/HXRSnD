@@ -1,10 +1,9 @@
 """
-Hold all of the Bluesky plans for HXRSnD operations
+Alignment plans for the HXRSnD
 """
 ############
 # Standard #
 ############
-import time
 import logging
 
 ###############
@@ -12,32 +11,25 @@ import logging
 ###############
 import numpy as np
 from lmfit.models               import LorentzianModel
-from pswalker.callbacks         import LiveBuild
-from pswalker.plans             import measure_average
 from bluesky                    import Msg
-from bluesky.preprocessors      import msg_mutator, subs_decorator
-from bluesky.preprocessors      import stage_decorator, run_decorator
-from bluesky.plan_stubs         import abs_set, checkpoint, trigger_and_read
 from bluesky.plans              import scan, list_scan
 from bluesky.utils              import short_uid as _short_uid
+from bluesky.plan_stubs         import abs_set, checkpoint, trigger_and_read
+from bluesky.preprocessors      import msg_mutator, subs_decorator
+
+########
+# SLAC #
+########
+from pswalker.plans             import measure_average
+from pswalker.callbacks         import LiveBuild
 
 ##########
 # Module #
 ##########
-from .errors import UndefinedBounds
+from .plan_stubs import block_run_control
+from ..errors import UndefinedBounds
 
 logger = logging.getLogger(__name__)
-
-#Used to strip `run_wrapper` off of plan
-#Should probably be added as bluesky PR
-def block_run_control(msg):
-    """
-    Block open and close run messages
-    """
-    if msg.command in ['open_run', 'close_run']:
-        return None
-
-    return msg
 
 
 def maximize_lorentz(detector, motor, read_field, step_size=1,
@@ -88,7 +80,7 @@ def maximize_lorentz(detector, motor, read_field, step_size=1,
         `amplitude`
     """
     average = average or 1
-    #Define bounds
+    # Define bounds
     if not bounds:
         try:
             bounds = motor.limits
@@ -98,50 +90,50 @@ def maximize_lorentz(detector, motor, read_field, step_size=1,
         except AttributeError as exc:
             raise UndefinedBounds("Bounds are not defined by motor {} or "
                                   "plan".format(motor.name)) from exc
-    #Calculate steps
+    # Calculate steps
     steps = np.arange(bounds[0], bounds[1], step_size)
-    #Include the last step even if this is smaller than the step_size
+    # Include the last step even if this is smaller than the step_size
     steps = np.append(steps, bounds[1])
-    #Create Lorentz fit and live model build
+    # Create Lorentz fit and live model build
     fit    = LorentzianModel(missing='drop')
     i_vars = {'x' : position_field}
     model  = LiveBuild(fit, read_field, i_vars, filters=filters,
                        average=average, init_guess=initial_guess)#,
-                       #update_every=len(steps)) #Set to fit only on last step
+                       # update_every=len(steps)) # Set to fit only on last step
 
-    #Create per_step plan
+    # Create per_step plan
     def measure(detectors, motor, step):
-        #Perform step
+        # Perform step
         logger.debug("Measuring average at step %s ...", step)
         yield from checkpoint()
         yield from abs_set(motor, step, wait=True)
-        #Measure the average
+        # Measure the average
         return (yield from measure_average([motor, detector],
                                            num=average,
                                            filters=filters))
-    #Create linear scan
+    # Create linear scan
     plan = list_scan([detector], motor, steps, per_step=measure)
 
     @subs_decorator(model)
     def inner():
-        #Run plan (stripping open/close run messages)
+        # Run plan (stripping open/close run messages)
         yield from msg_mutator(plan, block_run_control)
 
-        #Yield result of Lorentz model
+        # Yield result of Lorentz model
         logger.debug(model.result.fit_report())
         max_position = model.result.values['center']
 
-        #Check that the estimated position is reasonable
+        # Check that the estimated position is reasonable
         if not bounds[0] < max_position  < bounds[1]:
             raise ValueError("Predicted maximum position of {} is outside the "
                              "bounds {}".format(max_position, bounds))
-        #Order move to maximum position
+        # Order move to maximum position
         logger.debug("Travelling to maximum of Lorentz at %s", max_position)
         yield from abs_set(motor, model.result.values['center'], wait=True)
 
-    #Run the assembled plan
+    # Run the assembled plan
     yield from inner()
-    #Return the fit 
+    # Return the fit 
     return model
 
 
@@ -200,7 +192,7 @@ def rocking_curve(detector, motor, read_field, coarse_step, fine_step,
     show_plot : bool, optional
         Create a plot displaying the progress of the `rocking_curve`
     """
-    #Define bounds
+    # Define bounds
     if not bounds:
         try:
             bounds = motor.limits
@@ -211,10 +203,10 @@ def rocking_curve(detector, motor, read_field, coarse_step, fine_step,
             raise UndefinedBounds("Bounds are not defined by motor {} or "
                                   "plan".format(motor.name)) from exc
     if show_plot:
-        #Create plot
-        #subscribe first plot to rough_scan
+        # Create plot
+        # subscribe first plot to rough_scan
         pass
-    #Run the initial rough scan
+    # Run the initial rough scan
     try:
         model = yield from maximize_lorentz(detector, motor, read_field,
                                             step_size=coarse_step,
@@ -224,7 +216,7 @@ def rocking_curve(detector, motor, read_field, coarse_step, fine_step,
     except ValueError as exc:
         raise ValueError("Unable to find a proper maximum value"
                          "during rough scan") from exc
-    #Define new bounds
+    # Define new bounds
     center = model.result.values['center']
     bounds = (max(center - fine_space, bounds[0]),
               min(center + fine_space, bounds[1]))
@@ -234,11 +226,11 @@ def rocking_curve(detector, motor, read_field, coarse_step, fine_step,
                 center, bounds[0], bounds[1])
 
     if show_plot:
-        #Highlight search space on first plot
-        #Subscribe secondary plot
+        # Highlight search space on first plot
+        # Subscribe secondary plot
         pass
 
-    #Run the initial rough scan
+    # Run the initial rough scan
     try:
         fit = yield from maximize_lorentz(detector, motor, read_field,
                                           step_size=fine_step, bounds=bounds,
@@ -250,82 +242,7 @@ def rocking_curve(detector, motor, read_field, coarse_step, fine_step,
                          "during fine scan") from exc
 
     if show_plot:
-        #Draw final calculated max on plots
+        # Draw final calculated max on plots
         pass
 
     return fit
-
-def linear_scan(motor, start, stop, num, use_diag=True, return_to_start=True, 
-                md=None, *args, **kwargs):
-    """
-    Performs a linear scan using the inputted motor, optionally using the
-    diagnostics, and optionally moving the motor back to the original start
-    position. This scan is different from the regular scan because it does not
-    take a detector, and simply scans the motor.
-
-    Parameters
-    ----------
-    motor : object
-        any 'setable' object (motor, temp controller, etc.)
-
-    start : float
-        starting position of motor
-
-    stop : float
-        ending position of motor
-
-    num : int
-        number of steps
-        
-    use_diag : bool, optional
-        Include the diagnostic motors in the scan.
-
-    md : dict, optional
-        metadata
-    """
-    # Save some metadata on this scan
-    _md = {'motors': [motor.name],
-           'num_points': num,
-           'num_intervals': num - 1,
-           'plan_args': {'num': num,
-                         'motor': repr(motor),
-                         'start': start, 
-                         'stop': stop},
-           'plan_name': 'daq_scan',
-           'plan_pattern': 'linspace',
-           'plan_pattern_module': 'numpy',
-           'plan_pattern_args': dict(start=start, stop=stop, num=num),
-           'hints': {},
-          }
-    _md.update(md or {})
-
-    # Build the list of steps
-    steps = np.linspace(**_md['plan_pattern_args'])
-    
-    # Let's store this for now
-    start = motor.position
-    
-    # Define the inner scan
-    @stage_decorator([motor])
-    @run_decorator(md=_md)
-    def inner_scan():
-        
-        for i, step in enumerate(steps):
-            logger.info("\nStep {0}: Moving to {1}".format(i+1, step))
-            grp = _short_uid('set')
-            yield Msg('checkpoint')
-            # Set wait to be false in set once the status object is implemented
-            yield Msg('set', motor, step, group=grp, *args, **kwargs)
-            yield Msg('wait', None, group=grp)
-            yield from trigger_and_read([motor])
-
-        if return_to_start:
-            logger.info("\nScan complete. Moving back to starting position: {0}"
-                        "\n".format(start))
-            yield Msg('set', motor, start, group=grp, use_diag=use_diag, *args,
-                      **kwargs)
-            yield Msg('wait', None, group=grp)
-
-    return (yield from inner_scan())
-    
-        

@@ -2,6 +2,6 @@
 General Scans
 =============
 
-There are scans that can be used more generally with any inputted motor.
+.. autofunction:: hxrsnd.plans.scans.linear_scan
 
-.. autofunction:: hxrsnd.plans.linear_scan
+.. autofunction:: hxrsnd.plans.scans.centroid_scan

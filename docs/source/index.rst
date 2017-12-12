@@ -31,8 +31,10 @@
    :maxdepth: 2
    :caption: Plans
 
-   plans.rst
+   alignment.rst
+   calibration.rst
    scans.rst
+   misc_plans.rst
 
    
 .. toctree::
