@@ -16,7 +16,7 @@ from logging.handlers import RotatingFileHandler
 # Third Party #
 ###############
 import yaml
-# import coloredlogs                      # Uncomment when coloredlogs installed
+import coloredlogs
 
 logger = logging.getLogger(__name__)
 
@@ -114,17 +114,17 @@ def setup_logging(path_yaml=None, dir_logs=None, default_level=logging.INFO):
             try:
                 config = yaml.safe_load(f.read())
                 logging.config.dictConfig(config)
-                # coloredlogs.install()
+                coloredlogs.install()
             except Exception as e:
                 print('Error in Logging Configuration. Using default configs')
                 logging.basicConfig(level=default_level)
                 logging.error(e)
-                # coloredlogs.install(level=default_level)
+                coloredlogs.install(level=default_level)
 
     # Just use the normal configuration
     else:
         logging.basicConfig(level=default_level)
-        # coloredlogs.install(level=default_level)
+        coloredlogs.install(level=default_level)
         print('Failed to load configuration file. Using default configs')
 
 def as_list(obj, length=None, tp=None, iter_to_list=True):
