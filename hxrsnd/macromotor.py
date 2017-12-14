@@ -456,8 +456,8 @@ class MacroBase(Device):
             logger.warning("Cannot move '{0}' - a motor is currently stopped. "
                            "Try running 'motor.state='Go''.".format(self.desc))
         except BadN2Pressure:
-            logger.warning("Cannot move '{0}' - pressure in tower {0} is bad."
-                           "".format(self._tower))
+            logger.warning("Cannot move '{0}' - pressure in a tower is bad."
+                           "".format(self.desc))
 
     def mv(self, position, wait=True, verify_move=True, ret_status=False, 
            use_diag=True):
