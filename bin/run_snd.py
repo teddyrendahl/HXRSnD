@@ -7,13 +7,9 @@ import logging
 from imp import reload
 from pathlib import Path
 import warnings
-
-# from bluesky.preprocessors import run_wrapper
-
-# from hxrsnd.plans.scans import linear_scan
 from hxrsnd.utils import setup_logging
 
-# Ignore python warnings
+# Ignore python warnings (Remove when ophyd stops warning about 'signal_names')
 warnings.filterwarnings('ignore')
 
 # Logging
