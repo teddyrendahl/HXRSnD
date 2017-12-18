@@ -88,7 +88,7 @@ class NotepadScanStatus(Device):
                 sig.put('')
 
 
-notepad_scan_status = NotepadScanStatus('XCS:SCAN')
+notepad_scan_status = NotepadScanStatus('XCS:SCAN', name='xcs_scan_status')
 
 
 def ascan(motor, start, stop, num, events_per_point=360, record=False,
