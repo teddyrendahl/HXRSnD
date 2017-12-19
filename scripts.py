@@ -109,6 +109,7 @@ def ascan(motor, start, stop, num, events_per_point=360, record=False,
     status.clean_fields()
     if controls is None:
         controls = {}
+    start_pos = motor.position
 
     def get_controls(motor, extra_controls):
         out_arr = {motor.name: motor}
@@ -128,7 +129,10 @@ def ascan(motor, start, stop, num, events_per_point=360, record=False,
 
         for i, step in enumerate(np.linspace(start, stop, num)):
             logger.info('Beginning step {}'.format(step))
-            mstat = motor.set(step, **kwargs)
+            try:
+                mstat = motor.set(step, verify_move=False, **kwargs)
+            except TypeError:
+                mstat = motor.set(step, **kwargs)
             status.istep.put(i)
             status_wait(mstat)
             scan_controls = get_controls(motor, controls)
@@ -140,3 +144,7 @@ def ascan(motor, start, stop, num, events_per_point=360, record=False,
         status.clean_fields()
         daq.end_run()
         daq.disconnect()
+        try:
+            motor.set(start_pos, verify_move=False, **kwargs)
+        except TypeError:
+            motor.set(start_pos, **kwargs)
