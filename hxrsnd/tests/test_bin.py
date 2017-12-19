@@ -5,6 +5,7 @@ Tests for the bin ipython shell
 # Standard #
 ############
 import logging
+import sys
 
 ###############
 # Third Party #
@@ -33,11 +34,13 @@ def bin_import():
 
 @pytest.mark.timeout(60)
 @requires_epics
+@pytest.mark.skipif(sys.version_info < (3, 6), reason="requires python3.6")
 def test_bin_import_with_epics():
     bin_import()
 
 
 @pytest.mark.timeout(60)
 @using_fake_epics_pv
+@pytest.mark.skipif(sys.version_info < (3, 6), reason="requires python3.6")
 def test_bin_import_no_epics():
     bin_import()
