@@ -17,6 +17,7 @@ import numpy as np
 ##########
 from hxrsnd.utils import absolute_submodule_path
 
+@pytest.mark.timeout(60)
 def test_scripts_import():
     # Get the absolute path to the scripts file
     scripts_local_path = "HXRSnD/scripts.py"
