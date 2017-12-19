@@ -26,6 +26,8 @@ import logging
 # Imports from the third-party modules go here
 import numpy as np
 from ophyd import Device, EpicsSignal, Component as Cmp
+from ophyd.sim import hw
+from ophyd.status import wait as status_wait
 
 # Imports from other SLAC modules go here
 
@@ -64,6 +66,10 @@ logger = logging.getLogger(__name__)
 ###############################################################################
 #                             Insert Code Below                               #
 ###############################################################################
+hw = hw()  # Fake hardware for testing
+fake_motor = hw.motor
+
+
 class NotepadScanStatus(Device):
     istep = Cmp(EpicsSignal, ":ISTEP")
     isscan = Cmp(EpicsSignal, ":ISSCAN")
@@ -80,7 +86,8 @@ class NotepadScanStatus(Device):
     var2_min = Cmp(EpicsSignal, ":MIN02")
 
     def clean_fields(self):
-        for sig in self._sig_attrs.values():
+        for sig_name in self.signal_names:
+            sig = getattr(self, sig_name)
             val = sig.value
             if isinstance(val, (int, float)):
                 sig.put(0)
@@ -103,13 +110,13 @@ def ascan(motor, start, stop, num, events_per_point=360, record=False,
     if controls is None:
         controls = {}
 
-    def get_controls(motor, pos, extra_controls):
-        out_arr = {motor.name: pos}
+    def get_controls(motor, extra_controls):
+        out_arr = {motor.name: motor}
         out_arr.update(extra_controls)
         return out_arr
 
     try:
-        scan_controls = get_controls(motor, motor.position, controls)
+        scan_controls = get_controls(motor, controls)
         daq.configure(record=record, controls=scan_controls)
 
         status.isscan.put(1)
@@ -121,9 +128,10 @@ def ascan(motor, start, stop, num, events_per_point=360, record=False,
 
         for i, step in enumerate(np.linspace(start, stop, num)):
             logger.info('Beginning step {}'.format(step))
-            motor.mv(step, **kwargs)
+            mstat = motor.set(step, **kwargs)
             status.istep.put(i)
-            scan_controls = get_controls(motor, step, controls)
+            status_wait(mstat)
+            scan_controls = get_controls(motor, controls)
             daq.begin(events=events, controls=scan_controls)
             logger.info('Waiting for {} events ...'.format(events))
             daq.wait()
