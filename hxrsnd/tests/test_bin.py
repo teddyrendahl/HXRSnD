@@ -5,11 +5,13 @@ Tests for the bin ipython shell
 # Standard #
 ############
 import logging
+import sys
 
 ###############
 # Third Party #
 ###############
 import pytest
+from ophyd.tests.conftest import using_fake_epics_pv
 import numpy as np
 
 ##########
@@ -18,8 +20,8 @@ import numpy as np
 from .conftest import requires_epics
 from hxrsnd.utils import absolute_submodule_path
 
-@requires_epics
-def test_bin_import():
+
+def bin_import():
     # Get the absolute path to the bin file
     bin_local_path = "HXRSnD/bin/run_snd.py"
     bin_abs_path = absolute_submodule_path(bin_local_path)
@@ -30,4 +32,15 @@ def test_bin_import():
     spec.loader.exec_module(snd_bin)
 
 
+@pytest.mark.timeout(60)
+@requires_epics
+@pytest.mark.skipif(sys.version_info < (3, 6), reason="requires python3.6")
+def test_bin_import_with_epics():
+    bin_import()
 
+
+@pytest.mark.timeout(60)
+@using_fake_epics_pv
+@pytest.mark.skipif(sys.version_info < (3, 6), reason="requires python3.6")
+def test_bin_import_no_epics():
+    bin_import()
