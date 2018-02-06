@@ -87,8 +87,7 @@ def linear_scan(motor, start, stop, num, use_diag=True, return_to_start=True,
         if return_to_start:
             logger.info("\nScan complete. Moving back to starting position: {0}"
                         "\n".format(start))
-            yield Msg('set', motor, start, group=grp, use_diag=use_diag, *args,
-                      **kwargs)
+            yield Msg('set', motor, start, group=grp, *args, **kwargs)
             yield Msg('wait', None, group=grp)
 
     return (yield from inner_scan())    
