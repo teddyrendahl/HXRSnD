@@ -1,14 +1,8 @@
 """
 Scans for HXRSnD
 """
-############
-# Standard #
-############
-import logging
 
-###############
-# Third Party #
-###############
+import logging
 import numpy as np
 import pandas as pd
 from bluesky                    import Msg
@@ -18,16 +12,8 @@ from bluesky.plan_stubs         import checkpoint, trigger_and_read
 from bluesky.plan_stubs         import abs_set
 from bluesky.preprocessors      import stage_decorator, run_decorator
 from bluesky.preprocessors      import msg_mutator
-
-########
-# SLAC #
-########
 from pswalker.utils             import field_prepend
 from pswalker.plans             import measure_average
-
-##########
-# Module #
-##########
 from .plan_stubs import block_run_control
 
 logger = logging.getLogger(__name__)
@@ -85,7 +71,7 @@ def linear_scan(motor, start, stop, num, use_diag=True, return_to_start=True,
     start = motor.position
     
     # Define the inner scan
-    @stage_decorator([motor])
+    # @stage_decorator([motor])
     @run_decorator(md=_md)
     def inner_scan():
         
@@ -101,8 +87,7 @@ def linear_scan(motor, start, stop, num, use_diag=True, return_to_start=True,
         if return_to_start:
             logger.info("\nScan complete. Moving back to starting position: {0}"
                         "\n".format(start))
-            yield Msg('set', motor, start, group=grp, use_diag=use_diag, *args,
-                      **kwargs)
+            yield Msg('set', motor, start, group=grp, *args, **kwargs)
             yield Msg('wait', None, group=grp)
 
     return (yield from inner_scan())    
