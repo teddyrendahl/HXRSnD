@@ -569,8 +569,6 @@ class EccBase(Device, PositionerBase):
         if print_msg:
             logger.info("Launching expert screen.")
         os.system("{0} {1} {2} &".format(path, self.prefix, "attocube"))
-    
-        # os.system("{0} {1} {2} &".format(path, p, axis))
 
     def set_limits(self, llm, hlm):
         """
