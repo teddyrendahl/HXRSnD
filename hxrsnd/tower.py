@@ -1,26 +1,14 @@
 """
 Script for the various tower classes.
 """
-############
-# Standard #
-############
 import logging
 
-###############
-# Third Party #
-###############
 import numpy as np
 from ophyd import Component, FormattedComponent
 from ophyd.status import wait as status_wait
 
-########
-# SLAC #
-########
 from pcdsdevices.device import Device
 
-##########
-# Module #
-##########
 from .rtd import OmegaRTD
 from .diode import HamamatsuDiode
 from .bragg import bragg_angle, bragg_energy
@@ -403,21 +391,16 @@ class DelayTower(TowerBase):
     x = Component(InterLinearAero, ":X", desc="X")
     L = Component(InterLinearAero, ":L", desc="L")
 
-    # Y Crystal motion
-    y1 = FormattedComponent(TranslationEcc, "{self._prefix}:ECC:{self._y1}",
-                            desc="Y1")
-    y2 = FormattedComponent(TranslationEcc, "{self._prefix}:ECC:{self._y2}",
-                            desc="Y2Y")
+    # # Y Crystal motion
+    y1 = Component(TranslationEcc, ":Y1", desc="Y1")
+    y2 = Component(TranslationEcc, ":Y2", desc="Y2")
 
     # Chi motion
-    chi1 = FormattedComponent(GoniometerEcc, "{self._prefix}:ECC:{self._chi1}",
-                              desc="CHI1")
-    chi2 = FormattedComponent(GoniometerEcc, "{self._prefix}:ECC:{self._chi2}",
-                              desc="CHI2")
+    chi1 = Component(GoniometerEcc, ":CHI1", desc="CHI1")
+    chi2 = Component(GoniometerEcc, ":CHI2", desc="CHI2")
 
     # Diode motion
-    dh = FormattedComponent(DiodeEcc, "{self._prefix}:ECC:{self._dh}",
-                            desc="DH")
+    dh = Component(DiodeEcc, ":DH", desc="DH")
     
     # # Diode
     # diode = Component(HamamatsuDiode, ":DIODE", desc="Tower Diode")
@@ -426,14 +409,7 @@ class DelayTower(TowerBase):
     # temp = Component(OmegaRTD, ":TEMP", desc="Tower RTD")
 
     
-    def __init__(self, prefix, y1=None, y2=None, chi1=None, chi2=None, dh=None,
-                 *args, **kwargs):
-        self._y1 = y1 or "Y1"
-        self._y2 = y2 or "Y2"
-        self._chi1 = chi1 or "CHI1"
-        self._chi2 = chi2 or "CHI2"
-        self._dh = dh or "DH"
-        self._prefix = ":".join(prefix.split(":")[:2])
+    def __init__(self, prefix, *args, **kwargs):
         super().__init__(prefix, *args, **kwargs)
         self._energy_motors = [self.tth, self.th1, self.th2]
 

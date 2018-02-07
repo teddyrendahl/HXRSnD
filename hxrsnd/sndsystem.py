@@ -3,30 +3,18 @@ Script to hold the split and delay class.
 
 All units of time are in picoseconds, units of length are in mm.
 """
-############
-# Standard #
-############
 import os
 import logging
 
-###############
-# Third Party #
-###############
 import numpy as np
 from ophyd import Component
 from ophyd.status import wait as status_wait
 from ophyd.utils.epics_pvs import raise_if_disconnected
 from bluesky import RunEngine
 
-########
-# SLAC #
-########
 from pcdsdevices.device import Device
 from pcdsdevices.daq import Daq, make_daq_run_engine
 
-##########
-# Module #
-##########
 from .state import OphydMachine
 from .pneumatic import SndPneumatics
 from .utils import flatten, absolute_submodule_path
@@ -87,12 +75,10 @@ class SplitAndDelay(Device):
         Delay pseudomotor.
     """
     # Delay Towers
-    t1 = Component(DelayTower, ":T1", y1="A:ACT0", y2="A:ACT1",
-                   chi1="A:ACT2", chi2="B:ACT0", dh="B:ACT1",
-                   pos_inserted=21.1, pos_removed=0, desc="Tower 1")
-    t4 = Component(DelayTower, ":T4", y1="C:ACT0", y2="C:ACT1",
-                   chi1="C:ACT2", chi2="D:ACT0", dh="D:ACT1",
-                   pos_inserted=21.1, pos_removed=0, desc="Tower 4")
+    t1 = Component(DelayTower, ":T1", pos_inserted=21.1, pos_removed=0, 
+                   desc="Tower 1")
+    t4 = Component(DelayTower, ":T4", pos_inserted=21.1, pos_removed=0, 
+                   desc="Tower 4")
 
     # Channel Cut Towers
     t2 = Component(ChannelCutTower, ":T2", pos_inserted=None, 

@@ -3,29 +3,17 @@
 """
 Aerotech devices
 """
-############
-# Standard #
-############
 import logging
 import os
 
-###############
-# Third Party #
-###############
 import numpy as np
 from ophyd import Component, FormattedComponent
 from ophyd.utils import LimitError
 from ophyd.status import wait as status_wait
 
-########
-# SLAC #
-########
 from pcdsdevices.epics.epicsmotor import EpicsMotor
 from pcdsdevices.epics.signal import (EpicsSignal, EpicsSignalRO, FakeSignal)
 
-##########
-# Module #
-##########
 from .pneumatic import PressureSwitch
 from .utils import absolute_submodule_path, as_list
 from .exceptions import MotorDisabled, MotorFaulted, MotorStopped, BadN2Pressure
@@ -734,7 +722,7 @@ class AeroBase(EpicsMotor):
         path = absolute_submodule_path("HXRSnD/screens/motor_expert_screens.sh")
         if print_msg:
             logger.info("Launching expert screen.")
-        os.system("{0} {1} &".format(path, self.prefix))
+        os.system("{0} {1} {2} &".format(path, self.prefix, "aerotech"))
  
     def __call__(self, position, wait=True, ret_status=False, print_move=True,
                  *args, **kwargs):
