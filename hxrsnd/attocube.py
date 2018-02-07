@@ -3,31 +3,19 @@
 """
 Attocube devices
 """
-############
-# Standard #
-############
 import os
 import logging
 
-###############
-# Third Party #
-###############
 import numpy as np
 from ophyd import PositionerBase
 from ophyd import Component
 from ophyd.utils import LimitError
 from ophyd.status import wait as status_wait
 
-########
-# SLAC #
-########
 from pcdsdevices.device import Device
 from pcdsdevices.epics.signal import (EpicsSignal, EpicsSignalRO)
 from pcdsdevices.epics.epicsmotor import EpicsMotor
 
-##########
-# Module #
-##########
 from .exceptions import MotorDisabled, MotorError
 from .utils import absolute_submodule_path, as_list
 
@@ -576,17 +564,13 @@ class EccBase(Device, PositionerBase):
         print_msg : bool, optional
             Prints that the screen is being launched.
         """
-        # Get motor info to pass to the screens
-        pv_spl = self.prefix.split(":")
-        act = [s for s in pv_spl[::-1] if s.startswith("ACT")][0]
-        p = ":".join(pv_spl[:pv_spl.index(act)])
-        axis = act[3:]
-
         # Get the absolute path to the screen
         path = absolute_submodule_path("HXRSnD/screens/motor_expert_screens.sh")
         if print_msg:
-            logger.info("Launching expert screen.")        
-        os.system("{0} {1} {2} &".format(path, p, axis))
+            logger.info("Launching expert screen.")
+        os.system("{0} {1} {2} &".format(path, self.prefix, "attocube"))
+    
+        # os.system("{0} {1} {2} &".format(path, p, axis))
 
     def set_limits(self, llm, hlm):
         """

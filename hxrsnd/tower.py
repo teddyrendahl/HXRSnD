@@ -1,26 +1,14 @@
 """
 Script for the various tower classes.
 """
-############
-# Standard #
-############
 import logging
 
-###############
-# Third Party #
-###############
 import numpy as np
 from ophyd import Component, FormattedComponent
 from ophyd.status import wait as status_wait
 
-########
-# SLAC #
-########
 from pcdsdevices.device import Device
 
-##########
-# Module #
-##########
 from .rtd import OmegaRTD
 from .diode import HamamatsuDiode
 from .bragg import bragg_angle, bragg_energy
@@ -403,21 +391,16 @@ class DelayTower(TowerBase):
     x = Component(InterLinearAero, ":X", desc="X")
     L = Component(InterLinearAero, ":L", desc="L")
 
-    # Y Crystal motion
-    y1 = FormattedComponent(TranslationEcc, "{self._prefix}:ECC:{self._y1}",
-                            desc="Y1")
-    y2 = FormattedComponent(TranslationEcc, "{self._prefix}:ECC:{self._y2}",
-                            desc="Y2Y")
+    # # Y Crystal motion
+    y1 = Component(TranslationEcc, ":Y1", desc="Y1")
+    y2 = Component(TranslationEcc, ":Y2", desc="Y2")
 
     # Chi motion
-    chi1 = FormattedComponent(GoniometerEcc, "{self._prefix}:ECC:{self._chi1}",
-                              desc="CHI1")
-    chi2 = FormattedComponent(GoniometerEcc, "{self._prefix}:ECC:{self._chi2}",
-                              desc="CHI2")
+    chi1 = Component(GoniometerEcc, ":CHI1", desc="CHI1")
+    chi2 = Component(GoniometerEcc, ":CHI2", desc="CHI2")
 
     # Diode motion
-    dh = FormattedComponent(DiodeEcc, "{self._prefix}:ECC:{self._dh}",
-                            desc="DH")
+    dh = Component(DiodeEcc, ":DH", desc="DH")
     
     # # Diode
     # diode = Component(HamamatsuDiode, ":DIODE", desc="Tower Diode")
