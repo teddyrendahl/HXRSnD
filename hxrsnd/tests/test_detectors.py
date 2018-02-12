@@ -1,38 +1,25 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-############
-# Standard #
-############
 import logging
 import time
 from collections import OrderedDict
 import pytest
 
-###############
-# Third Party #
-###############
 import numpy as np
+from ophyd.tests.conftest import using_fake_epics_pv
 from ophyd.device import Device
 
-########
-# SLAC #
-########
-from pcdsdevices.sim.pv import  using_fake_epics_pv
-
-##########
-# Module #
-##########
 from hxrsnd import detectors
-from .conftest import get_classes_in_module, fake_device
+from .conftest import get_classes_in_module, fake_detector
 
 logger = logging.getLogger(__name__)
 
 @using_fake_epics_pv
 @pytest.mark.parametrize("dev", get_classes_in_module(detectors, Device))
 def test_rtd_devices_instantiate_and_run_ophyd_functions(dev):
-    if dev.__name__ != "OpalDetector":
-        device = fake_device(dev)
-        assert(isinstance(device.read(), OrderedDict))
-        assert(isinstance(device.describe(), OrderedDict))
-        assert(isinstance(device.describe_configuration(), OrderedDict))
-        assert(isinstance(device.read_configuration(), OrderedDict))
+    # if dev.__name__ != "OpalDetector":
+    device = fake_detector(dev)
+    assert(isinstance(device.read(), OrderedDict))
+    assert(isinstance(device.describe(), OrderedDict))
+    assert(isinstance(device.describe_configuration(), OrderedDict))
+    assert(isinstance(device.read_configuration(), OrderedDict))

@@ -1,46 +1,34 @@
 """
 Tests for the bin ipython shell
 """
-############
-# Standard #
-############
 import logging
 import sys
 
-###############
-# Third Party #
-###############
 import pytest
+from ophyd.signal import Signal
+from ophyd.device import Component as Cmp
 from ophyd.tests.conftest import using_fake_epics_pv
 import numpy as np
 
-##########
-# Module #
-##########
 from .conftest import requires_epics
+from hxrsnd.detectors import OpalDetector
 from hxrsnd.utils import absolute_submodule_path
 
 
-def bin_import():
-    # Get the absolute path to the bin file
-    bin_local_path = "HXRSnD/bin/run_snd.py"
-    bin_abs_path = absolute_submodule_path(bin_local_path)
-    # Try importing the snd_file
-    import importlib.util
-    spec = importlib.util.spec_from_file_location("bin.run_snd", bin_abs_path)
-    snd_bin = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(snd_bin)
-
-
+def snd_devices_import():
+    for comp in (OpalDetector.image1, OpalDetector.image2, OpalDetector.stats2):
+        plugin_class = comp.cls
+        plugin_class.plugin_type = Cmp(Signal, value=plugin_class._plugin_type)
+    import snd_devices
+    
 @pytest.mark.timeout(60)
 @requires_epics
 @pytest.mark.skipif(sys.version_info < (3, 6), reason="requires python3.6")
-def test_bin_import_with_epics():
-    bin_import()
-
+def test_snd_devices_import_with_epics():
+    snd_devices_import()
 
 @pytest.mark.timeout(60)
 @using_fake_epics_pv
 @pytest.mark.skipif(sys.version_info < (3, 6), reason="requires python3.6")
-def test_bin_import_no_epics():
-    bin_import()
+def test_snd_devices_import_no_epics():
+    snd_devices_import()

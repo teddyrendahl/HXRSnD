@@ -1,6 +1,3 @@
-############
-# Standard #
-############
 import sys
 import time
 import math
@@ -12,28 +9,20 @@ import asyncio
 import threading
 from functools import wraps
 
-###############
-# Third Party #
-###############
 import pytest
 import epics
 import numpy as np
 import epics
+from ophyd.signal import Signal
 from ophyd.sim import SynSignal, SynAxis
+from ophyd.device import Component as Cmp
 from bluesky.run_engine import RunEngine
 from bluesky.tests.conftest import RE
 from lmfit.models import LorentzianModel
 
-########
-# SLAC #
-########
-from pcdsdevices.sim.pv import  using_fake_epics_pv
+from pcdsdevices.sim.pv import  using_fake_epics_pv, using_fake_epics_waveform
 from pcdsdevices.device import Device
 from pcdsdevices.component import Component
-
-##########
-# Module #
-##########
 
 # Define the requires epics
 try:
@@ -181,9 +170,9 @@ def fresh_RE(request):
 def get_classes_in_module(module, subcls=None, blacklist=None):
     classes = []
     blacklist = blacklist or list()
-    all_classes = [(_, cls) for (_, cls) in inspect.getmembers(module)
+    all_classes = [cls for (_, cls) in inspect.getmembers(module)
                           if cls not in blacklist]
-    for _, cls in all_classes:
+    for cls in all_classes:
         try:
             if cls.__module__ == module.__name__:
                 if subcls is not None:
@@ -201,4 +190,20 @@ def get_classes_in_module(module, subcls=None, blacklist=None):
 @using_fake_epics_pv
 def fake_device(device, name="TEST"):
     return device(name, name=name)
+
+@using_fake_epics_pv
+def fake_detector(detector, name="TEST"):
+    """Set the plugin_type signal to be _plugin_type for all plugins."""
+    def change_all_plugin_types(comp):
+        if hasattr(comp, "component_names"):
+            if hasattr(comp, "_plugin_type"):
+                comp.plugin_type = Cmp(Signal, value=comp._plugin_type)
+            else:
+                for name in comp.component_names:
+                    sub_comp = getattr(comp, name)
+                    if type(sub_comp) is Cmp:
+                        sub_comp = change_all_plugin_types(sub_comp.cls)
+        return comp
+    detector = change_all_plugin_types(detector)
+    return detector(name, name=name)
 
