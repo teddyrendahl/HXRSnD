@@ -10,6 +10,7 @@ import numpy as np
 from .conftest import requires_epics
 from hxrsnd.utils import absolute_submodule_path
 
+logger = logging.getLogger(__name__)
 
 def scripts_import():
     import scripts

@@ -14,6 +14,7 @@ from .conftest import requires_epics
 from hxrsnd.detectors import OpalDetector
 from hxrsnd.utils import absolute_submodule_path
 
+logger = logging.getLogger(__name__)
 
 def snd_devices_import():
     for comp in (OpalDetector.image1, OpalDetector.image2, OpalDetector.stats2):

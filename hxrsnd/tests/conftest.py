@@ -15,14 +15,13 @@ import numpy as np
 import epics
 from ophyd.signal import Signal
 from ophyd.sim import SynSignal, SynAxis
-from ophyd.device import Component as Cmp
+from ophyd.device import Component as Cmp, Device
+from ophyd.tests.conftest import using_fake_epics_pv
 from bluesky.run_engine import RunEngine
 from bluesky.tests.conftest import RE
 from lmfit.models import LorentzianModel
 
-from pcdsdevices.sim.pv import  using_fake_epics_pv, using_fake_epics_waveform
-from pcdsdevices.device import Device
-from pcdsdevices.component import Component
+logger = logging.getLogger(__name__)
 
 # Define the requires epics
 try:
