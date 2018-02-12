@@ -29,9 +29,6 @@ except Exception as e:
 # Try importing from the scripts file if we succeeded at making the snd object
 else:
     try:
-        path_scripts = Path(os.path.dirname(__file__)) / "../scripts.py"
-        import importlib.util
-        spec = importlib.util.spec_from_file_location("scripts", path_scripts)
         from scripts import *
         logger.debug("Successfully loaded scripts.")
     # There was some problem in the file
