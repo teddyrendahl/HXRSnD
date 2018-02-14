@@ -34,8 +34,6 @@ class EccController(Device):
     def __init__(self, prefix, name=None, desc=None, *args, **kwargs):
         self.desc = desc or name
         super().__init__(prefix, name=name, *args, **kwargs)
-        if self.desc is None:
-            self.desc = self.name        
     
     @property 
     def firmware(self):
@@ -90,8 +88,6 @@ class EccBase(Device, PositionerBase):
     def __init__(self, prefix, name=None, desc=None, *args, **kwargs):
         self.desc = desc or name
         super().__init__(prefix, name=name, *args, **kwargs)
-        if self.desc is None:
-            self.desc = self.name
 
     @property
     def position(self):
@@ -733,17 +729,6 @@ class EccBase(Device, PositionerBase):
             Status string.
         """
         return self.status(*args, **kwargs) 
-
-    # def __repr__(self):
-    #     """
-    #     Returns the status of the motor. Alias for status().
-
-    #     Returns
-    #     -------
-    #     status : str
-    #         Status string.
-    #     """
-    #     return self.status(print_status=False)
 
 
 class TranslationEcc(EccBase):

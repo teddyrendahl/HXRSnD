@@ -18,6 +18,7 @@ from .aerotech import (AeroBase, RotationAero, InterRotationAero,
 
 logger = logging.getLogger(__name__)
 
+
 class TowerBase(Device):
     """
     Base tower class.
@@ -28,8 +29,6 @@ class TowerBase(Device):
         self.pos_inserted = pos_inserted
         self.pos_removed = pos_removed
         super().__init__(prefix, name=name, *args, **kwargs)
-        if self.desc is None:
-            self.desc = self.name or self.prefix
         self.desc_short = "".join([s[0] for s in self.desc.split(" ")])
         
         # Add Tower short name to desc
