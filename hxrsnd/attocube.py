@@ -331,9 +331,11 @@ class EccBase(SndMotor, PositionerBase):
             logger.info("Requested move '{0}' is outside the soft limits {1}."
                         "".format(position, self.limits))
 
-    def check_status(self, position, *args, **kwargs):
+    def check_status(self, position=None):
         """
-        Checks the status of the motor to make sure it is ready to move.
+        Checks the status of the motor to make sure it is ready to move. Checks
+        the current position of the motor, and if a position is provided it also
+        checks that position.
 
         Parameters
         ----------
@@ -358,8 +360,11 @@ class EccBase(SndMotor, PositionerBase):
             logger.error(err)
             raise MotorError(err)
 
-        # Check that position is valid
-        self.check_value(position)
+        # Check if the current position is valid
+        self.check_value(self.position)
+        # Check if the move position is valid
+        if position: 
+            self.check_value(position)
 
     def check_value(self, position):
         """

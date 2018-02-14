@@ -131,7 +131,7 @@ class AeroBase(SndEpicsMotor):
             if reraise:
                 raise
 
-    def homf(self, ret_status=False, print_set=True):
+    def homf(self, ret_status=False, print_set=True, check_status=True):
         """
         Home the motor forward.
 
@@ -143,16 +143,22 @@ class AeroBase(SndEpicsMotor):
         print_set : bool, optional
             Print a short statement about the set.
         
+        check_status : bool, optional
+            Check if the motors are in a valid state to move.
+
         Returns
         -------
         Status : StatusObject
             Status of the set.
-        """
+        """        
+        # Check the motor status
+        if check_status:
+            self.check_status()
         status = self.home_forward.set(1, timeout=self.timeout)
         return self._status_print(status, "Homing '{0}' forward.".format(
             self.desc), print_set=print_set, ret_status=ret_status)
 
-    def homr(self, ret_status=False, print_set=True):
+    def homr(self, ret_status=False, print_set=True, check_status=True):
         """
         Home the motor in reverse.
         
@@ -164,11 +170,17 @@ class AeroBase(SndEpicsMotor):
         print_set : bool, optional
             Print a short statement about the set.
 
+        check_status : bool, optional
+            Check if the motors are in a valid state to move.
+
         Returns
         -------
         Status : StatusObject
             Status of the set.
         """
+        # Check the motor status
+        if check_status:
+            self.check_status()
         status = self.home_reverse.set(1, timeout=self.timeout)
         return self._status_print(status, "Homing '{0}' in reverse.".format(
             self.desc), print_set=print_set, ret_status=ret_status)
@@ -308,13 +320,15 @@ class AeroBase(SndEpicsMotor):
             logger.warning("Cannot move - motor {0} is currently stopped. Try "
                            "running 'motor.state='Go''.".format(self.desc))
 
-    def check_status(self, position, *args, **kwargs):
+    def check_status(self, position=None):
         """
-        Checks the status of the motor to make sure it is ready to move.
-e
+        Checks the status of the motor to make sure it is ready to move. Checks
+        the current position of the motor, and if a position is provided it also
+        checks that position.
+
         Parameters
         ----------
-        position : float
+        position : float, optional
             Position to check for validity.
 
         Raises
@@ -342,9 +356,12 @@ e
             err = "Motor '{0}' is currently stopped.".format(self.desc)
             logger.error(err)
             raise MotorStopped(err)
-
-        # Check if the move is valid
-        self.check_value(position)        
+        
+        # Check if the current position is valid
+        self.check_value(self.position)
+        # Check if the move position is valid
+        if position: 
+            self.check_value(position)
         
     def set_position(self, position_des, print_set=True):
         """
