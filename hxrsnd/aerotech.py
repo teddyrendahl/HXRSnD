@@ -73,14 +73,12 @@ class AeroBase(EpicsMotor):
     def __init__(self, prefix, name=None, desc=None, timeout=2, *args, 
                  **kwargs):
         self.desc = desc or name
-        self._timeout = timeout
+        self.timeout = timeout
         super().__init__(prefix, name=name, *args, **kwargs)
         self.motor_done_move.unsubscribe(self._move_changed)
         self.user_readback.unsubscribe(self._pos_changed)
         self.configuration_attrs.append("power")
         self._state_list = ["Stop", "Pause", "Move", "Go"]
-        if self.desc is None:
-            self.desc = self.name
 
     def _status_print(self, status, msg=None, ret_status=False, print_set=True,
                       wait=True, reraise=False):
@@ -118,7 +116,7 @@ class AeroBase(EpicsMotor):
             # Wait for the status to complete
             if wait:
                 for s in as_list(status):
-                    status_wait(s, self._timeout)
+                    status_wait(s, self.timeout)
 
             # Notify the user
             if msg is not None:
@@ -153,7 +151,7 @@ class AeroBase(EpicsMotor):
         Status : StatusObject
             Status of the set.
         """
-        status = self.home_forward.set(1)
+        status = self.home_forward.set(1, timeout=self.timeout)
         return self._status_print(status, "Homing '{0}' forward.".format(
             self.desc), print_set=print_set, ret_status=ret_status)
 
@@ -174,7 +172,7 @@ class AeroBase(EpicsMotor):
         Status : StatusObject
             Status of the set.
         """
-        status = self.home_reverse.set(1)
+        status = self.home_reverse.set(1, timeout=self.timeout)
         return self._status_print(status, "Homing '{0}' in reverse.".format(
             self.desc), print_set=print_set, ret_status=ret_status)
 
@@ -489,7 +487,7 @@ class AeroBase(EpicsMotor):
         Status
             The status object for setting the power signal.
         """
-        status = self.power.set(1)
+        status = self.power.set(1, timeout=self.timeout)
         return self._status_print(status, "Enabled motor '{0}'.".format(
             self.desc), print_set=print_set, ret_status=ret_status)
 
@@ -510,7 +508,7 @@ class AeroBase(EpicsMotor):
         Status
             The status object for setting the power signal.
         """
-        status = self.power.set(0)
+        status = self.power.set(0, timeout=self.timeout)
         return self._status_print(status, "Disabled motor '{0}'.".format(
             self.desc), print_set=print_set, ret_status=ret_status)
 
@@ -543,7 +541,7 @@ class AeroBase(EpicsMotor):
         Status
             The status object for setting the clear_error signal.
         """
-        status = self.clear_error.set(1)
+        status = self.clear_error.set(1, timeout=self.timeout)
         return self._status_print(status, "Cleared motor '{0}'.".format(
             self.desc), print_set=print_set, ret_status=ret_status)
 
@@ -564,7 +562,7 @@ class AeroBase(EpicsMotor):
         Status
             The status object for setting the config signal.
         """
-        status = self.config.set(1)
+        status = self.config.set(1, timeout=self.timeout)
         return self._status_print(status, "Reconfigured motor '{0}'.".format(
             self.desc), print_set=print_set, ret_status=ret_status)
 
@@ -600,7 +598,7 @@ class AeroBase(EpicsMotor):
         status : StatusObject        
             Status object for the set.
         """
-        status = self.zero_all_proc.set(1)
+        status = self.zero_all_proc.set(1, timeout=self.timeout)
         return self._status_print(status, "Zeroed motor '{0}'.".format(
             self.desc), print_set=print_set, ret_status=ret_status)
 
@@ -679,7 +677,7 @@ class AeroBase(EpicsMotor):
             raise ValueError(error)
         
         # Lets enforce it's a string or value
-        status = self.state_component.set(val)
+        status = self.state_component.set(val, timeout=self.timeout)
 
         return self._status_print(
             status, "Changed state of '{0} to '{1}'.".format(self.desc, val), 

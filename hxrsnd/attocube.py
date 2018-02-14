@@ -31,11 +31,11 @@ class EccController(Device):
     _firm_year = Component(EpicsSignalRO, ":CALC:FIRMYEAR")
     _flash = Component(EpicsSignal, ":RDB:FLASH", write_pv=":CMD:FLASH")
 
-    def __init__(self, prefix, name=None, desc=None, *args, **kwargs):
+    def __init__(self, prefix, name=None, desc=None, timeout=2, *args, 
+                 **kwargs):
         self.desc = desc or name
+        self.timeout = timeout
         super().__init__(prefix, name=name, *args, **kwargs)
-        if self.desc is None:
-            self.desc = self.name        
     
     @property 
     def firmware(self):
@@ -50,7 +50,7 @@ class EccController(Device):
         """
         Saves the current configuration of the controller.
         """
-        return self._flash.set(1)
+        return self._flash.set(1, timeout=self.timeout)
 
 
 class EccBase(Device, PositionerBase):
@@ -87,8 +87,10 @@ class EccBase(Device, PositionerBase):
     motor_reset = Component(EpicsSignal, ":CMD:RESET.PROC")
     motor_enable = Component(EpicsSignal, ":CMD:ENABLE")
 
-    def __init__(self, prefix, name=None, desc=None, *args, **kwargs):
+    def __init__(self, prefix, name=None, desc=None, timeout=2, *args, 
+                 **kwargs):
         self.desc = desc or name
+        self.timeout = timeout
         super().__init__(prefix, name=name, *args, **kwargs)
         if self.desc is None:
             self.desc = self.name
@@ -200,7 +202,7 @@ class EccBase(Device, PositionerBase):
         Status
             The status object for setting the power signal.
         """
-        status = self.motor_enable.set(1)
+        status = self.motor_enable.set(1, timeout=self.timeout)
         return self._status_print(status, "Enabled motor '{0}'".format(
             self.desc), ret_status=ret_status, print_set=print_set)
 
@@ -221,7 +223,7 @@ class EccBase(Device, PositionerBase):
         Status
             The status object for setting the power signal.
         """
-        status = self.motor_enable.set(0)
+        status = self.motor_enable.set(0, timeout=self.timeout)
         return self._status_print(status, "Disabled motor '{0}'".format(
             self.desc), ret_status=ret_status, print_set=print_set)
 
@@ -282,7 +284,7 @@ class EccBase(Device, PositionerBase):
         status : StatusObject        
             Status object for the set.
         """
-        status = self.motor_reset.set(1)
+        status = self.motor_reset.set(1, timeout=self.timeout)
         return self._status_print(status, "Reset motor '{0}'".format(
             self.desc), ret_status=ret_status, print_set=print_set)
     
@@ -416,7 +418,7 @@ class EccBase(Device, PositionerBase):
         Status : StatusObject
             Status of the set.
         """
-        status = self.motor_stop.set(1, wait=False)
+        status = self.motor_stop.set(1, wait=False, timeout=self.timeout)
         super().stop(success=success)
         return self._status_print(status, "Stopped motor '{0}'".format(
             self.desc), ret_status=ret_status, print_set=print_set)

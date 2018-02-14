@@ -31,8 +31,10 @@ class PneuBase(Device):
     Base class for the penumatics.
     """
 
-    def __init__(self, prefix, name=None, desc=None, *args, **kwargs):
+    def __init__(self, prefix, name=None, desc=None, timeout=2, *args, 
+                 **kwargs):
         self.desc = desc or name
+        self.timeout = timeout
         super().__init__(prefix, name=name, *args, **kwargs)
         if self.desc is None:
             self.desc = self.name
@@ -99,7 +101,7 @@ class ProportionalValve(PneuBase):
         if self.opened:
             logger.info("Valve currently open.")
         else:
-            self.valve.put(1)
+            return self.valve.set(1, timeout=self.timeout)
     
     def close(self):
         """
@@ -108,7 +110,7 @@ class ProportionalValve(PneuBase):
         if self.closed:
             logger.info("Valve currently closed.")
         else:
-            self.valve.put(0)
+            return self.valve.set(0, timeout=self.timeout)
         
     @property
     def position(self):
