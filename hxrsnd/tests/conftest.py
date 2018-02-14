@@ -169,8 +169,8 @@ def fresh_RE(request):
 def get_classes_in_module(module, subcls=None, blacklist=None):
     classes = []
     blacklist = blacklist or list()
-    all_classes = [cls for (_, cls) in inspect.getmembers(module)
-                          if cls not in blacklist]
+    all_classes = [cls for _, cls in inspect.getmembers(module) 
+                   if cls not in blacklist]
     for cls in all_classes:
         try:
             if cls.__module__ == module.__name__:
@@ -205,4 +205,3 @@ def fake_detector(detector, name="TEST"):
         return comp
     detector = change_all_plugin_types(detector)
     return detector(name, name=name)
-
