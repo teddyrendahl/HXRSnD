@@ -11,8 +11,7 @@ import pandas as pd
 from ophyd.utils import LimitError
 from ophyd.status import wait as status_wait
 
-from pcdsdevices.device import Device
-
+from .sndmotor import SndMotor
 from .utils import as_list, flatten
 from .bragg import bragg_angle, cosd, sind
 from .exceptions import MotorDisabled, MotorFaulted, MotorStopped, BadN2Pressure
@@ -20,7 +19,7 @@ from .exceptions import MotorDisabled, MotorFaulted, MotorStopped, BadN2Pressure
 logger = logging.getLogger(__name__)
 
 
-class MacroBase(Device):
+class MacroBase(SndMotor):
     """
     Base pseudo-motor class for the SnD macro-motions.
     """
@@ -28,8 +27,7 @@ class MacroBase(Device):
     c = 0.299792458             # mm/ps
     gap = 55                    # m
 
-    def __init__(self, prefix, name=None, desc=None, *args, **kwargs):
-        self.desc = desc or name
+    def __init__(self, prefix, name=None, *args, **kwargs):
         super().__init__(prefix, name=name, *args, **kwargs)
         
         # Make sure this is used
@@ -143,6 +141,7 @@ class MacroBase(Device):
 
         use_diag : bool, optional
             Move the daignostic motors to align with the beam.
+
         use_calib : bool, optional
             Use the configurated calibration parameters
         
@@ -151,32 +150,9 @@ class MacroBase(Device):
         status : list
             List of status objects for each motor that was involved in the move.
         """
-        # Check the towers and diagnostics
-        diag_pos = self._check_towers_and_diagnostics(position, 
-                                                      use_diag=use_diag)
-
-        # Prompt the user about the move before making it
-        if verify_move and self._verify_move(position, use_diag=use_diag):
-            return
-
-        # Send the move commands to all the motors
-        status = flatten(self._move_towers_and_diagnostics(
-            position, diag_pos, use_diag=use_diag))
-        if use_calib and self._calib:
-            self._status = status & self._calib_compensate(position)
-        else:
-            self._status = status
-            
-        # Wait for all the motors to finish moving
-        if wait:
-            self.wait(self._status)
-            
-        # Optionally return the status
-        if ret_status:
-            # Bluesky requires all the same interface as the status object 
-            # We need to make a new status class that uses the info from a 
-            # number of status objects
-            return self._status[0]
+        return self.move(position, wait=wait, verify_move=verify_move,
+                         ret_status=ret_status, use_diag=use_diag,
+                         use_calib=use_calib)
 
     def configure(self, *, calib=None):
         """
@@ -341,112 +317,35 @@ class MacroBase(Device):
         status : list
             List of status objects for each motor that was involved in the move.
         """
-        return self.set(position, wait=wait, verify_move=verify_move,
-                        ret_status=ret_status, use_diag=use_diag,
-                        use_calib=use_calib)
+        # Check the towers and diagnostics
+        diag_pos = self._check_towers_and_diagnostics(position, 
+                                                      use_diag=use_diag)
 
-    def move_rel(self, position_rel, wait=True, verify_move=True, 
-                 ret_status=True, use_diag=True, use_calib=True):
-        """
-        Performs a relative moves of the macro parameters.  For energy, this 
-        moves the energies of both lines, energy1 moves just the delay line, 
-        energy2 moves just the channel cut line, and delay moves just the delay 
-        motors.
+        # Prompt the user about the move before making it
+        if verify_move and self._verify_move(position, use_diag=use_diag):
+            return
 
-        Parameters
-        ----------
-        position_rel : float or list
-            Relative move for the macro-motor. Can be a float or a list 
-            depending on the class.
-
-        wait : bool, optional
-            Wait for each motor to complete the motion before returning the
-            console.
+        # Send the move commands to all the motors
+        status = flatten(self._move_towers_and_diagnostics(
+            position, diag_pos, use_diag=use_diag))
+        if use_calib and self._calib:
+            self._status = status & self._calib_compensate(position)
+        else:
+            self._status = status
             
-        verify_move : bool, optional
-            Prints the current system state and a proposed system state and
-            then prompts the user to accept the proposal before changing the
-            system.
-
-        ret_status : bool, optional
-            Return the status object of the move.
-
-        use_diag : bool, optional
-            Move the daignostic motors to align with the beam.
-
-        use_calib : bool, optional
-            Use the configurated calibration parameters
-
-        Returns
-        -------
-        status : list
-            List of status objects for each motor that was involved in the move.
-        """
-        # Perform the move
-        return self.move(self.position + position_rel, wait=wait, 
-                         verify_move=verify_move, ret_status=ret_status, 
-                         use_diag=use_diag, use_calib=use_calib)
-
-    def _catch_motor_exceptions(self, clbl, *args, **kwargs):
-        """
-        Method that runs the inputted callable with the inputted arguments 
-        wrapped in a try/except that catches a number of motor exceptions and
-        prints to the console a nicer message about what went wrong.
-
-        Parameters
-        ----------
-        clbl : callable
-            Callable to wrap in a try/except.
-
-        args : tuple
-            Arguments to pass to the callable.
+        # Wait for all the motors to finish moving
+        if wait:
+            self.wait(self._status)
             
-        kwargs : dict
-            Key-word arguments to pass to the callable.
-            
-        Exceptions Caught
-        -----------------
-        LimitError
-            Error raised when the inputted position is beyond the soft limits.
-        
-        MotorDisabled
-            Error raised if the motor is disabled and move is requested.
-
-        MotorFaulted
-            Error raised if the motor is disabled and the move is requested.
-
-        MotorStopped
-            Error raised If the motor is stopped and a move is requested.
-
-        BadN2Pressure
-            Error raised if the pressure in the tower is bad.
-
-        Returns
-        -------
-        ret
-            Whatever the callable is supposed to return.
-        """
-        try:
-            return clbl(*args, **kwargs)
-        
-        # Catch all the common motor exceptions        
-        except LimitError:
-            logger.warning("Requested move is outside the soft limits")
-        except MotorDisabled:
-            logger.warning("Cannot move '{0}' - a motor is currently disabled. "
-                           "Try running 'motor.enable()'.".format(self.desc))
-        except MotorFaulted:
-            logger.warning("Cannot move '{0}' - a motor is currently faulted. "
-                           "Try running 'motor.clear()'.".format(self.desc))
-        except MotorStopped:
-            logger.warning("Cannot move '{0}' - a motor is currently stopped. "
-                           "Try running 'motor.state='Go''.".format(self.desc))
-        except BadN2Pressure:
-            logger.warning("Cannot move '{0}' - pressure in a tower is bad."
-                           "".format(self.desc))
+        # Optionally return the status
+        if ret_status:
+            # Bluesky requires all the same interface as the status object 
+            # We need to make a new status class that uses the info from a 
+            # number of status objects
+            return self._status[0]
 
     def mv(self, position, wait=True, verify_move=True, ret_status=False, 
-           use_diag=True):
+           use_diag=True, *args, **kwargs):
         """
         Moves the macro parameters to the inputted positions. For energy, this 
         moves the energies of both lines, energy1 moves just the delay line, 
@@ -479,97 +378,47 @@ class MacroBase(Device):
         use_diag : bool, optional
             Move the daignostic motors to align with the beam.
         
-        Returns
-        -------
-        status : list
-            List of status objects for each motor that was involved in the move.
-        """
-        # Perform the move, catching the common motor exceptions
-        return self._catch_motor_exceptions(
-            self.move, position, wait=wait, verify_move=verify_move, 
-            ret_status=ret_status, use_diag=use_diag)
-
-    def mvr(self, position_rel, wait=True, verify_move=True, ret_status=False, 
-            use_diag=True):
-        """        
-        Performs a relative moves of the macro parameters.  For energy, this 
-        moves the energies of both lines, energy1 moves just the delay line, 
-        energy2 moves just the channel cut line, and delay moves just the delay 
-        motors.
-
-        Catches all the same exceptions that mv() does. If a relative move is 
-        needed for higher level functions use move_rel() instead.
+        Exceptions Caught
+        -----------------
+        LimitError
+            Error raised when the inputted position is beyond the soft limits.
         
-        Parameters
-        ----------
-        position : float
-            Position to move the motor to.
+        MotorDisabled
+            Error raised if the motor is disabled and move is requested.
 
-        wait : bool, optional
-            Wait for each motor to complete the motion before returning the
-            console.
-            
-        verify_move : bool, optional
-            Prints the current system state and a proposed system state and
-            then prompts the user to accept the proposal before changing the
-            system.
+        MotorFaulted
+            Error raised if the motor is disabled and the move is requested.
 
-        ret_status : bool, optional
-            Return the status object of the move.
+        MotorStopped
+            Error raised If the motor is stopped and a move is requested.
 
-        use_diag : bool, optional
-            Move the daignostic motors to align with the beam.
-        
-        Returns
-        -------
-        status : list
-            List of status objects for each motor that was involved in the move.
-        """
-        # Perform the move, catching the common motor exceptions
-        return self._catch_motor_exceptions(
-            self.move_rel, position_rel, wait=wait, verify_move=verify_move, 
-            ret_status=ret_status, use_diag=use_diag)
-
-    def __call__(self, position, wait=True, ret_status=False, verify_move=True, 
-                 use_diag=True):
-        """
-        Moves the macro-motor to the inputted position. Alias for 
-        self.mv(position).
-
-        Parameters
-        ----------
-        position
-            Position to move to.
-
-        wait : bool, optional
-            Wait for the motor to complete the motion.
-
-        ret_status : bool, optional
-            Return the status object of the move.
-
-        verify_move : bool, optional
-            Prints the current system state and a proposed system state and
-            then prompts the user to accept the proposal before changing the
-            system.
+        BadN2Pressure
+            Error raised if the pressure in the tower is bad.
 
         Returns
         -------
         status : list
             List of status objects for each motor that was involved in the move.
         """
-        return self.mv(position, wait=wait, ret_status=ret_status,
-                       verify_move=verify_move, use_diag=use_diag)
-
-    def wm(self):
-        """
-        Returns the current position of the macro-motor.
-
-        Returns
-        -------
-        position : float or list
-            Position of the macro-motor.
-        """
-        return self.position
+        try:
+            return super().mv(position, wait=wait, verify_move=verify_move, 
+                              ret_status=ret_status, use_diag=use_diag, *args,
+                              **kwargs)
+        # Catch all the common motor exceptions        
+        except LimitError:
+            logger.warning("Requested move is outside the soft limits")
+        except MotorDisabled:
+            logger.warning("Cannot move '{0}' - a motor is currently disabled. "
+                           "Try running 'motor.enable()'.".format(self.desc))
+        except MotorFaulted:
+            logger.warning("Cannot move '{0}' - a motor is currently faulted. "
+                           "Try running 'motor.clear()'.".format(self.desc))
+        except MotorStopped:
+            logger.warning("Cannot move '{0}' - a motor is currently stopped. "
+                           "Try running 'motor.state='Go''.".format(self.desc))
+        except BadN2Pressure:
+            logger.warning("Cannot move '{0}' - pressure in a tower is bad."
+                           "".format(self.desc))
 
     def set_position(self, *args, **kwargs):
         """

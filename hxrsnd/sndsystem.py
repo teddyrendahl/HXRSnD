@@ -7,15 +7,13 @@ import os
 import logging
 
 import numpy as np
-from ophyd import Component
-from ophyd.status import wait as status_wait
-from ophyd.utils.epics_pvs import raise_if_disconnected
+from ophyd import Component as Cmp
 from bluesky import RunEngine
 
-from pcdsdevices.device import Device
 from pcdsdevices.daq import Daq, make_daq_run_engine
 
 from .state import OphydMachine
+from .snddevice import SndDevice
 from .pneumatic import SndPneumatics
 from .utils import flatten, absolute_submodule_path
 from .bragg import bragg_angle, cosd, sind
@@ -26,7 +24,7 @@ from .macromotor import Energy1Macro, Energy1CCMacro, Energy2Macro, DelayMacro
 logger = logging.getLogger(__name__)
 
 
-class SplitAndDelay(Device):
+class SplitAndDelay(SndDevice):
     """
     Hard X-Ray Split and Delay System.
 
@@ -75,48 +73,41 @@ class SplitAndDelay(Device):
         Delay pseudomotor.
     """
     # Delay Towers
-    t1 = Component(DelayTower, ":T1", pos_inserted=21.1, pos_removed=0, 
+    t1 = Cmp(DelayTower, ":T1", pos_inserted=21.1, pos_removed=0, 
                    desc="Tower 1")
-    t4 = Component(DelayTower, ":T4", pos_inserted=21.1, pos_removed=0, 
+    t4 = Cmp(DelayTower, ":T4", pos_inserted=21.1, pos_removed=0, 
                    desc="Tower 4")
 
     # Channel Cut Towers
-    t2 = Component(ChannelCutTower, ":T2", pos_inserted=None, 
-                   pos_removed=0, desc="Tower 2")
-    t3 = Component(ChannelCutTower, ":T3", pos_inserted=None, 
-                   pos_removed=0, desc="Tower 3")
+    t2 = Cmp(ChannelCutTower, ":T2", pos_inserted=None, pos_removed=0, 
+             desc="Tower 2")
+    t3 = Cmp(ChannelCutTower, ":T3", pos_inserted=None, pos_removed=0, 
+             desc="Tower 3")
 
     # Pneumatic Air Bearings
-    ab = Component(SndPneumatics, "")
+    ab = Cmp(SndPneumatics, "")
 
     # SnD and Delay line diagnostics
-    di = Component(HamamatsuXMotionDiode, ":DIA:DI", 
-                   desc="DI")
-    dd = Component(HamamatsuXYMotionCamDiode, ":DIA:DD",
-                   desc="DD")
-    do = Component(HamamatsuXMotionDiode, ":DIA:DO",
-                   desc="DO")
+    di = Cmp(HamamatsuXMotionDiode, ":DIA:DI", desc="DI")
+    dd = Cmp(HamamatsuXYMotionCamDiode, ":DIA:DD", desc="DD")
+    do = Cmp(HamamatsuXMotionDiode, ":DIA:DO", desc="DO")
 
     # Channel Cut Diagnostics
-    dci = Component(HamamatsuXMotionDiode, ":DIA:DCI", block_pos=-5,
-                    desc="DCI")
-    dcc = Component(HamamatsuXYMotionCamDiode, ":DIA:DCC", block_pos=-5,
-                    desc="DCC")
-    dco = Component(HamamatsuXMotionDiode, ":DIA:DCO",  block_pos=-5,
-                    desc="DCO")
+    dci = Cmp(HamamatsuXMotionDiode, ":DIA:DCI", block_pos=-5, desc="DCI")
+    dcc = Cmp(HamamatsuXYMotionCamDiode, ":DIA:DCC", block_pos=-5, desc="DCC")
+    dco = Cmp(HamamatsuXMotionDiode, ":DIA:DCO",  block_pos=-5, desc="DCO")
 
     # Macro motors
-    E1 = Component(Energy1Macro, "", desc="Delay Energy")
-    E1_cc = Component(Energy1CCMacro, "", desc="CC Delay Energy")
-    E2 = Component(Energy2Macro, "", desc="CC Energy")
-    delay = Component(DelayMacro, "", desc="Delay")
+    E1 = Cmp(Energy1Macro, "", desc="Delay Energy")
+    E1_cc = Cmp(Energy1CCMacro, "", desc="CC Delay Energy")
+    E2 = Cmp(Energy2Macro, "", desc="CC Energy")
+    delay = Cmp(DelayMacro, "", desc="Delay")
 
     # DAQ
-    daq = Component(Daq, None, platform=1)
+    daq = Cmp(Daq, None, platform=1)
     
-    def __init__(self, prefix, name=None, desc=None, *args, **kwargs):
+    def __init__(self, prefix, name=None, *args, **kwargs):
         super().__init__(prefix, name=name, *args, **kwargs)
-        self.desc = desc or name
         self._delay_towers = [self.t1, self.t4]
         self._channelcut_towers = [self.t2, self.t3]
         self._towers = self._delay_towers + self._channelcut_towers

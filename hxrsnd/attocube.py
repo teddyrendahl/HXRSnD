@@ -8,34 +8,29 @@ import logging
 
 import numpy as np
 from ophyd import PositionerBase
-from ophyd import Component
+from ophyd import Component as Cmp
 from ophyd.utils import LimitError
 from ophyd.status import wait as status_wait
 
-from pcdsdevices.device import Device
-from pcdsdevices.epics.signal import (EpicsSignal, EpicsSignalRO)
+from pcdsdevices.epics.signal import EpicsSignal, EpicsSignalRO
 from pcdsdevices.epics.epicsmotor import EpicsMotor
 
+from .sndmotor import SndMotor
+from .snddevice import SndDevice
 from .exceptions import MotorDisabled, MotorError
 from .utils import absolute_submodule_path, as_list
 
 logger = logging.getLogger(__name__)
 
 
-class EccController(Device):
+class EccController(SndDevice):
     """
     ECC Controller
     """
-    _firm_day = Component(EpicsSignalRO, ":CALC:FIRMDAY")
-    _firm_month = Component(EpicsSignalRO, ":CALC:FIRMMONTH")
-    _firm_year = Component(EpicsSignalRO, ":CALC:FIRMYEAR")
-    _flash = Component(EpicsSignal, ":RDB:FLASH", write_pv=":CMD:FLASH")
-
-    def __init__(self, prefix, name=None, desc=None, timeout=2, *args, 
-                 **kwargs):
-        self.desc = desc or name
-        self.timeout = timeout
-        super().__init__(prefix, name=name, *args, **kwargs)
+    _firm_day = Cmp(EpicsSignalRO, ":CALC:FIRMDAY")
+    _firm_month = Cmp(EpicsSignalRO, ":CALC:FIRMMONTH")
+    _firm_year = Cmp(EpicsSignalRO, ":CALC:FIRMYEAR")
+    _flash = Cmp(EpicsSignal, ":RDB:FLASH", write_pv=":CMD:FLASH")
     
     @property 
     def firmware(self):
@@ -53,45 +48,39 @@ class EccController(Device):
         return self._flash.set(1, timeout=self.timeout)
 
 
-class EccBase(Device, PositionerBase):
+class EccBase(SndMotor, PositionerBase):
     """
     ECC Motor Class
     """
     # position
-    user_readback = Component(EpicsSignalRO, ":POSITION", auto_monitor=True)
-    user_setpoint = Component(EpicsSignal, ":CMD:TARGET")
+    user_readback = Cmp(EpicsSignalRO, ":POSITION", auto_monitor=True)
+    user_setpoint = Cmp(EpicsSignal, ":CMD:TARGET")
 
     # limits
-    upper_ctrl_limit = Component(EpicsSignal, ':CMD:TARGET.HOPR')
-    lower_ctrl_limit = Component(EpicsSignal, ':CMD:TARGET.LOPR')
+    upper_ctrl_limit = Cmp(EpicsSignal, ':CMD:TARGET.HOPR')
+    lower_ctrl_limit = Cmp(EpicsSignal, ':CMD:TARGET.LOPR')
 
     # configuration
-    motor_egu = Component(EpicsSignalRO, ":UNIT")
-    motor_amplitude = Component(EpicsSignal, ":CMD:AMPL")
-    motor_dc = Component(EpicsSignal, ":CMD:DC")
-    motor_frequency = Component(EpicsSignal, ":CMD:FREQ")
+    motor_egu = Cmp(EpicsSignalRO, ":UNIT")
+    motor_amplitude = Cmp(EpicsSignal, ":CMD:AMPL")
+    motor_dc = Cmp(EpicsSignal, ":CMD:DC")
+    motor_frequency = Cmp(EpicsSignal, ":CMD:FREQ")
 
     # motor status
-    motor_connected = Component(EpicsSignalRO, ":ST_CONNECT")
-    motor_enabled = Component(EpicsSignalRO, ":ST_ENABLED")
-    motor_referenced = Component(EpicsSignalRO, ":ST_REFVAL")
-    motor_error = Component(EpicsSignalRO, ":ST_ERROR")
-    motor_is_moving = Component(EpicsSignalRO, ":RD_MOVING")
-    motor_done_move = Component(EpicsSignalRO, ":RD_INRANGE")
-    high_limit_switch = Component(EpicsSignal, ":ST_EOT_FWD")
-    low_limit_switch = Component(EpicsSignal, ":ST_EOT_BWD")
-    motor_reference_position = Component(EpicsSignalRO, ":REF_POSITION")
+    motor_connected = Cmp(EpicsSignalRO, ":ST_CONNECT")
+    motor_enabled = Cmp(EpicsSignalRO, ":ST_ENABLED")
+    motor_referenced = Cmp(EpicsSignalRO, ":ST_REFVAL")
+    motor_error = Cmp(EpicsSignalRO, ":ST_ERROR")
+    motor_is_moving = Cmp(EpicsSignalRO, ":RD_MOVING")
+    motor_done_move = Cmp(EpicsSignalRO, ":RD_INRANGE")
+    high_limit_switch = Cmp(EpicsSignal, ":ST_EOT_FWD")
+    low_limit_switch = Cmp(EpicsSignal, ":ST_EOT_BWD")
+    motor_reference_position = Cmp(EpicsSignalRO, ":REF_POSITION")
 
     # commands
-    motor_stop = Component(EpicsSignal, ":CMD:STOP")
-    motor_reset = Component(EpicsSignal, ":CMD:RESET.PROC")
-    motor_enable = Component(EpicsSignal, ":CMD:ENABLE")
-
-    def __init__(self, prefix, name=None, desc=None, timeout=2, *args, 
-                 **kwargs):
-        self.desc = desc or name
-        self.timeout = timeout
-        super().__init__(prefix, name=name, *args, **kwargs)
+    motor_stop = Cmp(EpicsSignal, ":CMD:STOP")
+    motor_reset = Cmp(EpicsSignal, ":CMD:RESET.PROC")
+    motor_enable = Cmp(EpicsSignal, ":CMD:ENABLE")
 
     @property
     def position(self):
@@ -419,41 +408,7 @@ class EccBase(Device, PositionerBase):
         status = self.motor_stop.set(1, wait=False, timeout=self.timeout)
         super().stop(success=success)
         return self._status_print(status, "Stopped motor '{0}'".format(
-            self.desc), ret_status=ret_status, print_set=print_set)
-        
-    def move_rel(self, rel_position, *args, **kwargs):
-        """
-        Move relative to the current position, optionally waiting for motion to
-        complete.
-
-        Parameters
-        ----------
-        rel_position
-            Relative position to move to
-
-        ret_status : bool, optional
-            Return the status object of the move.
-
-        print_move : bool, optional
-            Print a short statement about the move.
-
-        Returns
-        -------
-        status : MoveStatus        
-            Status object for the move.
-        
-        Raises
-        ------
-        TimeoutError
-            When motion takes longer than `timeout`
-        
-        ValueError
-            On invalid positions
-        
-        RuntimeError
-            If motion fails other than timing out        
-        """
-        return self.move(rel_position + self.position, *args, **kwargs)
+            self.desc), ret_status=ret_status, print_set=print_set)        
 
     def mv(self, position, ret_status=False, print_move=True, *args, **kwargs):
         """
@@ -492,9 +447,8 @@ class EccBase(Device, PositionerBase):
             Status object for the move.
         """
         try:
-            return self.move(position, ret_status=ret_status, 
-                             print_move=print_move, *args, **kwargs)
-
+            return super().mv(position, ret_status=ret_status, 
+                              print_move=print_move, *args, **kwargs)
         # Catch all the common motor exceptions
         except LimitError:
             logger.warning("Requested move '{0}' is outside the soft limits "
@@ -506,54 +460,6 @@ class EccBase(Device, PositionerBase):
         except MotorFaulted:
             logger.warning("Cannot move - motor {0} is currently faulted. Try "
                            "running 'motor.clear()'.".format(self.desc))
-
-    def mvr(self, rel_position, ret_status=False, print_move=True, *args, 
-            **kwargs):
-        """
-        Move relative to the current position, optionally waiting for motion to
-        complete. Catches all the same exceptions that mv() does. If a relative
-        move is needed for higher level functions use move_rel() instead.
-
-        Parameters
-        ----------
-        rel_position
-            Relative position to move to.
-
-        ret_status : bool, optional
-            Return the status object of the move.
-
-        print_move : bool, optional
-            Print a short statement about the move.
-
-        Exceptions Caught
-        -----------------
-        LimitError
-            Error raised when the inputted position is beyond the soft limits.
-        
-        MotorDisabled
-            Error raised if the motor is disabled and move is requested.
-
-        MotorFaulted
-            Error raised if the motor is disabled and the move is requested.
-
-        Returns
-        -------
-        status : MoveStatus        
-            Status object for the move.
-        """
-        return self.mv(rel_position + self.position, ret_status=ret_status, 
-                       print_move=print_move, *args, **kwargs)
-
-    def wm(self):
-        """
-        Returns the current position of the motor.
-
-        Returns
-        -------
-        position : float
-            Current readback position of the motor.
-        """
-        return self.position    
     
     def expert_screen(self, print_msg=True):
         """
@@ -639,31 +545,6 @@ class EccBase(Device, PositionerBase):
         self.low_limit = value[0]
         self.high_limit = value[1]
 
-
-    def __call__(self, position, ret_status=False, print_move=True, *args, 
-                 **kwargs):
-        """
-        Moves the motor to the inputted position. Alias for self.move(position).
-
-        Parameters
-        ----------
-        position
-            Position to move to.
-
-        ret_status : bool, optional
-            Return the status object of the move.
-
-        print_move : bool, optional
-            Print a short statement about the move.
-
-        Returns
-        -------
-        status : MoveStatus 
-            Status object for the move.
-        """
-        return self.move(position, ret_status=ret_status, print_move=print_move,
-                         *args, **kwargs)
-
     def status(self, status="", offset=0, print_status=True, newline=False, 
                short=False):
         """
@@ -708,31 +589,6 @@ class EccBase(Device, PositionerBase):
             logger.info(status)
         else:
             return status
-
-    def st(self, *args, **kwargs):
-        """
-        Returns the status of the device. Alias for status().
-        
-        Parameters
-        ----------
-        status : str, optional
-            The string to append the status to.
-            
-        offset : int, optional
-            Amount to offset each line of the status.
-
-        print_status : bool, optional
-            Determines whether the string is printed or returned.
-
-        newline : bool, optional
-            Adds a new line to the end of the string.
-
-        Returns
-        -------
-        status : str
-            Status string.
-        """
-        return self.status(*args, **kwargs) 
 
 
 class TranslationEcc(EccBase):
