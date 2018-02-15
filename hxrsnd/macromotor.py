@@ -3,28 +3,16 @@ Script to hold the energy macromotors
 
 All units of time are in picoseconds, units of length are in mm.
 """
-############
-# Standard #
-############
 import os
 import logging
 
-###############
-# Third Party #
-###############
 import numpy as np
 import pandas as pd
 from ophyd.utils import LimitError
 from ophyd.status import wait as status_wait
 
-########
-# SLAC #
-########
 from pcdsdevices.device import Device
 
-##########
-# Module #
-##########
 from .utils import as_list, flatten
 from .bragg import bragg_angle, cosd, sind
 from .exceptions import MotorDisabled, MotorFaulted, MotorStopped, BadN2Pressure
@@ -52,8 +40,6 @@ class MacroBase(Device):
         else:
             self._delay_towers = [self.parent.t1, self.parent.t4]
             self._channelcut_towers = [self.parent.t2, self.parent.t3]
-        if self.desc is None:
-            self.desc = self.name
         self._calib = {}
 
     @property
@@ -456,8 +442,8 @@ class MacroBase(Device):
             logger.warning("Cannot move '{0}' - a motor is currently stopped. "
                            "Try running 'motor.state='Go''.".format(self.desc))
         except BadN2Pressure:
-            logger.warning("Cannot move '{0}' - pressure in tower {0} is bad."
-                           "".format(self._tower))
+            logger.warning("Cannot move '{0}' - pressure in a tower is bad."
+                           "".format(self.desc))
 
     def mv(self, position, wait=True, verify_move=True, ret_status=False, 
            use_diag=True):

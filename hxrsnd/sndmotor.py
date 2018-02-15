@@ -1,13 +1,16 @@
 import logging
+
 import ophyd.epics_motor
-from pcdsdevices.epics.epicsmotor import EpicsMotor
 from ophyd.device import Component
+from ophyd.utils import LimitError
+
 from pcdsdevices.device import Device
 from pcdsdevices.signal import Signal
 from pcdsdevices.sim.signal import FakeSignal
-from ophyd.utils import LimitError
+from pcdsdevices.epics.epicsmotor import EpicsMotor
 
 logger = logging.getLogger(__name__)
+
 
 class SndMotor(EpicsMotor, Device):
     """
@@ -16,8 +19,6 @@ class SndMotor(EpicsMotor, Device):
     def __init__(self, prefix, name=None, desc=None, *args, **kwargs):
         self.desc = desc or name
         super().__init__(prefix, name=name, *args, **kwargs)
-        if self.desc is None:
-            self.desc = self.name
 
 
 class SamMotor(SndMotor):
@@ -25,7 +26,6 @@ class SamMotor(SndMotor):
     direction_of_travel = Component(FakeSignal)
     home_forward = Component(FakeSignal)
     home_reverse = Component(FakeSignal)
-
 
     def check_value(self, value, retries=5):
         """

@@ -93,8 +93,8 @@ def linear_scan(motor, start, stop, num, use_diag=True, return_to_start=True,
     return (yield from inner_scan())    
 
 def centroid_scan(detector, motor, start, stop, steps, average=None, 
-                  detector_fields=['centroid_x', 'centroid_y',], filters=None,
-                  *args, **kwargs):
+                  detector_fields=['stats2_centroid_x', 'stats2_centroid_y',], 
+                  filters=None, *args, **kwargs):
     """
     Performs a scan and returns the centroids of the inputted detector.
 
@@ -166,7 +166,7 @@ def centroid_scan(detector, motor, start, stop, steps, average=None,
         yield from abs_set(motor, step, wait=True)
         # Measure the average
         reads = (yield from measure_average([motor, detector], num=average,
-                                            filters=filters))
+                                            filters=filters, *args, **kwargs))
         # Fill the dataframe at this step with the centroid difference
         df.loc[step, motor.name] = reads[motor.name]
         for fld in prep_det_fields:
@@ -175,6 +175,7 @@ def centroid_scan(detector, motor, start, stop, steps, average=None,
     # Define the generic scans and run it
     plan = scan([detector], motor, start, stop, steps, per_step=measure)
     yield from msg_mutator(plan, block_run_control)
+    logger.debug("Got the following centroids: \n{0}".format(df))
 
     # Return the filled dataframe
     return df

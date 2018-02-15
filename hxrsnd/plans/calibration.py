@@ -1,31 +1,17 @@
 """
 Calibration of the delay macromotor
 """
-############
-# Standard #
-############
+
 import uuid
 import logging
-
-###############
-# Third Party #
-###############
 import pandas as pd
 from scipy.signal               import savgol_filter
 from bluesky.plans              import scan
 from bluesky.plan_stubs         import rel_set, wait as plan_wait
 from bluesky.plan_stubs         import abs_set
 from bluesky.preprocessors      import msg_mutator
-
-##########
-# Module #
-##########
 from pswalker.utils             import field_prepend
 from pswalker.plans             import measure_average, walk_to_pixel
-
-##########
-# Module #
-##########
 from .plan_stubs import block_run_control
 from ..utils import as_list
 

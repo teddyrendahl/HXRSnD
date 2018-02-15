@@ -114,7 +114,8 @@ def setup_logging(path_yaml=None, dir_logs=None, default_level=logging.INFO):
             try:
                 config = yaml.safe_load(f.read())
                 logging.config.dictConfig(config)
-                coloredlogs.install()
+                coloredlogs.install(
+                    fmt=config['formatters']['stream']['format'])
             except Exception as e:
                 print('Error in Logging Configuration. Using default configs')
                 logging.basicConfig(level=default_level)
