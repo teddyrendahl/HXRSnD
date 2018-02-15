@@ -92,8 +92,6 @@ class EccBase(Device, PositionerBase):
         self.desc = desc or name
         self.timeout = timeout
         super().__init__(prefix, name=name, *args, **kwargs)
-        if self.desc is None:
-            self.desc = self.name
 
     @property
     def position(self):
@@ -735,17 +733,6 @@ class EccBase(Device, PositionerBase):
             Status string.
         """
         return self.status(*args, **kwargs) 
-
-    # def __repr__(self):
-    #     """
-    #     Returns the status of the motor. Alias for status().
-
-    #     Returns
-    #     -------
-    #     status : str
-    #         Status string.
-    #     """
-    #     return self.status(print_status=False)
 
 
 class TranslationEcc(EccBase):

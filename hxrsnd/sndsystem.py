@@ -123,8 +123,6 @@ class SplitAndDelay(Device):
         self._delay_diagnostics = [self.di, self.dd, self.do]
         self._channelcut_diagnostics = [self.dci, self.dcc, self.dco]
         self._diagnostics = self._delay_diagnostics+self._channelcut_diagnostics
-        if self.desc is None:
-            self.desc = self.name    
 
         # Get the LCLS RunEngine
         self.RE = make_daq_run_engine(self.daq)

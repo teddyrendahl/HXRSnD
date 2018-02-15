@@ -1,11 +1,13 @@
 import logging
+
 import ophyd.epics_motor
-from pcdsdevices.epics.epicsmotor import EpicsMotor
 from ophyd.device import Component
+from ophyd.utils import LimitError
+
 from pcdsdevices.device import Device
 from pcdsdevices.signal import Signal
 from pcdsdevices.sim.signal import FakeSignal
-from ophyd.utils import LimitError
+from pcdsdevices.epics.epicsmotor import EpicsMotor
 
 logger = logging.getLogger(__name__)
 

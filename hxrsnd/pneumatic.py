@@ -3,28 +3,16 @@
 """
 Pneumatics for SnD
 """
-############
-# Standard #
-############
 import logging
 
-###############
-# Third Party #
-###############
 import numpy as np
 from ophyd import Component
 
-########
-# SLAC #
-########
 from pcdsdevices.device import Device
 from pcdsdevices.epics.signal import EpicsSignal, EpicsSignalRO
 
-##########
-# Module #
-##########
-
 logger = logging.getLogger(__name__)
+
 
 class PneuBase(Device):
     """
@@ -36,8 +24,6 @@ class PneuBase(Device):
         self.desc = desc or name
         self.timeout = timeout
         super().__init__(prefix, name=name, *args, **kwargs)
-        if self.desc is None:
-            self.desc = self.name
     
     def status(self, status="", offset=0, print_status=True, newline=False):
         """
@@ -247,8 +233,6 @@ class SndPneumatics(Device):
         self._valves = [self.t1_valve, self.t4_valve, self.vac_valve]
         self._pressure_switches = [self.t1_pressure, self.t4_pressure,
                                    self.vac_pressure]
-        if self.desc is None:
-            self.desc = self.name
 
     def status(self, status="", offset=0, print_status=True, newline=False):
         """

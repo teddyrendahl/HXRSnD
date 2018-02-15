@@ -3,12 +3,14 @@
 """
 Diodes
 """
-
 import logging
+
 import numpy as np
 from ophyd import EpicsSignalRO
+
 from pcdsdevices.device import Device
 from pcdsdevices.component import Component as C, FormattedComponent as FC
+
 from .aerotech import DiodeAero
 from .detectors import GigeDetector
 

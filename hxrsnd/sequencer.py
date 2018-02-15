@@ -1,26 +1,15 @@
 """
 RTDs
 """
-############
-# Standard #
-############
 import logging
 
-###############
-# Third Party #
-###############
 from ophyd import Component
 from ophyd.status import wait as status_wait
 
-########
-# SLAC #
-########
 from pcdsdevices.device import Device
 from pcdsdevices.epics.signal import EpicsSignal, EpicsSignalRO
 
-##########
-# Module #
-##########
+logger = logging.getLogger(__name__)
 
 
 class SeqBase(Device):
@@ -33,8 +22,6 @@ class SeqBase(Device):
                  **kwargs):
         self.desc = desc or name
         super().__init__(prefix, name=name, *args, **kwargs)
-        if self.desc is None:
-            self.desc = self.name
     
     def start(self):
         """

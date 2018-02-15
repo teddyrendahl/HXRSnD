@@ -30,7 +30,10 @@ def test_centroid_scan(fresh_RE):
     camera = SynCamera(m1, m2, delay, name="camera")
     # Create the plan
     def test_plan():
-        delay_scan = (yield from centroid_scan(camera, delay, -5, 5, 11))
+        delay_scan = (yield from centroid_scan(camera, delay, -5, 5, 11,
+                                               detector_fields=[
+                                                   'camera_centroid_x',
+                                                   'camera_centroid_y']))
         assert True not in delay_scan.isnull().values
     plan = run_wrapper(test_plan())
     # Run the plan
