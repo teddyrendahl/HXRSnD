@@ -1,20 +1,15 @@
 """
 Script for small utility functions used in HXRSnD
 """
-############
-# Standard #
-############
 import os
 import inspect
 import logging
 import logging.config
 from pathlib import Path
+from functools import wraps
 from collections.abc import Iterable
 from logging.handlers import RotatingFileHandler
 
-###############
-# Third Party #
-###############
 import yaml
 import coloredlogs
 
@@ -237,3 +232,23 @@ def flatten(inp_iter):
     """
     return list(_flatten(inp_iter))
 
+def stop_on_keyboardinterrupt(func):
+    """
+    Decorator that runs the object's `stop` method if a keyboard interrupt is
+    raised. This is meant to be used on ophyd device methods and expects the 
+    first argument to be `self`.
+    """
+    @wraps(func)
+    def stop_dev_on_keyboardinterrupt(obj, *args, **kwargs):
+        if hasattr(obj, "stop") and callable(obj.stop):
+            try:
+                return func(obj, *args, **kwargs)
+            except KeyboardInterrupt:
+                obj.stop()
+                logger.info("Motor '{0}' stopped by keyboard interrupt".format(
+                    obj.name))
+        else:
+            raise AttributeError("Object '{0}' needs a stop method to use the "
+                                 "stop_on_keyboardinterrupt decorator.".format(
+                                     obj))
+    return stop_dev_on_keyboardinterrupt
