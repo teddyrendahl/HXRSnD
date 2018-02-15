@@ -308,7 +308,7 @@ class AeroBase(SndEpicsMotor):
                            "running 'motor.clear()'.".format(self.desc))
         except MotorStopped:
             logger.warning("Cannot move - motor {0} is currently stopped. Try "
-                           "running 'motor.state='Go''.".format(self.desc))
+                           "running 'motor.state=\"Go\"'.".format(self.desc))
 
     def check_status(self, position=None):
         """

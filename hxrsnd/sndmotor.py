@@ -163,7 +163,7 @@ class SndMotor(SndDevice):
         return self.mv(position, *args, **kwargs)
 
 
-class SndEpicsMotor(EpicsMotor, SndMotor):
+class SndEpicsMotor(SndMotor, EpicsMotor):
     """
     SnD motor that inherits from EpicsMotor, therefore having all the relevant 
     signals
