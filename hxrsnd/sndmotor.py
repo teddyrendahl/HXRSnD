@@ -10,6 +10,7 @@ from pcdsdevices.signal import Signal
 from pcdsdevices.epics.epicsmotor import EpicsMotor
 
 from .snddevice import SndDevice
+from .utils import stop_on_keyboardinterrupt
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ class SndMotor(SndDevice):
     def move_rel(self, rel_position, *args, **kwargs):
         """
         Move relative to the current position, optionally waiting for motion to
-        complete. Alias for self.move(self.position + rel_position).
+        complete. Alias for self.move(rel_position + self.position).
 
         Parameters
         ----------
@@ -74,6 +75,7 @@ class SndMotor(SndDevice):
         """
         return self.move(rel_position + self.position, *args, **kwargs)
 
+    @stop_on_keyboardinterrupt
     def mv(self, position, *args, **kwargs):
         """
         Move to a specified position, optionally waiting for motion to
@@ -106,7 +108,7 @@ class SndMotor(SndDevice):
     def mvr(self, rel_position, *args, **kwargs):
         """
         Move relative to the current position, optionally waiting for motion to
-        complete. Alias for self.mv(self.position + rel_position).
+        complete. Alias for self.mv(rel_position + self.position).
 
         Parameters
         ----------
@@ -116,14 +118,14 @@ class SndMotor(SndDevice):
         wait : bool, optional
             Wait for the motor to complete the motion.
 
-        check_status : bool, optional
-            Check if the motors are in a valid state to move.
+        moved_cb : callable
+            Call this callback when movement has finished. This callback must
+            accept one keyword argument: 'obj' which will be set to this
+            positioner instance.
 
-        ret_status : bool, optional
-            Return the status object of the move.
-
-        print_move : bool, optional
-            Print a short statement about the move.
+        timeout : float, optional
+            Maximum time to wait for the motion. If None, the default timeout
+            for this positioner is used.
 
         Returns
         -------
@@ -144,11 +146,14 @@ class SndMotor(SndDevice):
         wait : bool, optional
             Wait for the motor to complete the motion.
 
-        ret_status : bool, optional
-            Return the status object of the move.
+        moved_cb : callable
+            Call this callback when movement has finished. This callback must
+            accept one keyword argument: 'obj' which will be set to this
+            positioner instance.
 
-        print_move : bool, optional
-            Print a short statement about the move.
+        timeout : float, optional
+            Maximum time to wait for the motion. If None, the default timeout
+            for this positioner is used.
 
         Returns
         -------

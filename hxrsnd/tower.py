@@ -373,7 +373,6 @@ class DelayTower(TowerBase):
 
     # # Temperature monitor
     # temp = Cmp(OmegaRTD, ":TEMP", desc="Tower RTD")
-
     
     def __init__(self, prefix, *args, **kwargs):
         super().__init__(prefix, *args, **kwargs)

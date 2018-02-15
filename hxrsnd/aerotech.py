@@ -16,7 +16,7 @@ from pcdsdevices.epics.signal import EpicsSignal, EpicsSignalRO, Signal
 
 from .sndmotor import SndEpicsMotor
 from .pneumatic import PressureSwitch
-from .utils import absolute_submodule_path, as_list
+from .utils import absolute_submodule_path, as_list, stop_on_keyboardinterrupt
 from .exceptions import MotorDisabled, MotorFaulted, MotorStopped, BadN2Pressure
 
 logger = logging.getLogger(__name__)
@@ -131,6 +131,7 @@ class AeroBase(SndEpicsMotor):
             if reraise:
                 raise
 
+    @stop_on_keyboardinterrupt
     def homf(self, ret_status=False, print_set=True, check_status=True):
         """
         Home the motor forward.
@@ -158,6 +159,7 @@ class AeroBase(SndEpicsMotor):
         return self._status_print(status, "Homing '{0}' forward.".format(
             self.desc), print_set=print_set, ret_status=ret_status)
 
+    @stop_on_keyboardinterrupt
     def homr(self, ret_status=False, print_set=True, check_status=True):
         """
         Home the motor in reverse.
@@ -185,8 +187,7 @@ class AeroBase(SndEpicsMotor):
         return self._status_print(status, "Homing '{0}' in reverse.".format(
             self.desc), print_set=print_set, ret_status=ret_status)
 
-    def move(self, position, wait=False, check_status=True, ret_status=True, 
-             print_move=False, *args, **kwargs):
+    def move(self, position, wait=False, check_status=True, *args, **kwargs):
         """
         Move to a specified position, optionally waiting for motion to
         complete.
@@ -201,12 +202,6 @@ class AeroBase(SndEpicsMotor):
 
         check_status : bool, optional
             Check if the motors are in a valid state to move.
-
-        ret_status : bool, optional
-            Return the status object of the move.
-
-        print_move : bool, optional
-            Print a short statement about the move.
 
         moved_cb : callable
             Call this callback when movement has finished. This callback must
@@ -233,31 +228,14 @@ class AeroBase(SndEpicsMotor):
         RuntimeError
             If motion fails other than timing out
         """
-        try:
-            # Check the motor status
-            if check_status:
-                self.check_status(position)
-            status =  super().move(position, wait=wait, *args, **kwargs)
+        # Check the motor status
+        if check_status:
+            self.check_status(position)
+        logger.debug("Moving {0} to {1}".format(self.name, position))
+        return super().move(position, wait=wait, *args, **kwargs)
 
-            # Notify the user that a motor has completed or the command is sent
-            if print_move:
-                if wait:
-                    logger.info("Move completed for '{0}'.".format(self.desc))
-                else:
-                    logger.info("Move command sent to '{0}'.".format(self.desc))
-
-            # Check if a status object is desired
-            if ret_status:
-                return status
-
-        # If keyboard interrupted, make sure to stop the motor
-        except KeyboardInterrupt:
-            self.stop()
-            logger.info("Motor '{0}' stopped by keyboard interrupt".format(
-                self.desc))
-
-    def mv(self, position, wait=True, ret_status=False, print_move=True, 
-           *args, **kwargs):
+    def mv(self, position, wait=True, ret_status=False, print_move=True, *args, 
+           **kwargs):
         """
         Move to a specified position, optionally waiting for motion to
         complete. mv() is different from move() by catching all the common
@@ -303,8 +281,20 @@ class AeroBase(SndEpicsMotor):
             Status object for the move.
         """
         try:
-            return super().mv(position, wait=wait, ret_status=ret_status, 
-                              print_move=print_move, *args, **kwargs)
+            status =  super().mv(position, wait=wait, ret_status=ret_status, 
+                                 print_move=print_move, *args, **kwargs)
+
+            # Notify the user that a motor has completed or the command is sent
+            if print_move:
+                if wait:
+                    logger.info("Move completed for '{0}'.".format(self.desc))
+                else:
+                    logger.info("Move command sent to '{0}'.".format(self.desc))
+
+            # Check if a status object is desired
+            if ret_status:
+                return status
+
         # Catch all the common motor exceptions        
         except LimitError:
             logger.warning("Requested move '{0}' is outside the soft limits "
@@ -378,7 +368,6 @@ class AeroBase(SndEpicsMotor):
             log_level = logger.info
         else:
             log_level = logger.debug
-
         
         log_level("'{0}' previous position: {0}, offset: {1}".format(
             self.position, self.offset))

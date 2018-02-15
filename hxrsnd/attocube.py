@@ -275,8 +275,7 @@ class EccBase(SndMotor, PositionerBase):
         return self._status_print(status, "Reset motor '{0}'".format(
             self.desc), ret_status=ret_status, print_set=print_set)
     
-    def move(self, position, check_status=True, ret_status=True, 
-             print_move=False, *args, **kwargs):
+    def move(self, position, check_status=True, *args, **kwargs):
         """
         Move to a specified position.
 
@@ -287,12 +286,6 @@ class EccBase(SndMotor, PositionerBase):
 
         check_status : bool, optional
             Check if the motors are in a valid state to move.
-
-        ret_status : bool, optional
-            Return the status object of the move.
-
-        print_move : bool, optional
-            Print a short statement about the move.
 
         Returns
         -------
@@ -310,15 +303,52 @@ class EccBase(SndMotor, PositionerBase):
         RuntimeError
             If motion fails other than timing out
         """
+        # Check the motor status
+        if check_status:
+            self.check_status(position)
+        logger.debug("Moving {0} to {1}".format(self.name, position))
+        # Begin the move process
+        return self.user_setpoint.set(position, timeout=self.timeout)
+
+    def mv(self, position, ret_status=False, print_move=True, *args, **kwargs):
+        """
+        Move to a specified position, optionally waiting for motion to
+        complete. mv() is different from move() by catching all the common
+        exceptions that this motor can raise and just raises a logger
+        warning. Therefore if building higher level functionality, do not
+        use this method and use move() instead otherwise none of these
+        exceptions will propagate to it.
+
+        Parameters
+        ----------
+        position
+            Position to move to.
+
+        ret_status : bool, optional
+            Return the status object of the move.
+
+        print_move : bool, optional
+            Print a short statement about the move.
+
+        Exceptions Caught
+        -----------------
+        LimitError
+            Error raised when the inputted position is beyond the soft limits.
+        
+        MotorDisabled
+            Error raised if the motor is disabled and move is requested.
+
+        MotorFaulted
+            Error raised if the motor is disabled and the move is requested.
+
+        Returns
+        -------
+        status : MoveStatus        
+            Status object for the move.
+        """
         try:
-            # Check the motor status
-            if check_status:
-                self.check_status(position)
-
-            logger.debug("Moving {} to {}".format(self.name, position))
-
-            # Begin the move process
-            status = self.user_setpoint.set(position)
+            status = super().mv(position, ret_status=ret_status, 
+                                print_move=print_move, *args, **kwargs)
 
             # Notify the user that a motor has completed or the command is sent
             if print_move:
@@ -327,10 +357,18 @@ class EccBase(SndMotor, PositionerBase):
             if ret_status:
                 return status
 
+        # Catch all the common motor exceptions
         except LimitError:
-            logger.info("Requested move '{0}' is outside the soft limits {1}."
-                        "".format(position, self.limits))
-
+            logger.warning("Requested move '{0}' is outside the soft limits "
+                           "{1} for motor {2}".format(position, self.limits,
+                                                      self.desc))
+        except MotorDisabled:
+            logger.warning("Cannot move - motor {0} is currently disabled. Try "
+                           "running 'motor.enable()'.".format(self.desc))
+        except MotorFaulted:
+            logger.warning("Cannot move - motor {0} is currently faulted. Try "
+                           "running 'motor.clear()'.".format(self.desc))
+    
     def check_status(self, position=None):
         """
         Checks the status of the motor to make sure it is ready to move. Checks
@@ -415,57 +453,6 @@ class EccBase(SndMotor, PositionerBase):
         return self._status_print(status, "Stopped motor '{0}'".format(
             self.desc), ret_status=ret_status, print_set=print_set)        
 
-    def mv(self, position, ret_status=False, print_move=True, *args, **kwargs):
-        """
-        Move to a specified position, optionally waiting for motion to
-        complete. mv() is different from move() by catching all the common
-        exceptions that this motor can raise and just raises a logger
-        warning. Therefore if building higher level functionality, do not
-        use this method and use move() instead otherwise none of these
-        exceptions will propagate to it.
-
-        Parameters
-        ----------
-        position
-            Position to move to.
-
-        ret_status : bool, optional
-            Return the status object of the move.
-
-        print_move : bool, optional
-            Print a short statement about the move.
-
-        Exceptions Caught
-        -----------------
-        LimitError
-            Error raised when the inputted position is beyond the soft limits.
-        
-        MotorDisabled
-            Error raised if the motor is disabled and move is requested.
-
-        MotorFaulted
-            Error raised if the motor is disabled and the move is requested.
-
-        Returns
-        -------
-        status : MoveStatus        
-            Status object for the move.
-        """
-        try:
-            return super().mv(position, ret_status=ret_status, 
-                              print_move=print_move, *args, **kwargs)
-        # Catch all the common motor exceptions
-        except LimitError:
-            logger.warning("Requested move '{0}' is outside the soft limits "
-                           "{1} for motor {2}".format(position, self.limits,
-                                                      self.desc))
-        except MotorDisabled:
-            logger.warning("Cannot move - motor {0} is currently disabled. Try "
-                           "running 'motor.enable()'.".format(self.desc))
-        except MotorFaulted:
-            logger.warning("Cannot move - motor {0} is currently faulted. Try "
-                           "running 'motor.clear()'.".format(self.desc))
-    
     def expert_screen(self, print_msg=True):
         """
         Launches the expert screen for the motor.
