@@ -47,3 +47,16 @@ def test_absolute_submodule_path_works_correctly(screen):
     abs_path = utils.absolute_submodule_path(path, template)
     assert abs_path == ("/".join(template.split("/")[:-3]) + "/" + path)
     
+def test_stop_on_keyboardinterrupt_runs_stop_method():
+    class TestClass:
+        name = "test"
+        stopped = False
+        @utils.stop_on_keyboardinterrupt
+        def something_that_raises_keyboardinterrupt(self):
+            raise KeyboardInterrupt
+        def stop(self):
+            self.stopped = True
+    tst = TestClass()
+    assert tst.stopped == False
+    tst.something_that_raises_keyboardinterrupt()
+    assert tst.stopped == True

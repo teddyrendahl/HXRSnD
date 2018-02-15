@@ -5,18 +5,16 @@ RTDs
 """
 import logging
 
-from pcdsdevices.device import Device
+from .snddevice import SndDevice
 
 logger = logging.getLogger(__name__)
 
 
-class RTDBase(Device):
+class RTDBase(SndDevice):
     """
     Base class for the RTD.
     """
-    def __init__(self, prefix, name=None, desc=None, *args, **kwargs):
-        self.desc = desc or name
-        super().__init__(prefix, name=name, *args, **kwargs)
+    pass
 
 
 class OmegaRTD(RTDBase):

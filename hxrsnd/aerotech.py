@@ -7,21 +7,22 @@ import logging
 import os
 
 import numpy as np
-from ophyd import Component, FormattedComponent
+from ophyd import Component as Cmp, FormattedComponent as FrmCmp
 from ophyd.utils import LimitError
 from ophyd.status import wait as status_wait
 
 from pcdsdevices.epics.epicsmotor import EpicsMotor
-from pcdsdevices.epics.signal import (EpicsSignal, EpicsSignalRO, FakeSignal)
+from pcdsdevices.epics.signal import EpicsSignal, EpicsSignalRO, Signal
 
+from .sndmotor import SndEpicsMotor
 from .pneumatic import PressureSwitch
-from .utils import absolute_submodule_path, as_list
+from .utils import absolute_submodule_path, as_list, stop_on_keyboardinterrupt
 from .exceptions import MotorDisabled, MotorFaulted, MotorStopped, BadN2Pressure
 
 logger = logging.getLogger(__name__)
 
 
-class AeroBase(EpicsMotor):
+class AeroBase(SndEpicsMotor):
     """
     Base Aerotech motor class.
 
@@ -52,28 +53,24 @@ class AeroBase(EpicsMotor):
         Signal to reconfig the motor.
     """
     # Remove when these have been figured out
-    low_limit_switch = Component(FakeSignal)
-    high_limit_switch = Component(FakeSignal)
-    direction_of_travel = Component(FakeSignal)
+    low_limit_switch = Cmp(Signal)
+    high_limit_switch = Cmp(Signal)
 
-    power = Component(EpicsSignal, ".CNEN")
-    retries = Component(EpicsSignalRO, ".RCNT")
-    retries_max = Component(EpicsSignal, ".RTRY")
-    retries_deadband = Component(EpicsSignal, ".RDBD")
-    axis_status = Component(EpicsSignalRO, ":AXIS_STATUS")
-    axis_fault = Component(EpicsSignalRO, ":AXIS_FAULT")
-    clear_error = Component(EpicsSignal, ":CLEAR")
-    config = Component(EpicsSignal, ":CONFIG")
-    zero_all_proc = Component(EpicsSignal, ":ZERO_P.PROC")
-    home_forward = Component(EpicsSignal, ".HOMF")
-    home_reverse = Component(EpicsSignal, ".HOMR")
-    dial = Component(EpicsSignalRO, ".DRBV")
-    state_component = Component(EpicsSignal, ".SPMG")
+    power = Cmp(EpicsSignal, ".CNEN")
+    retries = Cmp(EpicsSignalRO, ".RCNT")
+    retries_max = Cmp(EpicsSignal, ".RTRY")
+    retries_deadband = Cmp(EpicsSignal, ".RDBD")
+    axis_status = Cmp(EpicsSignalRO, ":AXIS_STATUS")
+    axis_fault = Cmp(EpicsSignalRO, ":AXIS_FAULT")
+    clear_error = Cmp(EpicsSignal, ":CLEAR")
+    config = Cmp(EpicsSignal, ":CONFIG")
+    zero_all_proc = Cmp(EpicsSignal, ":ZERO_P.PROC")
+    home_forward = Cmp(EpicsSignal, ".HOMF")
+    home_reverse = Cmp(EpicsSignal, ".HOMR")
+    dial = Cmp(EpicsSignalRO, ".DRBV")
+    state_component = Cmp(EpicsSignal, ".SPMG")
 
-    def __init__(self, prefix, name=None, desc=None, timeout=2, *args, 
-                 **kwargs):
-        self.desc = desc or name
-        self._timeout = timeout
+    def __init__(self, prefix, name=None, *args, **kwargs):
         super().__init__(prefix, name=name, *args, **kwargs)
         self.motor_done_move.unsubscribe(self._move_changed)
         self.user_readback.unsubscribe(self._pos_changed)
@@ -116,7 +113,7 @@ class AeroBase(EpicsMotor):
             # Wait for the status to complete
             if wait:
                 for s in as_list(status):
-                    status_wait(s, self._timeout)
+                    status_wait(s, self.timeout)
 
             # Notify the user
             if msg is not None:
@@ -134,7 +131,8 @@ class AeroBase(EpicsMotor):
             if reraise:
                 raise
 
-    def homf(self, ret_status=False, print_set=True):
+    @stop_on_keyboardinterrupt
+    def homf(self, ret_status=False, print_set=True, check_status=True):
         """
         Home the motor forward.
 
@@ -146,16 +144,23 @@ class AeroBase(EpicsMotor):
         print_set : bool, optional
             Print a short statement about the set.
         
+        check_status : bool, optional
+            Check if the motors are in a valid state to move.
+
         Returns
         -------
         Status : StatusObject
             Status of the set.
-        """
-        status = self.home_forward.set(1)
+        """        
+        # Check the motor status
+        if check_status:
+            self.check_status()
+        status = self.home_forward.set(1, timeout=self.timeout)
         return self._status_print(status, "Homing '{0}' forward.".format(
             self.desc), print_set=print_set, ret_status=ret_status)
 
-    def homr(self, ret_status=False, print_set=True):
+    @stop_on_keyboardinterrupt
+    def homr(self, ret_status=False, print_set=True, check_status=True):
         """
         Home the motor in reverse.
         
@@ -167,17 +172,22 @@ class AeroBase(EpicsMotor):
         print_set : bool, optional
             Print a short statement about the set.
 
+        check_status : bool, optional
+            Check if the motors are in a valid state to move.
+
         Returns
         -------
         Status : StatusObject
             Status of the set.
         """
-        status = self.home_reverse.set(1)
+        # Check the motor status
+        if check_status:
+            self.check_status()
+        status = self.home_reverse.set(1, timeout=self.timeout)
         return self._status_print(status, "Homing '{0}' in reverse.".format(
             self.desc), print_set=print_set, ret_status=ret_status)
 
-    def move(self, position, wait=False, check_status=True, ret_status=True, 
-             print_move=False, *args, **kwargs):
+    def move(self, position, wait=False, check_status=True, *args, **kwargs):
         """
         Move to a specified position, optionally waiting for motion to
         complete.
@@ -192,12 +202,6 @@ class AeroBase(EpicsMotor):
 
         check_status : bool, optional
             Check if the motors are in a valid state to move.
-
-        ret_status : bool, optional
-            Return the status object of the move.
-
-        print_move : bool, optional
-            Print a short statement about the move.
 
         moved_cb : callable
             Call this callback when movement has finished. This callback must
@@ -224,80 +228,14 @@ class AeroBase(EpicsMotor):
         RuntimeError
             If motion fails other than timing out
         """
-        try:
-            # Check the motor status
-            if check_status:
-                self.check_status(position)
-            status =  super().move(position, wait=wait, *args, **kwargs)
+        # Check the motor status
+        if check_status:
+            self.check_status(position)
+        logger.debug("Moving {0} to {1}".format(self.name, position))
+        return super().move(position, wait=wait, *args, **kwargs)
 
-            # Notify the user that a motor has completed or the command is sent
-            if print_move:
-                if wait:
-                    logger.info("Move completed for '{0}'.".format(self.desc))
-                else:
-                    logger.info("Move command sent to '{0}'.".format(self.desc))
-
-            # Check if a status object is desired
-            if ret_status:
-                return status
-
-        # If keyboard interrupted, make sure to stop the motor
-        except KeyboardInterrupt:
-            self.stop()
-            logger.info("Motor '{0}' stopped by keyboard interrupt".format(
-                self.desc))
-            
-    def move_rel(self, rel_position, *args, **kwargs):
-        """
-        Move relative to the current position, optionally waiting for motion to
-        complete.
-
-        Parameters
-        ----------
-        rel_position
-            Relative position to move to
-
-        wait : bool, optional
-            Wait for the motor to complete the motion.
-
-        check_status : bool, optional
-            Check if the motors are in a valid state to move.
-
-        ret_status : bool, optional
-            Return the status object of the move.
-
-        print_move : bool, optional
-            Print a short statement about the move.
-
-        moved_cb : callable
-            Call this callback when movement has finished. This callback must
-            accept one keyword argument: 'obj' which will be set to this
-            positioner instance.
-
-        timeout : float, optional
-            Maximum time to wait for the motion. If None, the default timeout
-            for this positioner is used.
-
-        Returns
-        -------
-        status : MoveStatus        
-            Status object for the move.
-        
-        Raises
-        ------
-        TimeoutError
-            When motion takes longer than `timeout`
-        
-        ValueError
-            On invalid positions
-        
-        RuntimeError
-            If motion fails other than timing out        
-        """
-        return self.move(rel_position + self.position, *args, **kwargs)
-
-    def mv(self, position, wait=True, ret_status=False, print_move=True, 
-           *args, **kwargs):
+    def mv(self, position, wait=True, ret_status=False, print_move=True, *args, 
+           **kwargs):
         """
         Move to a specified position, optionally waiting for motion to
         complete. mv() is different from move() by catching all the common
@@ -343,8 +281,19 @@ class AeroBase(EpicsMotor):
             Status object for the move.
         """
         try:
-            return self.move(position, wait=wait, ret_status=ret_status, 
-                             print_move=print_move, *args, **kwargs)
+            status =  super().mv(position, wait=wait, ret_status=ret_status, 
+                                 print_move=print_move, *args, **kwargs)
+
+            # Notify the user that a motor has completed or the command is sent
+            if print_move:
+                if wait:
+                    logger.info("Move completed for '{0}'.".format(self.desc))
+                else:
+                    logger.info("Move command sent to '{0}'.".format(self.desc))
+
+            # Check if a status object is desired
+            if ret_status:
+                return status
 
         # Catch all the common motor exceptions        
         except LimitError:
@@ -359,63 +308,17 @@ class AeroBase(EpicsMotor):
                            "running 'motor.clear()'.".format(self.desc))
         except MotorStopped:
             logger.warning("Cannot move - motor {0} is currently stopped. Try "
-                           "running 'motor.state='Go''.".format(self.desc))
+                           "running 'motor.state=\"Go\"'.".format(self.desc))
 
-
-    def mvr(self, rel_position, wait=True, ret_status=False, print_move=True, 
-            *args, **kwargs):
+    def check_status(self, position=None):
         """
-        Move relative to the current position, optionally waiting for motion to
-        complete. Catches all the same exceptions that mv() does. If a relative
-        move is needed for higher level functions use move_rel() instead.
+        Checks the status of the motor to make sure it is ready to move. Checks
+        the current position of the motor, and if a position is provided it also
+        checks that position.
 
         Parameters
         ----------
-        rel_position
-            Relative position to move to.
-
-        wait : bool, optional
-            Wait for the motor to complete the motion.
-
-        check_status : bool, optional
-            Check if the motors are in a valid state to move.
-
-        ret_status : bool, optional
-            Return the status object of the move.
-
-        print_move : bool, optional
-            Print a short statement about the move.
-
-        Exceptions Caught
-        -----------------
-        LimitError
-            Error raised when the inputted position is beyond the soft limits.
-        
-        MotorDisabled
-            Error raised if the motor is disabled and move is requested.
-
-        MotorFaulted
-            Error raised if the motor is disabled and the move is requested.
-
-        MotorStopped
-            Error raised If the motor is stopped and a move is requested.
-
-        Returns
-        -------
-        status : MoveStatus        
-            Status object for the move.
-        """
-        return self.mv(rel_position + self.position, wait=wait,
-                       ret_status=ret_status, print_move=print_move, *args,
-                       **kwargs)
-
-    def check_status(self, position, *args, **kwargs):
-        """
-        Checks the status of the motor to make sure it is ready to move.
-
-        Parameters
-        ----------
-        position : float
+        position : float, optional
             Position to check for validity.
 
         Raises
@@ -443,9 +346,12 @@ class AeroBase(EpicsMotor):
             err = "Motor '{0}' is currently stopped.".format(self.desc)
             logger.error(err)
             raise MotorStopped(err)
-
-        # Check if the move is valid
-        self.check_value(position)        
+        
+        # Check if the current position is valid
+        self.check_value(self.position)
+        # Check if the move position is valid
+        if position: 
+            self.check_value(position)
         
     def set_position(self, position_des, print_set=True):
         """
@@ -462,7 +368,6 @@ class AeroBase(EpicsMotor):
             log_level = logger.info
         else:
             log_level = logger.debug
-
         
         log_level("'{0}' previous position: {0}, offset: {1}".format(
             self.position, self.offset))
@@ -487,7 +392,7 @@ class AeroBase(EpicsMotor):
         Status
             The status object for setting the power signal.
         """
-        status = self.power.set(1)
+        status = self.power.set(1, timeout=self.timeout)
         return self._status_print(status, "Enabled motor '{0}'.".format(
             self.desc), print_set=print_set, ret_status=ret_status)
 
@@ -508,7 +413,7 @@ class AeroBase(EpicsMotor):
         Status
             The status object for setting the power signal.
         """
-        status = self.power.set(0)
+        status = self.power.set(0, timeout=self.timeout)
         return self._status_print(status, "Disabled motor '{0}'.".format(
             self.desc), print_set=print_set, ret_status=ret_status)
 
@@ -541,7 +446,7 @@ class AeroBase(EpicsMotor):
         Status
             The status object for setting the clear_error signal.
         """
-        status = self.clear_error.set(1)
+        status = self.clear_error.set(1, timeout=self.timeout)
         return self._status_print(status, "Cleared motor '{0}'.".format(
             self.desc), print_set=print_set, ret_status=ret_status)
 
@@ -562,7 +467,7 @@ class AeroBase(EpicsMotor):
         Status
             The status object for setting the config signal.
         """
-        status = self.config.set(1)
+        status = self.config.set(1, timeout=self.timeout)
         return self._status_print(status, "Reconfigured motor '{0}'.".format(
             self.desc), print_set=print_set, ret_status=ret_status)
 
@@ -598,7 +503,7 @@ class AeroBase(EpicsMotor):
         status : StatusObject        
             Status object for the set.
         """
-        status = self.zero_all_proc.set(1)
+        status = self.zero_all_proc.set(1, timeout=self.timeout)
         return self._status_print(status, "Zeroed motor '{0}'.".format(
             self.desc), print_set=print_set, ret_status=ret_status)
 
@@ -677,7 +582,7 @@ class AeroBase(EpicsMotor):
             raise ValueError(error)
         
         # Lets enforce it's a string or value
-        status = self.state_component.set(val)
+        status = self.state_component.set(val, timeout=self.timeout)
 
         return self._status_print(
             status, "Changed state of '{0} to '{1}'.".format(self.desc, val), 
@@ -721,34 +626,7 @@ class AeroBase(EpicsMotor):
         if print_msg:
             logger.info("Launching expert screen.")
         os.system("{0} {1} {2} &".format(path, self.prefix, "aerotech"))
- 
-    def __call__(self, position, wait=True, ret_status=False, print_move=True,
-                 *args, **kwargs):
-        """
-        Moves the motor to the inputted position. Alias for self.move(position).
-
-        Parameters
-        ----------
-        position
-            Position to move to.
-
-        wait : bool, optional
-            Wait for the motor to complete the motion.
-
-        ret_status : bool, optional
-            Return the status object of the move.
-
-        print_move : bool, optional
-            Print a short statement about the move.
-
-        Returns
-        -------
-        status : MoveStatus 
-            Status object for the move.
-        """
-        return self.mv(position, wait=wait, ret_status=ret_status,
-                       print_move=print_move, *args, **kwargs)
-    
+     
     def status(self, status="", offset=0, print_status=True, newline=False, 
                short=False):
         """
@@ -801,41 +679,6 @@ class AeroBase(EpicsMotor):
         else:
             return status
 
-    def st(self, *args, **kwargs):
-        """
-        Returns the status of the device. Alias for status().
-        
-        Parameters
-        ----------
-        status : str, optional
-            The string to append the status to.
-            
-        offset : int, optional
-            Amount to offset each line of the status.
-
-        print_status : bool, optional
-            Determines whether the string is printed or returned.
-
-        newline : bool, optional
-            Adds a new line to the end of the string.
-
-        Returns
-        -------
-        status : str
-            Status string.
-        """
-        return self.status(*args, **kwargs) 
-
-    # def __str__(self):
-    #     """
-    #     Returns the status of the motor. Alias for status().
-
-    #     Returns
-    #     -------
-    #     status : str
-    #         Status string.
-    #     """
-    #     return self.status(print_status=False)
 
 class InterlockedAero(AeroBase):
     """
@@ -843,13 +686,12 @@ class InterlockedAero(AeroBase):
     status.
     """
     # To do the internel pressure check
-    _pressure = FormattedComponent(PressureSwitch,
-                                   "{self._prefix}:N2:{self._tower}")
+    _pressure = FrmCmp(PressureSwitch, "{self._prefix}:N2:{self._tower}")
+
     def __init__(self, prefix, *args, **kwargs):
         self._tower = prefix.split(":")[-2]
         self._prefix = ":".join(prefix.split(":")[:2])
         super().__init__(prefix, *args, **kwargs)
-
 
     def check_status(self, *args, **kwargs):
         """
@@ -881,8 +723,7 @@ class InterlockedAero(AeroBase):
             raise BadN2Pressure(err)
         super().check_status(*args, **kwargs)
 
-    def mv(self, position, wait=True, ret_status=False, print_move=True, 
-           *args, **kwargs):
+    def mv(self, position, *args, **kwargs):
         """
         Move to a specified position, optionally waiting for motion to
         complete. mv() is different from move() by catching all the common
@@ -932,8 +773,7 @@ class InterlockedAero(AeroBase):
             Status object for the move.
         """
         try:
-            return super().mv(position, wait=wait, ret_status=ret_status, 
-                              print_move=print_move, *args, **kwargs)
+            return super().mv(position, *args, **kwargs)
         # Catch a bad pressure setting.
         except BadN2Pressure:
             logger.warning("Cannot move - pressure in tower {0} is bad.".format(

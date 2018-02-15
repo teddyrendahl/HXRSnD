@@ -8,21 +8,20 @@ import logging
 import numpy as np
 from ophyd import EpicsSignalRO
 
-from pcdsdevices.device import Device
 from pcdsdevices.component import Component as C, FormattedComponent as FC
 
+from .snddevice import SndDevice
 from .aerotech import DiodeAero
 from .detectors import GigeDetector
 
 logger = logging.getLogger(__name__)
 
 
-class DiodeBase(Device):
+class DiodeBase(SndDevice):
     """
     Base class for the diode.
     """
-    def __init__(self, prefix, name=None, *args, **kwargs):
-        super().__init__(prefix, name=name, *args, **kwargs)
+    pass 
 
 
 class HamamatsuDiode(DiodeBase):
@@ -32,7 +31,7 @@ class HamamatsuDiode(DiodeBase):
     pass
 
 
-class HamamatsuXMotionDiode(Device):
+class HamamatsuXMotionDiode(SndDevice):
     """
     Class for the Hamamatsu diode but with an X motor
     """
@@ -110,7 +109,7 @@ class HamamatsuXMotionDiode(Device):
         return self.x.mv(self.unblock_pos, *args, **kwargs)
 
 
-class HamamatsuXYMotionCamDiode(Device):
+class HamamatsuXYMotionCamDiode(SndDevice):
     """
     Class for the Hamamatsu diode but with X and Y motors
     """
@@ -212,7 +211,7 @@ class HamamatsuXYMotionCamDiode(Device):
             return self.x.mv(self.pos_func(), *args, **kwargs)
 
 
-class DiodeIO(Device):
+class DiodeIO(SndDevice):
     """
     Peak information for a Wave8 input
 
@@ -241,7 +240,7 @@ class DiodeIO(Device):
         super().__init__(prefix, name=name, read_attrs=read_attrs, **kwargs)
 
 
-class Wave8(Device):
+class Wave8(SndDevice):
     """
     Wave8 Device
 

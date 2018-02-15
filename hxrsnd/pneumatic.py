@@ -6,23 +6,20 @@ Pneumatics for SnD
 import logging
 
 import numpy as np
-from ophyd import Component
+from ophyd import Component as Cmp
 
 from pcdsdevices.device import Device
 from pcdsdevices.epics.signal import EpicsSignal, EpicsSignalRO
 
+from .snddevice import SndDevice
+
 logger = logging.getLogger(__name__)
 
 
-class PneuBase(Device):
+class PneuBase(SndDevice):
     """
     Base class for the penumatics.
-    """
-
-    def __init__(self, prefix, name=None, desc=None, *args, **kwargs):
-        self.desc = desc or name
-        super().__init__(prefix, name=name, *args, **kwargs)
-    
+    """    
     def status(self, status="", offset=0, print_status=True, newline=False):
         """
         Returns the status of the device.
@@ -76,7 +73,7 @@ class ProportionalValve(PneuBase):
     valve : EpicsSignal
         Valve control and readback pv.
     """
-    valve = Component(EpicsSignal, ":VGP")
+    valve = Cmp(EpicsSignal, ":VGP")
 
     def open(self):
         """
@@ -85,7 +82,7 @@ class ProportionalValve(PneuBase):
         if self.opened:
             logger.info("Valve currently open.")
         else:
-            self.valve.put(1)
+            return self.valve.set(1, timeout=self.timeout)
     
     def close(self):
         """
@@ -94,7 +91,7 @@ class ProportionalValve(PneuBase):
         if self.closed:
             logger.info("Valve currently closed.")
         else:
-            self.valve.put(0)
+            return self.valve.set(0, timeout=self.timeout)
         
     @property
     def position(self):
@@ -148,7 +145,7 @@ class PressureSwitch(PneuBase):
     pressure : EpicsSignalRO
         Pressure readbac signal.
     """
-    pressure = Component(EpicsSignalRO, ":GPS")
+    pressure = Cmp(EpicsSignalRO, ":GPS")
         
     @property
     def position(self):
@@ -193,7 +190,7 @@ class PressureSwitch(PneuBase):
         return (self.position == "BAD")
 
 
-class SndPneumatics(Device):
+class SndPneumatics(SndDevice):
     """
     Class that contains the various pneumatic components of the system.
 
@@ -217,16 +214,15 @@ class SndPneumatics(Device):
     vac_pressure : PressureSwitch
         Pressure switch on the overall system.
     """
-    t1_valve = Component(ProportionalValve, ":N2:T1", desc="T1 Valve")
-    t4_valve = Component(ProportionalValve, ":N2:T4", desc="T4 Valve")
-    vac_valve = Component(ProportionalValve, ":VAC", desc="Vacuum Valve")
+    t1_valve = Cmp(ProportionalValve, ":N2:T1", desc="T1 Valve")
+    t4_valve = Cmp(ProportionalValve, ":N2:T4", desc="T4 Valve")
+    vac_valve = Cmp(ProportionalValve, ":VAC", desc="Vacuum Valve")
 
-    t1_pressure = Component(PressureSwitch, ":N2:T1", desc="T1 Pressure")
-    t4_pressure = Component(PressureSwitch, ":N2:T4", desc="T4 Pressure")
-    vac_pressure = Component(PressureSwitch, ":VAC", desc="Vacuum Pressure")
+    t1_pressure = Cmp(PressureSwitch, ":N2:T1", desc="T1 Pressure")
+    t4_pressure = Cmp(PressureSwitch, ":N2:T4", desc="T4 Pressure")
+    vac_pressure = Cmp(PressureSwitch, ":VAC", desc="Vacuum Pressure")
 
-    def __init__(self, prefix, name=None, desc=None, *args, **kwargs):
-        self.desc = desc or name
+    def __init__(self, prefix, name=None, *args, **kwargs):
         super().__init__(prefix, name=name, *args, **kwargs)
         self._valves = [self.t1_valve, self.t4_valve, self.vac_valve]
         self._pressure_switches = [self.t1_pressure, self.t4_pressure,

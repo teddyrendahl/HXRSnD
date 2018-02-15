@@ -4,12 +4,11 @@ Script for the various tower classes.
 import logging
 
 import numpy as np
-from ophyd import Component, FormattedComponent
+from ophyd import Component as Cmp
 from ophyd.status import wait as status_wait
 
-from pcdsdevices.device import Device
-
 from .rtd import OmegaRTD
+from .snddevice import SndDevice
 from .diode import HamamatsuDiode
 from .bragg import bragg_angle, bragg_energy
 from .attocube import EccBase, TranslationEcc, GoniometerEcc, DiodeEcc
@@ -18,17 +17,15 @@ from .aerotech import (AeroBase, RotationAero, InterRotationAero,
 
 logger = logging.getLogger(__name__)
 
-
-class TowerBase(Device):
+class TowerBase(SndDevice):
     """
     Base tower class.
     """
-    def __init__(self, prefix, name=None, desc=None, pos_inserted=None, 
-                 pos_removed=None, *args, **kwargs):
-        self.desc = desc or name
+    def __init__(self, prefix, name=None, pos_inserted=None, pos_removed=None, 
+                 *args, **kwargs):
+        super().__init__(prefix, name=name, *args, **kwargs)
         self.pos_inserted = pos_inserted
         self.pos_removed = pos_removed
-        super().__init__(prefix, name=name, *args, **kwargs)
         self.desc_short = "".join([s[0] for s in self.desc.split(" ")])
         
         # Add Tower short name to desc
@@ -145,36 +142,6 @@ class TowerBase(Device):
         if self.pos_inserted is None:
             raise ValueError("Must set pos_inserted to check if inserted.")
         return np.isclose(self.pos_inserted, self.position, atol=0.1)
-
-    def _apply_all(self, method, subclass=object, *method_args, 
-                   **method_kwargs):
-        """
-        Runs the method for all devices that are of the inputted subclass. All
-        additional arguments and key word arguments are passed as inputs to the
-        method.
-
-        Parameters
-        ----------
-        method : str
-            Method of each device to run.
-
-        subclass : class
-            Subclass to run the methods for.
-
-        method_args : tuple, optional
-            Positional arguments to pass to the method
-
-        method_kwargs : dict, optional
-            Key word arguments to pass to the method
-        """
-        ret = []
-        # Check if each signal is a subclass of subclass then run the method
-        for sig_name in self.component_names:
-            signal = getattr(self, sig_name)
-            if issubclass(type(signal), subclass):
-                ret.append(getattr(signal, method)(*method_args,
-                                                   **method_kwargs))
-        return ret
 
     def _get_move_positions(self, E):
         """
@@ -382,31 +349,30 @@ class DelayTower(TowerBase):
         RTD temperature sensor for the nitrogen.
     """
     # Rotation stages
-    tth = Component(InterRotationAero, ":TTH", desc="TTH")
-    th1 = Component(RotationAero, ":TH1", desc="TH1")
-    th2 = Component(RotationAero, ":TH2", desc="TH2")
+    tth = Cmp(InterRotationAero, ":TTH", desc="TTH")
+    th1 = Cmp(RotationAero, ":TH1", desc="TH1")
+    th2 = Cmp(RotationAero, ":TH2", desc="TH2")
 
     # Linear stages
-    x = Component(InterLinearAero, ":X", desc="X")
-    L = Component(InterLinearAero, ":L", desc="L")
+    x = Cmp(InterLinearAero, ":X", desc="X")
+    L = Cmp(InterLinearAero, ":L", desc="L")
 
     # # Y Crystal motion
-    y1 = Component(TranslationEcc, ":Y1", desc="Y1")
-    y2 = Component(TranslationEcc, ":Y2", desc="Y2")
+    y1 = Cmp(TranslationEcc, ":Y1", desc="Y1")
+    y2 = Cmp(TranslationEcc, ":Y2", desc="Y2")
 
     # Chi motion
-    chi1 = Component(GoniometerEcc, ":CHI1", desc="CHI1")
-    chi2 = Component(GoniometerEcc, ":CHI2", desc="CHI2")
+    chi1 = Cmp(GoniometerEcc, ":CHI1", desc="CHI1")
+    chi2 = Cmp(GoniometerEcc, ":CHI2", desc="CHI2")
 
     # Diode motion
-    dh = Component(DiodeEcc, ":DH", desc="DH")
+    dh = Cmp(DiodeEcc, ":DH", desc="DH")
     
     # # Diode
-    # diode = Component(HamamatsuDiode, ":DIODE", desc="Tower Diode")
+    # diode = Cmp(HamamatsuDiode, ":DIODE", desc="Tower Diode")
 
     # # Temperature monitor
-    # temp = Component(OmegaRTD, ":TEMP", desc="Tower RTD")
-
+    # temp = Cmp(OmegaRTD, ":TEMP", desc="Tower RTD")
     
     def __init__(self, prefix, *args, **kwargs):
         super().__init__(prefix, *args, **kwargs)
@@ -555,10 +521,10 @@ class ChannelCutTower(TowerBase):
         Translation stage of the tower
     """
     # Rotation
-    th = Component(RotationAero, ":TH", desc="TH")
+    th = Cmp(RotationAero, ":TH", desc="TH")
 
     # Translation
-    x = Component(LinearAero, ":X", desc="X")
+    x = Cmp(LinearAero, ":X", desc="X")
 
     def __init__(self, prefix, *args, **kwargs):
         super().__init__(prefix, *args, **kwargs)

@@ -1,26 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-############
-# Standard #
-############
+import time
+import pytest
 import logging
 from collections import OrderedDict
-import pytest
 
-###############
-# Third Party #
-###############
 import numpy as np
 from ophyd.device import Device
+from ophyd.tests.conftest import using_fake_epics_pv
 
-########
-# SLAC #
-########
-from pcdsdevices.sim.pv import using_fake_epics_pv
-
-##########
-# Module #
-##########
 from hxrsnd import pneumatic
 from hxrsnd.pneumatic import ProportionalValve, PressureSwitch, SndPneumatics
 from .conftest import get_classes_in_module, fake_device
@@ -40,10 +28,12 @@ def test_devices_instantiate_and_run_ophyd_functions(dev):
 def test_ProportionalValve_opens_and_closes_correctly():
     valve = fake_device(ProportionalValve)
     valve.open()
+    time.sleep(.1)
     assert valve.position == "OPEN"
     assert valve.opened is True
     assert valve.closed is False
     valve.close()
+    time.sleep(.1)
     assert valve.position == "CLOSED"
     assert valve.opened is False
     assert valve.closed is True
@@ -65,9 +55,12 @@ def test_SndPneumatics_open_and_close_methods():
     vac = fake_device(SndPneumatics)
     for valve in vac._valves:
         valve.close()
+    time.sleep(.1)
     vac.open()
+    time.sleep(.1)
     for valve in vac._valves:
         assert valve.opened
     vac.close()
+    time.sleep(.1)
     for valve in vac._valves:
         assert valve.closed
