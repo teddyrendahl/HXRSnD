@@ -306,7 +306,7 @@ class EccBase(SndMotor, PositionerBase):
         # Begin the move process
         return self.user_setpoint.set(position, timeout=self.timeout)
 
-    def mv(self, position, ret_status=False, print_move=True, *args, **kwargs):
+    def mv(self, position, print_move=True, *args, **kwargs):
         """
         Move to a specified position, optionally waiting for motion to
         complete. mv() is different from move() by catching all the common
@@ -319,9 +319,6 @@ class EccBase(SndMotor, PositionerBase):
         ----------
         position
             Position to move to.
-
-        ret_status : bool, optional
-            Return the status object of the move.
 
         print_move : bool, optional
             Print a short statement about the move.
@@ -343,15 +340,14 @@ class EccBase(SndMotor, PositionerBase):
             Status object for the move.
         """
         try:
-            status = super().mv(position, ret_status=ret_status, 
-                                print_move=print_move, *args, **kwargs)
+            status =  super().mv(position, ret_status=ret_status, 
+                                 print_move=print_move, *args, **kwargs)
 
             # Notify the user that a motor has completed or the command is sent
             if print_move:
                 logger.info("Move command sent to '{0}'.".format(self.desc))
             # Check if a status object is desired
-            if ret_status:
-                return status
+            return status
 
         # Catch all the common motor exceptions
         except LimitError:
@@ -364,6 +360,7 @@ class EccBase(SndMotor, PositionerBase):
         except MotorFaulted:
             logger.warning("Cannot move - motor {0} is currently faulted. Try "
                            "running 'motor.clear()'.".format(self.desc))
+
     
     def check_status(self, position=None):
         """

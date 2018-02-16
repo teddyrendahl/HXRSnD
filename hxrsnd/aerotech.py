@@ -230,8 +230,7 @@ class AeroBase(SndEpicsMotor):
         logger.debug("Moving {0} to {1}".format(self.name, position))
         return super().move(position, wait=wait, *args, **kwargs)
 
-    def mv(self, position, wait=True, ret_status=False, print_move=True, *args, 
-           **kwargs):
+    def mv(self, position, wait=True, print_move=True, *args, **kwargs):
         """
         Move to a specified position, optionally waiting for motion to
         complete. mv() is different from move() by catching all the common
@@ -250,9 +249,6 @@ class AeroBase(SndEpicsMotor):
 
         check_status : bool, optional
             Check if the motors are in a valid state to move.
-
-        ret_status : bool, optional
-            Return the status object of the move.
 
         print_move : bool, optional
             Print a short statement about the move.
@@ -277,8 +273,8 @@ class AeroBase(SndEpicsMotor):
             Status object for the move.
         """
         try:
-            status =  super().mv(position, wait=wait, ret_status=ret_status, 
-                                 print_move=print_move, *args, **kwargs)
+            status = super().mv(position, wait=wait, ret_status=ret_status, 
+                                print_move=print_move, *args, **kwargs)
 
             # Notify the user that a motor has completed or the command is sent
             if print_move:
@@ -286,10 +282,7 @@ class AeroBase(SndEpicsMotor):
                     logger.info("Move completed for '{0}'.".format(self.desc))
                 else:
                     logger.info("Move command sent to '{0}'.".format(self.desc))
-
-            # Check if a status object is desired
-            if ret_status:
-                return status
+            return status
 
         # Catch all the common motor exceptions        
         except LimitError:
