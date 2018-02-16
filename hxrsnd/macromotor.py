@@ -4,153 +4,43 @@ Script to hold the energy macromotors
 All units of time are in picoseconds, units of length are in mm.
 """
 import logging
+from functools import reduce
 
 import pandas as pd
 from ophyd.utils import LimitError
 from ophyd.status import wait as status_wait
 
 from .sndmotor import SndMotor
-from .utils import flatten
+from .snddevice import SndDevice
+from .utils import as_list, flatten
 from .bragg import bragg_angle, cosd, sind
 from .exceptions import MotorDisabled, MotorFaulted, MotorStopped, BadN2Pressure
 
 logger = logging.getLogger(__name__)
 
-
-class MacroBase(SndMotor):
+class CalibMacro(SndDevice):
     """
-    Base pseudo-motor class for the SnD macro-motions.
+    Provides the calibration macro methods.
     """
-    # Constants
-    c = 0.299792458             # mm/ps
-    gap = 55                    # m
-
     def __init__(self, prefix, name=None, *args, **kwargs):
         super().__init__(prefix, name=name, *args, **kwargs)
-        
-        # Make sure this is used
-        if self.parent is None:
-            logger.warning("Macromotors must be instantiated with a parent "
-                           "that has the SnD towers as components to function "
-                           "properly.")
-        else:
-            self._delay_towers = [self.parent.t1, self.parent.t4]
-            self._channelcut_towers = [self.parent.t2, self.parent.t3]
         self._calib = {}
 
-    @property
-    def position(self):
+    def move(self, position, wait=True, use_calib=True, *args, **kwargs):
         """
-        Returns the current position
+        Move that performs the additional calibration move.
+        """
+        status = super().move(position, wait=False, *args, **kwargs)
         
-        Returns
-        -------
-        energy : float
-            Energy the channel cut line is set to in eV.
-        """
-        return (self.parent.t1.energy, self.parent.t2.energy,
-                self._length_to_delay())
-
-    def _verify_move(self, *args, **kwargs):
-        """
-        Prints a summary of the current positions and the proposed positions
-        of the motors based on the inputs. It then prompts the user to confirm
-        the move. To be overrided in subclasses.
-        """
-        pass
-
-    def _check_towers_and_diagnostics(self, *args, **kwargs):
-        """
-        Checks the towers in the delay line and the channel cut line to make 
-        sure they can be moved. Depending on if E1, E2 or delay are entered, 
-        the delay line energy motors, channel cut line energy motors or the 
-        delay stages will be checked for faults, if they are enabled, if the
-        requested energy requires moving beyond the limits and if the pressure
-        in the tower N2 is good. To be overrided in subclasses.
-        """
-        pass
-
-    def _move_towers_and_diagnostics(self, *args, **kwargs):
-        """
-        Moves all the tower and diagnostic motors according to the inputted
-        energies and delay. If any of the inputted information is set to None
-        then that component of the move is ignored. To be overrided in 
-        subclasses.
-        """
-        pass
-
-    def _add_verify_header(self, string=""):
-        """
-        Adds the header that labels the motor desc, current position and propsed
-        position.
-
-        Parameters
-        ----------
-        string : str
-            String to add a header to.
-
-        Returns
-        -------
-        string : str
-            String with the header added to it.
-        """
-        header = "\n{:^15}|{:^15}|{:^15}".format("Motor", "Current", "Proposed")
-        header += "\n" + "-"*len(header)
-        return string + header
-
-    def wait(self, status=None):
-        """
-        Waits for the status objects to complete the motions.
-        
-        Parameters
-        ----------
-        status : list or None, optional
-            List of status objects to wait on. If None, will wait on the
-            internal status list.
-        """
-        status = status or self._status
-        logger.info("Waiting for the motors to finish moving...")
-        for s in list(status):
-            status_wait(s)
-        logger.info("\nMove completed.")
-
-    def set(self, position, wait=True, verify_move=True, ret_status=True, 
-            use_diag=True, use_calib=True):
-        """
-        Moves the macro-motor to the inputted position, optionally waiting for
-        the motors to complete their moves.
-
-        Parameters
-        ----------
-        position : float
-            Position to move the macro-motor to.
-        
-        wait : bool, optional
-            Wait for each motor to complete the motion before returning the
-            console.
+        # Perform the calibration move
+        if use_calib and self._calib:
+            status = status & self._calib_compensate(position)
             
-        verify_move : bool, optional
-            Prints the current system state and a proposed system state and
-            then prompts the user to accept the proposal before changing the
-            system.
+        # Wait for all the motors to finish moving
+        if wait:
+            self.wait(status)
 
-        ret_status : bool, optional
-            Return the status object of the move.
-
-        use_diag : bool, optional
-            Move the daignostic motors to align with the beam.
-
-        use_calib : bool, optional
-            Use the configurated calibration parameters
-        
-        Returns
-        -------
-        status : list
-            List of status objects for each motor that was involved in the move.
-        """
-        return self.move(position, wait=wait, verify_move=verify_move,
-                         ret_status=ret_status, use_diag=use_diag,
-                         use_calib=use_calib)
+        return status
 
     def configure(self, *, calib=None):
         """
@@ -279,10 +169,143 @@ class MacroBase(SndMotor):
             shape = self._calib.shape
         return dict(calib=dict(source='calibrate',
                                dtype='array',
-                               shape=shape))
+                               shape=shape))    
 
-    def move(self, position, wait=True, verify_move=True, ret_status=True, 
-             use_diag=True, use_calib=True):
+class MacroBase(SndMotor):
+    """
+    Base pseudo-motor class for the SnD macro-motions.
+    """
+    # Constants
+    c = 0.299792458             # mm/ps
+    gap = 55                    # m
+
+    def __init__(self, prefix, name=None, *args, **kwargs):
+        super().__init__(prefix, name=name, *args, **kwargs)
+        
+        # Make sure this is used
+        if self.parent is None:
+            logger.warning("Macromotors must be instantiated with a parent "
+                           "that has the SnD towers as components to function "
+                           "properly.")
+        else:
+            self._delay_towers = [self.parent.t1, self.parent.t4]
+            self._channelcut_towers = [self.parent.t2, self.parent.t3]
+
+    @property
+    def position(self):
+        """
+        Returns the current position
+        
+        Returns
+        -------
+        energy : float
+            Energy the channel cut line is set to in eV.
+        """
+        return (self.parent.t1.energy, self.parent.t2.energy,
+                self._length_to_delay())
+
+    def _verify_move(self, *args, **kwargs):
+        """
+        Prints a summary of the current positions and the proposed positions
+        of the motors based on the inputs. It then prompts the user to confirm
+        the move. To be overrided in subclasses.
+        """
+        pass
+
+    def _check_towers_and_diagnostics(self, *args, **kwargs):
+        """
+        Checks the towers in the delay line and the channel cut line to make 
+        sure they can be moved. Depending on if E1, E2 or delay are entered, 
+        the delay line energy motors, channel cut line energy motors or the 
+        delay stages will be checked for faults, if they are enabled, if the
+        requested energy requires moving beyond the limits and if the pressure
+        in the tower N2 is good. To be overrided in subclasses.
+        """
+        pass
+
+    def _move_towers_and_diagnostics(self, *args, **kwargs):
+        """
+        Moves all the tower and diagnostic motors according to the inputted
+        energies and delay. If any of the inputted information is set to None
+        then that component of the move is ignored. To be overrided in 
+        subclasses.
+        """
+        pass
+
+    def _add_verify_header(self, string=""):
+        """
+        Adds the header that labels the motor desc, current position and propsed
+        position.
+
+        Parameters
+        ----------
+        string : str
+            String to add a header to.
+
+        Returns
+        -------
+        string : str
+            String with the header added to it.
+        """
+        header = "\n{:^15}|{:^15}|{:^15}".format("Motor", "Current", "Proposed")
+        header += "\n" + "-"*len(header)
+        return string + header
+
+    def wait(self, status=None):
+        """
+        Waits for the status objects to complete the motions.
+        
+        Parameters
+        ----------
+        status : list or None, optional
+            List of status objects to wait on. If None, will wait on the
+            internal status list.
+        """
+        status = status or self._status
+        logger.info("Waiting for the motors to finish moving...")
+        for s in list(status):
+            status_wait(s)
+        logger.info("\nMove completed.")
+
+    def set(self, position, wait=True, verify_move=True, ret_status=True, 
+            use_diag=True, use_calib=True):
+        """
+        Moves the macro-motor to the inputted position, optionally waiting for
+        the motors to complete their moves.
+
+        Parameters
+        ----------
+        position : float
+            Position to move the macro-motor to.
+        
+        wait : bool, optional
+            Wait for each motor to complete the motion before returning the
+            console.
+            
+        verify_move : bool, optional
+            Prints the current system state and a proposed system state and
+            then prompts the user to accept the proposal before changing the
+            system.
+
+        ret_status : bool, optional
+            Return the status object of the move.
+
+        use_diag : bool, optional
+            Move the daignostic motors to align with the beam.
+
+        use_calib : bool, optional
+            Use the configurated calibration parameters
+        
+        Returns
+        -------
+        status : list
+            List of status objects for each motor that was involved in the move.
+        """
+        return self.move(position, wait=wait, verify_move=verify_move,
+                         ret_status=ret_status, use_diag=use_diag,
+                         use_calib=use_calib)
+
+    def move(self, position, wait=True, verify_move=True, use_diag=True):
         """
         Moves the macro-motor to the inputted position, optionally waiting for
         the motors to complete their moves. Alias for set().
@@ -324,26 +347,20 @@ class MacroBase(SndMotor):
             return
 
         # Send the move commands to all the motors
-        status = flatten(self._move_towers_and_diagnostics(
+        status_list = flatten(self._move_towers_and_diagnostics(
             position, diag_pos, use_diag=use_diag))
-        if use_calib and self._calib:
-            self._status = status & self._calib_compensate(position)
-        else:
-            self._status = status
-            
+
+        # Aggregate the status objects
+        status = reduce(lambda x, y: x & y, status_list)
+
         # Wait for all the motors to finish moving
         if wait:
-            self.wait(self._status)
+            self.wait(status)
             
-        # Optionally return the status
-        if ret_status:
-            # Bluesky requires all the same interface as the status object 
-            # We need to make a new status class that uses the info from a 
-            # number of status objects
-            return self._status[0]
+        return status
 
-    def mv(self, position, wait=True, verify_move=True, ret_status=False, 
-           use_diag=True, *args, **kwargs):
+    def mv(self, position, wait=True, verify_move=True, use_diag=True, *args, 
+           **kwargs):
         """
         Moves the macro parameters to the inputted positions. For energy, this 
         moves the energies of both lines, energy1 moves just the delay line, 
@@ -400,8 +417,7 @@ class MacroBase(SndMotor):
         """
         try:
             return super().mv(position, wait=wait, verify_move=verify_move, 
-                              ret_status=ret_status, use_diag=use_diag, *args,
-                              **kwargs)
+                              use_diag=use_diag, *args, **kwargs)
         # Catch all the common motor exceptions        
         except LimitError:
             logger.warning("Requested move is outside the soft limits")
@@ -581,7 +597,7 @@ class DelayTowerMacro(MacroBase):
         return position
     
 
-class DelayMacro(DelayTowerMacro):
+class DelayMacro(CalibMacro, DelayTowerMacro):
     """
     Macro-motor for the delay macro-motor.
     """
