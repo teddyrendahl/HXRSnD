@@ -13,7 +13,7 @@ disable_existing_loggers: false
 # that way it will also get logged to a file.
 formatters:
     stream:
-        format: "%(message)s"
+        format: "%(levelname)s: %(message)s"
     file:
         format: "%(asctime)s - %(process)d - %(filename)s:%(lineno)4s - %(funcName)s():    %(levelname)-8s %(message)4s"
         datefmt: '%Y-%m-%d %H:%M:%S'
