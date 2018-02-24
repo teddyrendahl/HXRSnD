@@ -3,18 +3,21 @@ Scans for HXRSnD
 """
 
 import logging
+
 import numpy as np
 import pandas as pd
-from bluesky                    import Msg
-from bluesky.plans              import scan
-from bluesky.utils              import short_uid as _short_uid
-from bluesky.plan_stubs         import checkpoint, trigger_and_read
-from bluesky.plan_stubs         import abs_set
-from bluesky.preprocessors      import stage_decorator, run_decorator
-from bluesky.preprocessors      import msg_mutator
-from pswalker.utils             import field_prepend
-from pswalker.plans             import measure_average
-from .plan_stubs import block_run_control
+from bluesky import Msg
+from bluesky.plans import scan
+from bluesky.utils import short_uid as _short_uid
+from bluesky.plan_stubs import checkpoint, trigger_and_read, abs_set
+from bluesky.preprocessors import (stage_decorator, run_decorator, msg_mutator,
+                                   stub_wrapper)
+
+from pswalker.utils import field_prepend
+from pswalker.plans import measure_average
+
+from ..utils import as_list
+# from .plan_stubs import block_run_control
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +97,7 @@ def linear_scan(motor, start, stop, num, use_diag=True, return_to_start=True,
 
 def centroid_scan(detector, motor, start, stop, steps, average=None, 
                   detector_fields=['stats2_centroid_x', 'stats2_centroid_y',], 
-                  filters=None, *args, **kwargs):
+                  motor_fields=None, filters=None, *args, **kwargs):
     """
     Performs a scan and returns the centroids of the inputted detector.
 
@@ -151,30 +154,30 @@ def centroid_scan(detector, motor, start, stop, steps, average=None,
         DataFrame containing the centroids of the detector, 
     """
     average = average or 1
+    motor_fields = as_list(motor_fields or motor.name)
     # Get the full detector fields
     prep_det_fields = [field_prepend(fld, detector) for fld in detector_fields]
 
     # Build the dataframe with the centroids
-    df = pd.DataFrame(index=range(start, stop, steps), columns= 
-                      prep_det_fields + [motor.name])
+    df = pd.DataFrame(columns=motor_fields + prep_det_fields, 
+                      index=np.linspace(start, stop, steps))
 
     # Create a basic measuring plan
     def measure(detectors, motor, step):
         # Perform step
-        logger.debug("Measuring average at step {0} ...".format(step))
         yield from checkpoint()
+        logger.debug("Measuring average at step {0} ...".format(step))
         yield from abs_set(motor, step, wait=True)
         # Measure the average
         reads = (yield from measure_average([motor, detector], num=average,
                                             filters=filters, *args, **kwargs))
         # Fill the dataframe at this step with the centroid difference
-        df.loc[step, motor.name] = reads[motor.name]
-        for fld in prep_det_fields:
+        for fld in motor_fields + prep_det_fields:
             df.loc[step, fld] = reads[fld]
                 
     # Define the generic scans and run it
     plan = scan([detector], motor, start, stop, steps, per_step=measure)
-    yield from msg_mutator(plan, block_run_control)
+    yield from stub_wrapper(plan)
     logger.debug("Got the following centroids: \n{0}".format(df))
 
     # Return the filled dataframe
