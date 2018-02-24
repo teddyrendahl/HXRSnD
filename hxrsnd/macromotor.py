@@ -3,6 +3,7 @@ Script to hold the energy macromotors
 
 All units of time are in picoseconds, units of length are in mm.
 """
+import time
 import logging
 from functools import reduce
 
@@ -18,22 +19,33 @@ from .exceptions import MotorDisabled, MotorFaulted, MotorStopped, BadN2Pressure
 
 logger = logging.getLogger(__name__)
 
+
+# TODO: Add a calibrate method
+# TODO: Add a centroid scanning method
+# TODO: Add has_calib and use_calib attributes
+# TODO: Add ability to save caibrations to disk
+# TODO: Add ability to load calibrations from disk
+# TODO: Add ability to display calibrations
+# TODO: Add ability to change post-processing done to scan. 
+# TOD : Add ability to redo scaling on scan
 class CalibMacro(SndDevice):
     """
     Provides the calibration macro methods.
     """
     def __init__(self, prefix, name=None, *args, **kwargs):
         super().__init__(prefix, name=name, *args, **kwargs)
+        self._has_calib = False
         self._calib = {}
+        self.configure()
 
-    def move(self, position, wait=True, use_calib=True, *args, **kwargs):
+    def move(self, position, wait=False, use_calib=True, *args, **kwargs):
         """
         Move that performs the additional calibration move.
         """
         status = super().move(position, wait=False, *args, **kwargs)
         
         # Perform the calibration move
-        if use_calib and self._calib:
+        if use_calib and self._has_calib:
             status = status & self._calib_compensate(position)
             
         # Wait for all the motors to finish moving
@@ -42,7 +54,7 @@ class CalibMacro(SndDevice):
 
         return status
 
-    def configure(self, *, calib=None):
+    def configure(self, *, calib=None, motors=None):
         """
         Configure the macro-motor's move parameters.
 
@@ -51,13 +63,19 @@ class CalibMacro(SndDevice):
         calib : DataFrame or dict, optional
             Lookup table for move calibration. This represents set positions of
             auxiliary movers that should be chosen as we move our main macro.
+
             If a DataFrame, the index should be the primary axis of motion, the
             argument to the move or set functions. The columns should be the
             desired set positions of each auxiliary mover at each index point.
             The columns should be labeled with the name of the mover. The names
             are interpreted as attribute access of the parent object, e.g.
+
             name=t1 ------> snd.t1
             name=t1.chi1 -> snd.t1.chi1
+
+            Alternatively, the motor object itself can be passed and the 
+            calibration table will be applied to that motor.
+
             If a dict, I'm either expecting the arguments to create a dataframe
             e.g. data=dict(name=array, name2=array2), index=array3
             OR a dictionary of names to functions of single variables, taking
@@ -70,40 +88,36 @@ class CalibMacro(SndDevice):
         """
         # Save prev for return statement
         prev_config = self.read_configuration()
-        self._config_calib(calib)
+        self._config_calib(calib, motors)
         return prev_config, self.read_configuration()
 
-    def _config_calib(self, calib):
+    def _config_calib(self, calib, motors):
         """
         Handle calib arg from configure
         """
+        motors = as_list(motors or [])        
         # Interpret calib
         if calib is None:
-            save_calib = {}
+            save_calib = {"calib" : {'value': {}, 'timestamp': time.time()}}
+            self._has_calib = False
+
         elif isinstance(calib, pd.DataFrame):
-            save_calib = calib
-        elif isinstance(calib, dict):
-            try:
-                save_calib = pd.Dataframe(**calib)
-            except Exception:
-                save_calib = calib
+            save_calib = {"calib" : {'value': calib, 'timestamp': time.time()}}
+            self._has_calib = True
         else:
             raise TypeError("Invalid calib type {}".format(type(calib)))
 
+        # Add the motors
+        save_calib['motors'] = {'value': motors, 'timestamp': time.time()}
+
         # Check for valid inputs
-        if isinstance(save_calib, pd.DataFrame):
-            names = save_calib.columns
-        elif isinstance(save_calib, dict):
-            for name, func in save_calib.items():
-                if not callable(func):
-                    err = 'Recieved non-callable for {}'.format(name)
-                    raise TypeError(err)
-            names = save_calib.keys()
-        for name in names:
-            try:
-                self._get_calib_obj(name)
-            except AttributeError:
-                raise TypeError("Invalid calib key {}!".format(name))
+        if isinstance(save_calib['calib']['value'], pd.DataFrame):
+            calib_df = save_calib['calib']['value']
+            calib_motors = save_calib['motors']['value']
+            if not calib_df.shape[1] == len(calib_motors):
+                raise ValueError("Must have the same number of columns in "
+                                 "calibration table as number of calibration "
+                                 "motors.")
 
         self._calib = save_calib
 
@@ -111,65 +125,50 @@ class CalibMacro(SndDevice):
         """
         Do the calib adjust move
         """
-        calib = self._calib
-        statuses = []
-        if isinstance(calib, dict):
-            for name, func in calib.items():
-                obj = self._get_calib_obj(name)
-                stat = obj.set(func(position), *args, **kwargs)
-                statuses.append(stat)
+        calib = self._calib['calib']['value']
+        motors = self._calib['motors']['value']
+        status_list = []
+
+        if not self._has_calib:
+            return 
         elif isinstance(calib, pd.DataFrame):
-            lower = calib.index[0]
-            upper = calib.index[-1]
-            # Find largest lower, smallest upper such that
-            # lower <= position <= upper
-            for i in sorted(calib.index):
-                if lower < i <= position:
-                    lower = i
-                elif position <= i < upper:
-                    upper = i
-                    break
-            # Interpolate
-            if upper != lower:
-                portion = (position - lower) / (upper - lower)
-            for name in calib.columns:
-                if lower == upper:
-                    calib_pos = lower
-                else:
-                    low_pt = calib[name][lower]
-                    high_pt = calib[name][upper]
-                    calib_pos = (high_pt - low_pt) * portion + low_pt
-                obj = self._get_calib_obj(name)
-                stat = obj.set(calib_pos, *args, **kwargs)
-                statuses.append(stat)
-        for i, stat in enumerate(statuses):
-            if i == 0:
-                return_status = stat
-            else:
-                return_status = return_status & stat
-        return return_status
+            # Grab the two rows where the main motor position (column 0) is
+            # closest to the inputted position
+            slice = calib.iloc[
+                (calib.iloc[:, 0]-position).abs().argsort().iloc[:2]]
+            # Make a copy of the second row so we have a total of three rows in
+            # the dataframe
+            slice = slice.append(slice.iloc[1])
+            # Replace the middle row with the inputted position in the main 
+            # motor column and nans in the others
+            slice.iloc[1] = [position] + [np.nan]*(len(motors)-1)
+            # Interpolate the missing values based on the inputted position, and
+            # then grab that middle row
+            interpolated_row = slice.interpolate().iloc[1]
 
-    def _get_calib_obj(self, name):
-        """
-        Given str name path, find obj that calib needs
-        """
-        parts = name.split('.')
-        obj = self.parent
-        for part in parts:
-            obj = getattr(obj, part)
-        return obj
+            # Move each calibration motor to the interpolated position.
+            for i, motor in enumerate(motors[1:]):
+                status = motor.move(interpolated_row[i+1], *args, **kwargs)
+                status_list.append(status)
+        else:
+            raise TypeError("Calibration table must be in the form a dataframe")
 
+        return reduce(lambda x, y: x & y, status_list)
+    
     def read_configuration(self):
-        return dict(calib=self._calib)
+        return self._calib
 
     def describe_configuration(self):
-        if isinstance(self._calib, dict):
+        if not self._calib:
+            return super().describe_configuration()
+        if isinstance(self._calib['calib']['value'], dict):
             shape = [len(self._calib)]
         else:
-            shape = self._calib.shape
-        return dict(calib=dict(source='calibrate',
-                               dtype='array',
-                               shape=shape))    
+            shape = self._calib['calib']['value'].shape
+        return {**dict(calib=dict(source='calibrate', dtype='array', 
+                                  shape=shape)), 
+                **super().describe_configuration()}
+
 
 class MacroBase(SndMotor):
     """
@@ -265,7 +264,7 @@ class MacroBase(SndMotor):
         logger.info("Waiting for the motors to finish moving...")
         for s in list(status):
             status_wait(s)
-        logger.info("\nMove completed.")
+        logger.info("Move completed.")
 
     def set(self, position, wait=True, verify_move=True, ret_status=True, 
             use_diag=True, use_calib=True):
