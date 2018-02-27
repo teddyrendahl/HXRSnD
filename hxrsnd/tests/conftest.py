@@ -12,6 +12,7 @@ from functools import wraps
 import pytest
 import epics
 import numpy as np
+import pandas as pd
 import epics
 from ophyd.signal import Signal
 from ophyd.sim import SynSignal, SynAxis
@@ -209,8 +210,18 @@ def fake_detector(detector, name="TEST"):
     detector = change_all_plugin_types(detector)
     return detector(name, name=name)
 
-
 # Hotfix area detector plugins for tests
 for comp in (PCDSDetector.image, PCDSDetector.stats):
     plugin_class = comp.cls
     plugin_class.plugin_type = Cmp(Signal, value=plugin_class._plugin_type)
+
+test_df_scan = pd.DataFrame(
+    [[  -1,  0,  0,   -0.25,    0.25],
+     [-0.5,  0,  0,  -0.125,   0.125],
+     [   0,  0,  0,       0,       0],
+     [ 0.5,  0,  0,   0.125,  -0.125],
+     [   1,  0,  0,    0.25,   -0.25]],
+     index = np.linspace(-1, 1, 5),
+     columns = ["delay", "m1_pre", "m2_pre", "camera_centroid_x", 
+                "camera_centroid_y"]
+    )

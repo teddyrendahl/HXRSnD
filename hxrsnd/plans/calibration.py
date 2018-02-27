@@ -194,18 +194,13 @@ def calibration_scan(detector, detector_fields, motor, motor_fields,
         gradients=gradients,
         *args, **kwargs)
 
-    # Rescale the scan df
-    df_scan_scaled = scale_scan_df(df_scan, scaling, start_positions, detector,
-                                   calib_fields)
-
-    # Process the scan df into the final calibration table for the calib_motors
-    df_calibration = process_scan_df(df_scan_scaled, motor, motor_fields,
-                                     calib_motors, calib_fields, window_length,
-                                     polyorder)
+    # Build the calibration table
+    df_calibration = build_calibration_df(df_scan, scaling, start_positions, 
+                                          detector)
     
     # Return both the calibration table and the scan info
     logger.debug("Completed calibration scan.")
-    return df_calibration, df_scan_scaled, scaling, start_positions
+    return df_calibration, df_scan, scaling, start_positions
 
 def calibration_centroid_scan(detector, motor, calib_motors, start, stop, steps,
                               calib_fields=None, *args, **kwargs):
@@ -249,6 +244,12 @@ def calibration_centroid_scan(detector, motor, calib_motors, start, stop, steps,
     df : pd.DataFrame
         DataFrame containing the detector, motor, and calibration motor fields
         at every step of the scan.
+
+    Raises
+    ------
+    ValueError
+        If the inputted number of calibration motors does not have the same
+        length as the number of calibration fields.
     """
     calib_fields = as_list(calib_fields or [m.name for m in calib_motors])
 
@@ -270,9 +271,9 @@ def calibration_centroid_scan(detector, motor, calib_motors, start, stop, steps,
     df.columns = [c+"_pre" if c in calib_fields else c for c in df.columns]
     return df    
 
-def detector_scaling_walk(df_scan, detector, motor, calib_motors,
+def detector_scaling_walk(df_scan, detector, calib_motors,
                           first_step=0.01, average=None, filters=None,
-                          tolerance=1, delay=None, max_steps=5,
+                          tolerance=1, delay=None, max_steps=5, system=None,
                           drop_missing=True, gradients=None, *args, **kwargs):
     """Performs a walk to to the detector value farthest from the current value
     using each of calibration motors, and then determines the motor to detector
@@ -293,9 +294,6 @@ def detector_scaling_walk(df_scan, detector, motor, calib_motors,
     
     detector : :class:`.Detector`
         Detector from which to take the value measurements
-
-    motor : :class:`.Motor`
-        Main motor to perform the scan
 
     calib_motors : iterable, :class:`.Motor`
         Motor to calibrate each detector field with
@@ -332,22 +330,29 @@ def detector_scaling_walk(df_scan, detector, motor, calib_motors,
         List of the initial positions of the motors before the walk
     """
     detector_fields = [col for col in df_scan.columns if detector.name in col]
-    num = len(detector_fields)
-    
+    calib_fields = [col[:-4] for col in df_scan.columns if col.endswith("_pre")]
+    if len(detector_fields) != len(calib_fields):
+        raise ValueError("Must have same number of calibration fields as "
+                         "detector fields, but got {0} and {1}.".format(
+                             len(calib_fields), len(detector_fields)))
+        
     # Perform all the initial necessities
+    num = len(detector_fields)
     average = average or 1
     calib_motors = as_list(calib_motors)
     first_step = as_list(first_step, num, float)
     tolerance = as_list(tolerance, num)
     gradients = as_list(gradients, num)
     max_steps = as_list(max_steps, num)
-    system = calib_motors + [motor]
+    system = as_list(system or []) + calib_motors
     
     # Define the list that will hold the scaling
     scaling, start_positions = [], []
 
     # Now let's get the detector value to motor position conversion for each fld
-    for i, (fld, cmotor) in enumerate(zip(detector_fields, calib_motors)):
+    for i, (dfld, cfld, cmotor) in enumerate(zip(detector_fields, 
+                                                 calib_fields, 
+                                                 calib_motors)):
         # Get a list of devices without the cmotor we are inputting
         inp_system = list(system)
         inp_system.remove(cmotor)
@@ -356,23 +361,23 @@ def detector_scaling_walk(df_scan, detector, motor, calib_motors,
         reads = yield from measure_average([detector]+system,
                                             num=average,
                                             filters=filters)
-        motor_start = reads[cmotor.name]
-        fld_start = reads[fld]
+        motor_start = reads[cfld]
+        dfld_start = reads[dfld]
         
         # Get the farthest detector value we know we can move to from the
         # current position
-        idx_max = abs(df_scan[fld] - fld_start).values.argmax()
+        idx_max = abs(df_scan[dfld] - dfld_start).values.argmax()
         
         # Walk the cmotor to the first pre-correction detector entry
         try:
             logger.debug("Beginning walk to {0} on {1} using {2}".format(
-                df_scan.iloc[idx_max][fld], detector.name, cmotor.name))
+                df_scan.iloc[idx_max][dfld], detector.name, cmotor.name))
             yield from walk_to_pixel(detector, 
                                      cmotor, 
-                                     df_scan.iloc[idx_max][fld],
+                                     df_scan.iloc[idx_max][dfld],
                                      filters=filters, 
                                      gradient=gradients[i],
-                                     target_fields=[fld, cmotor.name],
+                                     target_fields=[dfld, cfld],
                                      first_step=first_step[i],
                                      tolerance=tolerance[i],
                                      system=inp_system,
@@ -393,111 +398,82 @@ def detector_scaling_walk(df_scan, detector, motor, calib_motors,
         reads = (yield from measure_average([detector]+system,
                                             num=average,
                                             filters=filters))
-        motor_end = reads[cmotor.name]        
-        fld_end = reads[fld]
+        motor_end = reads[cfld]        
+        dfld_end = reads[dfld]
 
         # Now lets find the conversion from signal value to motor distance
-        scaling.append((motor_end - motor_start)/(fld_end - fld_start))
+        scaling.append((motor_end - motor_start)/(dfld_end - dfld_start))
         # Add the starting position to the motor start list
         start_positions.append(motor_start)
 
     # Return the final scaling list
     return scaling, start_positions
 
-def scale_scan_df(df_scan, scaling, start_positions, detector, calib_fields):
-    """
-    Takes the scaling and starting positions of the detector values and uses it
-    to rescale the calibration motor positions.
-    """
-    # Get the detector fields being used in the scan df
-    detector_fields = [col for col in df_scan.columns if detector.name in col]
-    if len(detector_fields) != len(calib_fields):
-        raise ValueError("Must have same number of calibration fields as "
-                         "detector fields, but got {0} and {1}.".format(
-                             len(calib_fields), len(detector_fields)))
+def build_calibration_df(df_scan, scaling, start_positions, detector):
+    """Takes the scan dataframe, scaling, and starting positions to build a 
+    calibration table for the calibration motors.
     
-    # Use the conversion to create an expected correction table
-    for scale, start, cfld, dfld in zip(scaling, start_positions, calib_fields,
-                                        detector_fields):
-        df_scan[cfld+"_post"] = start - (df_scan[dfld]-df_scan[dfld].iloc[0]) \
-                               * scale
-
-    return df_scan
-
-def process_scan_df(df_calibration_scan, motor, motor_fields, calib_motors, 
-                    window_length=9, polyorder=3, mode="absolute"):
-    """
-    Takes the dataframe returned by ``calibration_scan`` and returns a 
-    calibration table.
-
-    The initial table is created depending on the inputted mode. For 'absolute'
-    the table is simply the positions of the calibration motors after the
-    correction has been added. For 'relative' the table is the difference 
-    between the motor positions after and before the correction.
-
-    After this table has been created, a Savitzky-Golay filter is applied to 
-    each of the columns using the inputted window length and polynomial order.
-
-    The columns names are the names of the motor with underscores replaced with
-    dots, that way they can be accessed using ``getattr`` on the parent device.
-
+    The resulting dataframe will contain all the scan motor read fields as well
+    as two columns for each calibration motor that has an absolute correction
+    relative correction.
+    
     Parameters
     ----------
-    df_calibration_scan : pd.DataFrame
-        DataFrame containing the positions of the detector fields, motor, and
-        calibration motors before and after the correction
+    df_scan : pd.DataFrame
+        Dataframe containing the results of a centroid scan performed using the
+        detector, motor, and calibration motors.
 
-    motor : :class:`.Motor`
-        Main motor that was used to perform the calibration scan.
+    scaling : list
+        List of scales in the units of motor egu / detector value
 
-    calib_motors : iterable, :class:`.Motor`
-        Motors that were used to perform the calibration.
+    start_positions : list
+        List of the initial positions of the motors before the walk
 
-    window_length : int, optional
-        The length of the filter window (i.e. the number of coefficients). 
-        window_length must be a positive odd integer.
-
-    polyorder : int. optional
-        The order of the polynomial used to fit the samples. polyorder must be 
-        less than window_length.
-
-    mode : str, optional
-        The mode for computing the calibration table
+    detector : :class:`.Detector`
+        Detector from which to take the value measurements
 
     Returns
     -------
     df_calibration : pd.DataFrame
-        Dataframe containing the points to be used for the calibration by the
-        macromotor.
-
-    Raises
-    ------
-    ValueError
-        If an invalid mode is inputted
+        Calibration dataframe that has all the scan motor fields and the 
+        corrections required of the calibration motors in both absolute and
+        relative corrections.
     """
-    # Dictionary of just the final positions for each calib motor
-    if mode == "absolute":
-        calibration_dict = {cmotor.desc : 
-                            df_calibration_scan[cmotor.name+"_post"]
-                            for cmotor in calib_motors}
+    # Get the fields being used in the scan df
+    detector_fields = [col for col in df_scan.columns if detector.name in col]
+    calib_fields = [col[:-4] for col in df_scan.columns if col.endswith("_pre")]
+    motor_fields = [col for col in df_scan.columns 
+                    if col not in detector_fields and not col.endswith("_pre")]
 
-    # Dictionary of the differnce between the start and end positions
-    elif mode == "relative":
-        calibration_dict = {cmotor.desc : 
-                            (df_calibration_scan[cmotor.name+"_post"] -
-                             df_calibration_scan[cmotor.name+"_pre"])
-                            for cmotor in calib_motors}
-    else:
-        raise ValueError("Mode can only be 'absolute' or 'relative'.")
+    # Ensure these two are equal
+    if len(detector_fields) != len(calib_fields):
+        raise ValueError("Must have same number of calibration fields as "
+                         "detector fields, but got {0} and {1}.".format(
+                             len(calib_fields), len(detector_fields)))
 
-    # TODO: Make the filter optional
-    
-    # Filter the corrections 
-    df_filtered = pd.DataFrame(calibration_dict).apply(
-        savgol_filter, args=(window_length, polyorder))
+    df_corrections = pd.DataFrame(index=df_scan.index)
 
-    # Add the scan motor positions
-    df_calibration = pd.concat([df_calibration_scan[motor_fields[0]], 
-                                df_filtered], axis=1)
+    # Use the conversion to create an expected correction table
+    for scale, start, cfld, dfld in zip(scaling, start_positions, calib_fields,
+                                        detector_fields):
+        # Absolute move to make to perform correction for this motor
+        df_corrections[cfld+"_post_abs"] = \
+          start - (df_scan[dfld] - df_scan[dfld].iloc[0]) * scale
+        # Relative move to make to perform correction for this motor
+        df_corrections[cfld+"_post_rel"] = \
+          df_corrections[cfld+"_post_abs"] - df_scan[cfld+"_pre"]
+
+    # Put together the calibration table
+    df_calibration = pd.concat([df_scan[motor_fields], df_corrections], axis=1)
     
     return df_calibration
+
+    # # Filter the corrections 
+    # df_filtered = pd.DataFrame(calibration_dict).apply(
+    #     savgol_filter, args=(window_length, polyorder))
+
+    # # Add the scan motor positions
+    # df_calibration = pd.concat([df_calibration_scan[motor_fields[0]], 
+    #                             df_filtered], axis=1)
+    
+    # return df_calibration
