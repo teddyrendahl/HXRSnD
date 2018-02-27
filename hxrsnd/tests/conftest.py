@@ -103,16 +103,19 @@ class SynCentroid(SynSignal):
     def __init__(self, motors, weights, motor_field=None, noise_multiplier=None, 
                  name=None, *args, **kwargs):
         # Eliminate noise if not requested
-        noise = noise_multiplier or 0.
-        
-        
+        self.motors = motors
+        self.weights = weights
+        self.motor_field = motor_field
+        self.noise = noise_multiplier or 0.
+                
         def func():
             # Evaluate the positions of each motor
-            pos = [m.read()[motor_field or m.name]['value'] for m in motors]
+            pos = [m.read()[self.motor_field or m.name]['value']
+                   for m in self.motors]
             # Get the centroid position
-            cent = np.dot(pos, weights)
+            cent = np.dot(pos, self.weights)
             # Add uniform noise
-            cent += int(np.round(np.random.uniform(-1, 1) * noise))
+            cent += int(np.round(np.random.uniform(-1, 1) * self.noise))
             return cent
         
         # Instantiate the synsignal
@@ -136,7 +139,6 @@ class SynCamera(Device):
         # Add them to _signals
         self._signals['centroid_x'] = self.centroid_x
         self._signals['centroid_y'] = self.centroid_y
-
         # Add them to the read_attrs
         self.read_attrs = ["centroid_x", "centroid_y"]
 
