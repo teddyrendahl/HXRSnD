@@ -9,7 +9,7 @@ from scipy.signal import savgol_filter
 from ophyd.utils import LimitError
 from bluesky.plans import scan
 from bluesky.utils import short_uid
-from bluesky.plan_stubs import rel_set, wait as plan_wait, abs_set, checkpoint
+from bluesky.plan_stubs import rel_set, wait as plan_wait, abs_set
 from bluesky.preprocessors import msg_mutator, stub_wrapper
 
 from pswalker.utils import field_prepend
@@ -22,10 +22,8 @@ from ..utils import as_list, flatten
 logger = logging.getLogger(__name__)
 
 def calibrate_motor(detector, motor, motor_fields, calib_motors, start, 
-                    stop, steps, confirm_overwrite=True, *args, **kwargs):
-    
+                    stop, steps, confirm_overwrite=True, *args, **kwargs):    
     calib_motors = as_list(calib_motors)
-    motor_fields = as_list(motor_fields or motor.read_attrs)
 
     # Check for motor having a _calib field
     motor_config = motor.read_configuration()
@@ -138,6 +136,7 @@ def calibration_scan(detector, detector_fields, motor, motor_fields,
     num = len(detector_fields)
     calib_motors = as_list(calib_motors)
     calib_fields = as_list(calib_fields or [m.name for m in calib_motors])
+    motor_fields = as_list(motor_fields or motor.read().keys())
     if len(calib_motors) != num:
         raise ValueError("Must have same number of calibration motors as "
                          "detector fields.")
