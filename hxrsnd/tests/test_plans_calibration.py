@@ -11,7 +11,7 @@ from ..plans import calibration as calib
 
 logger = logging.getLogger(__name__)
 
-rtol = 0.0000001                             # Numpy relative tolerance
+rtol = 1e-6                             # Numpy relative tolerance
 
 m1 = SynAxis(name="m1")
 m2 = SynAxis(name="m2")
@@ -163,3 +163,45 @@ def test_scale_scan_df_creates_correct_calibration_tables(fresh_RE, weights):
 
     # Run the plan
     fresh_RE(run_wrapper(test_plan()))
+
+@pytest.mark.parametrize("weights", [(1,1), (.5,-.5), (-10,5.5)])
+def test_calibration_scan_gets_correct_calibration(fresh_RE, weights):
+    camera = SynCamera(m1, m2, delay, name="camera")
+    centroids = [camera.centroid_x, camera.centroid_y]
+    calib_motors = [m1,m2]    
+    for cent, weight in zip(centroids, weights):
+        cent.weights = [weight, cent.weights[1]]
+
+    def test_plan():
+        # Perform the scan
+        df_calib, df_scan, _, _ = yield from calib.calibration_scan(
+            camera, ['camera_centroid_x','camera_centroid_y'], delay, None,
+            [m1,m2], None, -1, 1, 5, tolerance=0)
+
+        # Expected positions of the centroids are the first positions
+        expected_centroids = df_scan[[c.name for c in centroids]].iloc[0]
+
+        for i in range(len(df_scan)):
+            # Save the initial positions
+            starting_pos = {m.name : m.position for m in [m1,m2]}
+            # Move to the scan position for the main motor
+            delay.set(df_calib[delay.name].iloc[i])
+
+            for cmotor, exp_cent, cent in zip(calib_motors, expected_centroids, 
+                                              centroids):
+                # Move to the abosolute corrected position
+                cmotor.set(df_calib[cmotor.name+"_post_abs"].iloc[i])
+                # Check the centroids are where they should be
+                assert np.isclose(cent.get(), exp_cent, rtol=rtol)
+                # Return them back to their initial position
+                cmotor.set(starting_pos[cmotor.name])
+                # Move to the relative corrected_positionx
+                cmotor.set(cmotor.position \
+                           + df_calib[cmotor.name+"_post_rel"].iloc[i])
+                # Check the centroids are where they should be
+                assert np.isclose(cent.get(), exp_cent, rtol=rtol)
+
+    # Run the plan
+    fresh_RE(run_wrapper(test_plan()))
+
+

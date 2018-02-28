@@ -16,6 +16,7 @@ from pswalker.utils import field_prepend
 from pswalker.plans import measure_average, walk_to_pixel
 
 from .scans import centroid_scan
+from .preprocessors import return_to_initial
 from ..utils import as_list, flatten
 
 logger = logging.getLogger(__name__)
@@ -43,29 +44,14 @@ def calibrate_motor(detector, motor, motor_fields, calib_motors, start,
                 logger.info("\Calibration cancelled.")
                 return
             logger.debug("\nOverwrite confirmed.")
-
-    # Lets get the initial positions of the motors
-    if return_to_start:
-        # Store the current motor positions
-        initial_motor_positions = {m : m.position for m in [motor]+calib_motors}
         
-    try:
-        # Perform the calibration scan
-        df_calib, df_scan, scaling, start_pos = yield from calibration_scan(
-            detector, ['stats2_centroid_x', 'stats2_centroid_y',],
-            motor, motor_fields,
-            calib_motors, 
-            start, stop, steps, 
-            *args, **kwargs)
-
-    finally:
-        # Start returning all the motors to their initial positions
-        if return_to_start:
-            group = short_uid('set')
-            for mot, pos in initial_motor_positions.items():
-                yield from abs_set(mot, pos, group=group)
-            # Wait for all the moves to finish if they haven't already
-            yield from plan_wait(group=group)
+    # Perform the calibration scan
+    df_calib, df_scan, scaling, start_pos = yield from calibration_scan(
+        detector, ['stats2_centroid_x', 'stats2_centroid_y',],
+        motor, motor_fields,
+        calib_motors, 
+        start, stop, steps, 
+        *args, **kwargs)
     
     # load the calibration into the motor
     motor.configure(calib=df_calib, motors=[motor]+calib_motors, scale=scaling,
@@ -73,10 +59,8 @@ def calibrate_motor(detector, motor, motor_fields, calib_motors, start,
     
 def calibration_scan(detector, detector_fields, motor, motor_fields, 
                      calib_motors, calib_fields, start, stop, steps,
-                     first_step=0.01, average=None, filters=None, tolerance=1,
-                     delay=None, max_steps=5, drop_missing=True, gradients=None, 
-                     return_to_start=True, window_length=9, polyorder=3, 
-                     mode='absolute', *args, **kwargs):
+                     first_step=0.01, average=None, filters=None, 
+                     return_to_start=True, *args, **kwargs):
     """
     Performs a calibration scan for the main motor and returns a correction
     table for the calibration motors.
@@ -133,34 +117,27 @@ def calibration_scan(detector, detector_fields, motor, motor_fields,
         Move all the motors to their original positions after the scan has been
         completed
     
-    window_length : int, optional
-        The length of the filter window (i.e. the number of coefficients). 
-        window_length must be a positive odd integer.
-
-    polyorder : int. optional
-        The order of the polynomial used to fit the samples. polyorder must be 
-        less than window_length.
-
-    mode : str, optional
-        The mode for computing the calibration table
-
     Returns
     -------
     df_calibration : pd.DataFrame
         Dataframe containing the points to be used for the calibration by the
-        macromotor.
+        calibration motors
 
     df_calibration_scan : pd.DataFrame
-        DataFrame containing the positions of the detector fields, motor, and
-        calibration motors before and after the correction. The indices are the
+        DataFrame containing the positions of the detector,  motor, and
+        calibration motor fields during the initial scan. The indices are the
         target motor positions.
+
+    scaling : list
+        List of the scaling values in units of motor egu / detector value used 
+        to calculate the calibration.
+
+    start_positions : list
+        List of starting positions used to perform the calibration calculation.
     """
     num = len(detector_fields)
+    calib_motors = as_list(calib_motors)
     calib_fields = as_list(calib_fields or [m.name for m in calib_motors])
-    if steps <= window_length:
-        raise ValueError("Cannot apply savgol filter with window size of {0} "
-                         "if number of steps is {1}. Steps must be greater "
-                         "than the window size".format(window_length, num))    
     if len(calib_motors) != num:
         raise ValueError("Must have same number of calibration motors as "
                          "detector fields.")
@@ -168,39 +145,38 @@ def calibration_scan(detector, detector_fields, motor, motor_fields,
         raise ValueError("Must have same number of calibration fields as "
                          "detector fields.")
     
-    # Perform the main scan, reading the positions of all the devices
-    logger.debug("Beginning calibration scan")
-    df_scan = yield from calibration_centroid_scan(
-        detector, motor, calib_motors,
-        start, stop, steps,
-        detector_fields=detector_fields,
-        motor_fields=motor_fields,
-        calib_fields=calib_fields,
-        average=average,
-        filters=filters)
+    @return_to_initial(motor, *calib_motors, perform=return_to_start)
+    def inner():
+        # Perform the main scan, reading the positions of all the devices
+        logger.debug("Beginning calibration scan")
+        df_scan = yield from calibration_centroid_scan(
+            detector, motor, calib_motors,
+            start, stop, steps,
+            detector_fields=detector_fields,
+            motor_fields=motor_fields,
+            calib_fields=calib_fields,
+            average=average,
+            filters=filters)
 
-    # Find the distance per detector value scaling and initial positions used
-    scaling, start_positions = yield from detector_scaling_walk(
-        df_scan,
-        detector,
-        motor,
-        calib_motors,
-        first_step=first_step,
-        average=average,
-        filters=filters,
-        tolerance=tolerance,
-        max_steps=max_steps,
-        drop_missing=drop_missing,
-        gradients=gradients,
-        *args, **kwargs)
+        # Find the distance per detector value scaling and initial positions
+        scaling, start_positions = yield from detector_scaling_walk(
+            df_scan,
+            detector,
+            calib_motors,
+            first_step=first_step,
+            average=average,
+            filters=filters,
+            system=[motor],
+            *args, **kwargs)
 
-    # Build the calibration table
-    df_calibration = build_calibration_df(df_scan, scaling, start_positions, 
-                                          detector)
+        # Build the calibration table
+        df_calibration = build_calibration_df(df_scan, scaling, start_positions,
+                                              detector)
+
+        logger.debug("Completed calibration scan.")
+        return df_calibration, df_scan, scaling, start_positions
     
-    # Return both the calibration table and the scan info
-    logger.debug("Completed calibration scan.")
-    return df_calibration, df_scan, scaling, start_positions
+    return (yield from inner())
 
 def calibration_centroid_scan(detector, motor, calib_motors, start, stop, steps,
                               calib_fields=None, *args, **kwargs):

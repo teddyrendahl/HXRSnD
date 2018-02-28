@@ -15,6 +15,7 @@ from bluesky.preprocessors import (stage_decorator, run_decorator, msg_mutator,
 from pswalker.utils import field_prepend
 from pswalker.plans import measure_average
 
+from .preprocessors import return_to_initial
 from ..utils import as_list
 
 logger = logging.getLogger(__name__)
@@ -132,9 +133,9 @@ def centroid_scan(detector, motor, start, stop, steps, average=None,
 
     system : list, optional
         Extra devices to include in the datastream as we measure the average
-    	
+        
     system_fields : list, optional
-    	Fields of the extra devices to add to the returned dataframe
+        Fields of the extra devices to add to the returned dataframe
 
     filters : dict, optional
         Key, callable pairs of event keys and single input functions that
@@ -142,13 +143,13 @@ def centroid_scan(detector, motor, start, stop, steps, average=None,
         :meth:`.apply_filters`
 
     return_to_start : bool, optional
-        Move the scan motor back to its initial position after the scan    	
+        Move the scan motor back to its initial position after the scan     
     
     Returns
     -------
     df : pd.DataFrame
         DataFrame containing the detector, motor, and system fields at every
-    	step of the scan.
+        step of the scan.
     """
     average = average or 1
     system = as_list(system or [])
@@ -180,19 +181,13 @@ def centroid_scan(detector, motor, start, stop, steps, average=None,
         for fld in all_fields:
             df.loc[step, fld] = reads[fld]
 
-    # Store the initial motor position
-    if return_to_start:
-        initial_position = motor.position
-        
-    # Define the generic scan and run it
-    plan = scan([detector], motor, start, stop, steps, per_step=per_step)
-    try:
+    # Run the inner plan
+    @return_to_initial(motor, perform=return_to_start)
+    def inner():
+        plan = scan([detector], motor, start, stop, steps, per_step=per_step)
         yield from stub_wrapper(plan)
-    # Regardless of the outcome, move back to the initial position if requested
-    finally:
-        if return_to_start:
-            yield from abs_set(motor, initial_position, wait=True)
-            
+    yield from inner()
+
     # Return the filled dataframe
     return df
     

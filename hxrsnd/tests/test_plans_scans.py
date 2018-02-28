@@ -87,18 +87,3 @@ def test_centroid_scan_returns_correct_columns(fresh_RE, mot_fields, det_fields,
         assert (delay_scan.columns == expected_columns).all()
     # Run the plan
     fresh_RE(run_wrapper(test_plan()))
-
-def test_centroid_scan_returns_motor_to_start_pos(fresh_RE):
-    camera = SynCamera(m1, m2, delay, name="camera")
-    # Create the plan
-    def test_plan():
-        initial_position = delay.position
-        delay_scan = (yield from centroid_scan(camera, delay, -1, 1, 3,
-                                               detector_fields=[
-                                                   'camera_centroid_x',
-                                                   'camera_centroid_y'],
-                                               return_to_start=True))
-        # Check that the delay motor is in the initial position
-        assert delay.position == initial_position
-    # Run the plan
-    fresh_RE(run_wrapper(test_plan()))
