@@ -103,8 +103,7 @@ def test_build_calibration_df_creates_correct_df_columns(fresh_RE):
     test_start = [0.25, -0.25]
     camera = SynCamera(m1, m2, delay, name="camera")
     # The resulting df should be the same columns with two new ones
-    new_columns = [m.name+suffix for m in [m1,m2] 
-                   for suffix in ["_post_abs","_post_rel"]]
+    new_columns = [m.name+"_post" for m in [m1,m2]]
 
     scan_columns = list(test_df_scan.columns)
     expected_columns = [delay.name] + new_columns
@@ -150,14 +149,7 @@ def test_scale_scan_df_creates_correct_calibration_tables(fresh_RE, weights):
             for cmotor, exp_cent, cent in zip(calib_motors, expected_centroids, 
                                               centroids):
                 # Move to the abosolute corrected position
-                cmotor.set(df_calib[cmotor.name+"_post_abs"].iloc[i])
-                # Check the centroids are where they should be
-                assert np.isclose(cent.get(), exp_cent, rtol=rtol)
-                # Return them back to their initial position
-                cmotor.set(starting_pos[cmotor.name])
-                # Move to the relative corrected_positionx
-                cmotor.set(cmotor.position \
-                           + df_calib[cmotor.name+"_post_rel"].iloc[i])
+                cmotor.set(df_calib[cmotor.name+"_post"].iloc[i])
                 # Check the centroids are where they should be
                 assert np.isclose(cent.get(), exp_cent, rtol=rtol)
 
@@ -190,14 +182,7 @@ def test_calibration_scan_gets_correct_calibration(fresh_RE, weights):
             for cmotor, exp_cent, cent in zip(calib_motors, expected_centroids, 
                                               centroids):
                 # Move to the abosolute corrected position
-                cmotor.set(df_calib[cmotor.name+"_post_abs"].iloc[i])
-                # Check the centroids are where they should be
-                assert np.isclose(cent.get(), exp_cent, rtol=rtol)
-                # Return them back to their initial position
-                cmotor.set(starting_pos[cmotor.name])
-                # Move to the relative corrected_positionx
-                cmotor.set(cmotor.position \
-                           + df_calib[cmotor.name+"_post_rel"].iloc[i])
+                cmotor.set(df_calib[cmotor.name+"_post"].iloc[i])
                 # Check the centroids are where they should be
                 assert np.isclose(cent.get(), exp_cent, rtol=rtol)
 

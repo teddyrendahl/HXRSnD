@@ -432,11 +432,8 @@ def build_calibration_df(df_scan, scaling, start_positions, detector):
     for scale, start, cfld, dfld in zip(scaling, start_positions, calib_fields,
                                         detector_fields):
         # Absolute move to make to perform correction for this motor
-        df_corrections[cfld+"_post_abs"] = \
+        df_corrections[cfld+"_post"] = \
           start - (df_scan[dfld] - df_scan[dfld].iloc[0]) * scale
-        # Relative move to make to perform correction for this motor
-        df_corrections[cfld+"_post_rel"] = \
-          df_corrections[cfld+"_post_abs"] - df_scan[cfld+"_pre"]
 
     # Put together the calibration table
     df_calibration = pd.concat([df_scan[motor_fields], df_corrections], axis=1)
