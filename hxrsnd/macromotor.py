@@ -15,10 +15,10 @@ from .sndmotor import SndMotor
 from .snddevice import SndDevice
 from .utils import as_list, flatten
 from .bragg import bragg_angle, cosd, sind
-from .exceptions import MotorDisabled, MotorFaulted, MotorStopped, BadN2Pressure
+from .exceptions import (MotorDisabled, MotorFaulted, MotorStopped, 
+                         BadN2Pressure, InputError)
 
 logger = logging.getLogger(__name__)
-
 
 # TODO: Add a calibrate method
 # TODO: Add a centroid scanning method
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 # TODO: Add ability to load calibrations from disk
 # TODO: Add ability to display calibrations
 # TODO: Add ability to change post-processing done to scan. 
-# TOD : Add ability to redo scaling on scan
+# TODO : Add ability to redo scaling on scan
 class CalibMacro(SndDevice):
     """
     Provides the calibration macro methods.
@@ -35,6 +35,7 @@ class CalibMacro(SndDevice):
     def __init__(self, prefix, name=None, *args, **kwargs):
         super().__init__(prefix, name=name, *args, **kwargs)
         self._has_calib = False
+        self._use_calib = False
         self._calib = {}
         self.configure()
 
@@ -54,7 +55,8 @@ class CalibMacro(SndDevice):
 
         return status
 
-    def configure(self, *, calib=None, motors=None):
+    def configure(self, *, calib=None, motors=None, scan=None, scale=None, 
+                  start=None):
         """
         Configure the macro-motor's move parameters.
 
@@ -88,38 +90,77 @@ class CalibMacro(SndDevice):
         """
         # Save prev for return statement
         prev_config = self.read_configuration()
-        self._config_calib(calib, motors)
+        self._config_calib(calib, motors, scan, scale, start)
+
+        # If we get a good calibration, change use_calib so we can use it
+        if self.has_calib:
+            self.use_calib = True
+
+        # Return the previous and new configs
         return prev_config, self.read_configuration()
 
-    def _config_calib(self, calib, motors):
+    def _config_calib(self, calib, motors, scan, scale, start):
         """
         Handle calib arg from configure
         """
-        motors = as_list(motors or [])        
-        # Interpret calib
-        if calib is None:
-            save_calib = {"calib" : {'value': {}, 'timestamp': time.time()}}
-            self._has_calib = False
+        # Start with all the previous calibration parameters
+        save_calib = dict(self._calib)
+        motors = as_list(motors) or None
 
-        elif isinstance(calib, pd.DataFrame):
-            save_calib = {"calib" : {'value': calib, 'timestamp': time.time()}}
-            self._has_calib = True
-        else:
-            raise TypeError("Invalid calib type {}".format(type(calib)))
-
-        # Add the motors
-        save_calib['motors'] = {'value': motors, 'timestamp': time.time()}
-
-        # Check for valid inputs
-        if isinstance(save_calib['calib']['value'], pd.DataFrame):
-            calib_df = save_calib['calib']['value']
-            calib_motors = save_calib['motors']['value']
-            if not calib_df.shape[1] == len(calib_motors):
-                raise ValueError("Must have the same number of columns in "
-                                 "calibration table as number of calibration "
-                                 "motors.")
-
+        # Add in the new parameters if they are not None or empty. If they are,
+        # None or empty, check if they already exist as keys in the dict and 
+        # only add them if they do not.
+        for key, value in {'calib': calib, 'motors': motors, 'scan': scan, 
+                           'scale': scale, 'start': start}.items():
+            if value is not None or (value is None and key not in save_calib):
+                save_calib[key] = {'value': value, 'timestamp': time.time()}
+                
+        # Now check all those changes, raising errors if needed
+        self._check_calib(save_calib)
+        # We made it through the check, therefore it is safe to use
         self._calib = save_calib
+
+    def _check_calib(self, save_calib):
+        # Let's get all the values we will update the calibration with
+        calib = save_calib['calib']['value']
+        motors = save_calib['motors']['value']
+        scan = save_calib['scan']['value']
+        scale = save_calib['scale']['value']
+        start = save_calib['start']['value']
+
+        # Having no correction table and no calibration motors is valid
+        if calib is None and not motors:
+            pass
+
+        # We have no calibration but calibration motors.
+        elif calib is None and motors:
+            raise InputError("Adding motors for calibration but no correction "
+                             "table found.")
+
+        # We have a correction table but it isnt a Dataframe
+        elif not isinstance(calib, pd.DataFrame):
+            raise TypeError("Only Dataframes are supported for calibrations "
+                            "tables at this time. Got a calibration of type "
+                            "{0}.".format(type(calib)))
+
+        # We have a correction table but no motors to correct with
+        elif calib is not None and not motors:
+            raise InputError("Adding a correction table with no calibration "
+                             "motors")
+
+        # We have a correction table and calibration motors, but they arent the
+        # same length, so we cannot actually use it
+        elif len(calib.columns) != len(motors):
+            raise InputError("Mismatched calibration size and number of "
+                             "motors. Got {0} columns for {1} motors.".format(
+                                len(calib.columns),len(motors)))
+
+        # We have the correct correction table and motors but one of the of the
+        # extra parameters were not passed. Not crutial but should warn the user
+        elif calib is not None and motors and not (scan or scale or start):
+            logger.warning("Inputted correction table and calibration motors "
+                           "but not all configuration data. Some calibration "
+                           "updating methods may not be functional!")
 
     def _calib_compensate(self, position, *args, **kwargs):
         """
@@ -129,31 +170,55 @@ class CalibMacro(SndDevice):
         motors = self._calib['motors']['value']
         status_list = []
 
-        if not self._has_calib:
+        if not self.has_calib or not self.use_calib:
             return 
-        elif isinstance(calib, pd.DataFrame):
-            # Grab the two rows where the main motor position (column 0) is
-            # closest to the inputted position
-            slice = calib.iloc[
-                (calib.iloc[:, 0]-position).abs().argsort().iloc[:2]]
-            # Make a copy of the second row so we have a total of three rows in
-            # the dataframe
-            slice = slice.append(slice.iloc[1])
-            # Replace the middle row with the inputted position in the main 
-            # motor column and nans in the others
-            slice.iloc[1] = [position] + [np.nan]*(len(motors)-1)
-            # Interpolate the missing values based on the inputted position, and
-            # then grab that middle row
-            interpolated_row = slice.interpolate().iloc[1]
+        # Grab the two rows where the main motor position (column 0) is
+        # closest to the inputted position
+        top = calib.iloc[(calib.iloc[:,0] - position).abs().argsort().iloc[:2]]
+        first, second = top.iloc[0], top.iloc[1]
 
-            # Move each calibration motor to the interpolated position.
-            for i, motor in enumerate(motors[1:]):
-                status = motor.move(interpolated_row[i+1], *args, **kwargs)
-                status_list.append(status)
-        else:
-            raise TypeError("Calibration table must be in the form a dataframe")
+        # Get the slope between the lines between each of the motor values using
+        # the first column as the x positions
+        slopes = (second - first) / (second.iloc[0] - first.iloc[1])
 
+        # Use the slope and the closest point to interpolate the motor positions
+        # at the inputted position
+        interpolated_row = slopes * (position - first[0]) + first
+
+        # Move each calibration motor to the interpolated position
+        for i, motor in enumerate(motors[1:]):
+            status = motor.move(interpolated_row[i+1], *args, **kwargs)
+            status_list.append(status)
+
+        # Turn all the status objects into one AndStatus and return it
         return reduce(lambda x, y: x & y, status_list)
+
+    @property
+    def has_calib(self):
+        config = self._calib
+        calib = config['calib']['value']
+        motors = config['motors']['value']
+        # Return False if we dont have a table and motors
+        if calib is not None and not motors:
+            return False
+        try:
+            # If we make it through the check, we have a calibration
+            self._check_calib(config)
+            return True
+        except:
+            # We ran into an error in the check, the config is somehow invalid
+            return False
+
+    @property
+    def use_calib(self):
+        return self._use_calib
+    
+    @use_calib.setter
+    def use_calib(self, use):
+        self._use_calib = bool(use)
+        if self._use_calib is True and not self.has_calib:
+            logger.warning("use_calib is currently set to True but the "
+                           "current calibration is not valid.")
     
     def read_configuration(self):
         return self._calib
@@ -161,10 +226,10 @@ class CalibMacro(SndDevice):
     def describe_configuration(self):
         if not self._calib:
             return super().describe_configuration()
-        if isinstance(self._calib['calib']['value'], dict):
-            shape = [len(self._calib)]
-        else:
+        if isinstance(self._calib['calib']['value'], pd.DataFrame):
             shape = self._calib['calib']['value'].shape
+        else:
+            shape = [len(self._calib)]
         return {**dict(calib=dict(source='calibrate', dtype='array', 
                                   shape=shape)), 
                 **super().describe_configuration()}
