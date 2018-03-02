@@ -271,7 +271,7 @@ class EccBase(SndMotor, PositionerBase):
         return self._status_print(status, "Reset motor '{0}'".format(
             self.desc), ret_status=ret_status, print_set=print_set)
     
-    def move(self, position, check_status=True, *args, **kwargs):
+    def move(self, position, check_status=True, timeout=0, *args, **kwargs):
         """
         Move to a specified position.
 
@@ -304,7 +304,7 @@ class EccBase(SndMotor, PositionerBase):
             self.check_status(position)
         logger.debug("Moving {0} to {1}".format(self.name, position))
         # Begin the move process
-        return self.user_setpoint.set(position, timeout=self.timeout)
+        return self.user_setpoint.set(position, timeout=timeout)
 
     def mv(self, position, print_move=True, *args, **kwargs):
         """

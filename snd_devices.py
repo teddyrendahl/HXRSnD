@@ -7,7 +7,7 @@ from pcdsdevices.areadetector.detectors import PCDSDetector
 pv_base = "XCS:SND"
 
 # Instantiate the whole system
-snd = SplitAndDelay(pv_base)
+snd = SplitAndDelay(pv_base, name="snd")
 daq = snd.daq
 
 # Additional Devices
