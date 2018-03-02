@@ -10,11 +10,23 @@ from functools import wraps
 from collections.abc import Iterable
 from logging.handlers import RotatingFileHandler
 
+from ophyd.signal import Signal
+
 import yaml
 import coloredlogs
 
 logger = logging.getLogger(__name__)
 
+class PythonSignal(Signal):
+    """
+    Signal that returns the results of a python function.
+    """
+    def __init__(self, func, *args, **kwargs):
+        self._func = func
+        super().__init__(*args, **kwargs)
+        
+    def get(self):
+        return self._func()
 
 class RotatingFileHandlerRelativePath(logging.handlers.RotatingFileHandler):
     """

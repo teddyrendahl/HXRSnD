@@ -8,15 +8,22 @@ import logging
 from functools import reduce
 
 import pandas as pd
+from ophyd.device import Component as Cmp
 from ophyd.utils import LimitError
 from ophyd.status import wait as status_wait
+from bluesky.preprocessors  import run_wrapper
+
+from pswalker.utils import field_prepend
 
 from .sndmotor import SndMotor
 from .snddevice import SndDevice
-from .utils import as_list, flatten
+from .detectors import OpalDetector
+from .utils import as_list, flatten, PythonSignal
 from .bragg import bragg_angle, cosd, sind
 from .exceptions import (MotorDisabled, MotorFaulted, MotorStopped, 
                          BadN2Pressure, InputError)
+from .plans.calibration import calibrate_motor
+from .plans.preprocessors import return_to_initial
 
 logger = logging.getLogger(__name__)
 
@@ -32,10 +39,15 @@ class CalibMacro(SndDevice):
     """
     Provides the calibration macro methods.
     """
-    def __init__(self, prefix, name=None, *args, **kwargs):
+    def __init__(self, prefix, name=None, calib_detector=None, 
+                 calib_motors=None, calib_fields=None, motor_fields=None, 
+                 *args, **kwargs):
+
         super().__init__(prefix, name=name, *args, **kwargs)
-        self._has_calib = False
-        self._use_calib = False
+        self.calib_motors = calib_motors
+        self.calib_fields = calib_fields
+        self.motor_fields = motor_fields
+        self.use_calib = False
         self._calib = {}
         self.configure()
 
@@ -55,6 +67,36 @@ class CalibMacro(SndDevice):
 
         return status
 
+    def calibrate(self, start, stop, steps, average=100, confirm_overwrite=True,
+                  detector=None, detector_fields=None, RE=None, *args, **kwargs):
+        """
+        Performs a calibration scan for this motor and updates the 
+        configuration.
+        """
+        # Use the inputted runengine or the parent's
+        RE = RE or self.parent._RE
+        detector = detector or self.calib_detector
+        detector_fields = detector_fields or self.detector_fields
+
+        # Make sure everything returns to the starting position when finished
+        @return_to_initial(self, *self.calib_motors)
+        def inner():
+            yield from calibrate_motor(
+                detector, 
+                self, 
+                self.motor_fields,
+                self.calib_motors,
+                start, stop, steps,
+                average=average,
+                detector_fields=detector_fields,
+                calib_fields=self.calib_fields,
+                confirm_overwrite=confirm_overwrite,
+                return_to_start=False,
+                *args, **kwargs)
+            
+        # Run the inner plan
+        RE(run_wrapper(inner()))
+
     def configure(self, *, calib=None, motors=None, scan=None, scale=None, 
                   start=None):
         """
@@ -65,24 +107,6 @@ class CalibMacro(SndDevice):
         calib : DataFrame or dict, optional
             Lookup table for move calibration. This represents set positions of
             auxiliary movers that should be chosen as we move our main macro.
-
-            If a DataFrame, the index should be the primary axis of motion, the
-            argument to the move or set functions. The columns should be the
-            desired set positions of each auxiliary mover at each index point.
-            The columns should be labeled with the name of the mover. The names
-            are interpreted as attribute access of the parent object, e.g.
-
-            name=t1 ------> snd.t1
-            name=t1.chi1 -> snd.t1.chi1
-
-            Alternatively, the motor object itself can be passed and the 
-            calibration table will be applied to that motor.
-
-            If a dict, I'm either expecting the arguments to create a dataframe
-            e.g. data=dict(name=array, name2=array2), index=array3
-            OR a dictionary of names to functions of single variables, taking
-            in the main axis position and outputing the mover's adjustment.
-
         Returns
         -------
         configs : tuple of dict
@@ -243,9 +267,14 @@ class MacroBase(SndMotor):
     c = 0.299792458             # mm/ps
     gap = 55                    # m
 
-    def __init__(self, prefix, name=None, *args, **kwargs):
-        super().__init__(prefix, name=name, *args, **kwargs)
-        
+    readback = Cmp(PythonSignal, lambda : None)
+
+    def __init__(self, prefix, name=None, read_attrs=None, *args, **kwargs):
+        read_attrs = read_attrs or ["readback"]
+        super().__init__(prefix, name=name, read_attrs=read_attrs, *args, 
+                         **kwargs)
+        self.readback._func = lambda : self.position
+
         # Make sure this is used
         if self.parent is None:
             logger.warning("Macromotors must be instantiated with a parent "
@@ -691,6 +720,15 @@ class DelayMacro(CalibMacro, DelayTowerMacro):
     #                        "t4: {1:.3f}ps".format(t1_delay, t4_delay))
     #     return is_aligned
 
+    def __init__(self, prefix, name=None, *args, **kwargs):
+        super().__init__(prefix, name=name, *args, **kwargs)
+
+        self.calib_motors=[self.parent.t1.chi1, self.parent.t1.y1]
+        self.calib_fields=[field_prepend("user_readback", calib_motor)
+                           for calib_motors in self.calib_motors]
+        self.calib_detector=OpalDetector("XCS:USR:O1000:01", name="Opal 1")
+        self.detector_fields=['stats2_centroid_x', 'stats2_centroid_y',]
+
     def _length_to_delay(self, L=None, theta1=None, theta2=None):
         """
         Converts the inputted L of the delay stage, theta1 and theta2 to
@@ -937,7 +975,6 @@ class Energy1Macro(DelayTowerMacro):
     #         logger.warning("Energy mismatch between t1 and t4. t1: {0:.3f}  eV,"
     #                        " t4: {1:.3f} eV".format(t1.energy, t4.energy))                        
     #     return is_aligned
-
 
     def _length_to_delay(self, L=None, theta1=None, theta2=None):
         """
