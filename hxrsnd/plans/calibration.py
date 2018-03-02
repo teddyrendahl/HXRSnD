@@ -12,7 +12,6 @@ from bluesky.utils import short_uid
 from bluesky.plan_stubs import rel_set, wait as plan_wait, abs_set
 from bluesky.preprocessors import msg_mutator, stub_wrapper
 
-from pswalker.utils import field_prepend
 from pswalker.plans import measure_average, walk_to_pixel
 
 from .scans import centroid_scan
@@ -22,7 +21,9 @@ from ..utils import as_list, flatten
 logger = logging.getLogger(__name__)
 
 def calibrate_motor(detector, motor, motor_fields, calib_motors, start, 
-                    stop, steps, confirm_overwrite=True, *args, **kwargs):    
+                    stop, steps, detector_fields=[
+                        'stats2_centroid_x', 'stats2_centroid_y',],
+                    confirm_overwrite=True, *args, **kwargs):
     calib_motors = as_list(calib_motors)
 
     # Check for motor having a _calib field
@@ -45,7 +46,7 @@ def calibrate_motor(detector, motor, motor_fields, calib_motors, start,
         
     # Perform the calibration scan
     df_calib, df_scan, scaling, start_pos = yield from calibration_scan(
-        detector, ['stats2_centroid_x', 'stats2_centroid_y',],
+        detector, detector_fields,
         motor, motor_fields,
         calib_motors, 
         start, stop, steps, 
@@ -182,6 +183,7 @@ def calibration_centroid_scan(detector, motor, calib_motors, start, stop, steps,
     """
     Performs a centroid scan producing a dataframe with the values of the
     detector, motor, and calibration motor fields.
+
     Parameters
     ----------
     detector : :class:`.BeamDetector`
@@ -439,13 +441,3 @@ def build_calibration_df(df_scan, scaling, start_positions, detector):
     df_calibration = pd.concat([df_scan[motor_fields], df_corrections], axis=1)
     
     return df_calibration
-
-    # # Filter the corrections 
-    # df_filtered = pd.DataFrame(calibration_dict).apply(
-    #     savgol_filter, args=(window_length, polyorder))
-
-    # # Add the scan motor positions
-    # df_calibration = pd.concat([df_calibration_scan[motor_fields[0]], 
-    #                             df_filtered], axis=1)
-    
-    # return df_calibration

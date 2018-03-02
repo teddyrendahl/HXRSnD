@@ -28,6 +28,7 @@ def test_devices_instantiate_and_run_ophyd_functions(dev):
 def test_CalibMacro_check_calib_raises_errors_properly():
     dev = CalibMacro("TST", name="test")
     config = deepcopy(dev.read_configuration())
+
     # Define a quick function to test value equivalence
     def test_config_change(cfg1, cfg2): 
         for key1, key2 in zip(cfg1.keys(), cfg2.keys()):
@@ -76,4 +77,4 @@ def test_CalibMacro_check_calib_raises_errors_properly():
     assert isinstance(dev.read_configuration()['calib']['value'], pd.DataFrame)
     assert isinstance(dev.read_configuration()['motors']['value'], list)
     
-    
+# def test_CalibMacro    

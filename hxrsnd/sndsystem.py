@@ -109,6 +109,10 @@ class SplitAndDelay(SndDevice):
         self._channelcut_diagnostics = [self.dci, self.dcc, self.dco]
         self._diagnostics = self._delay_diagnostics+self._channelcut_diagnostics
 
+        # Get the LCLS RunEngine
+        self._RE = RunEngine({})
+        self.RE = make_daq_run_engine(self.daq)
+
         # Set the position calculators of dd and dcc
         self.dd.pos_func = lambda : \
           self.E1._get_delay_diagnostic_position()
