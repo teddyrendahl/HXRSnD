@@ -25,7 +25,7 @@ def test_devices_instantiate_and_run_ophyd_functions(dev):
     assert(isinstance(device.describe_configuration(), dict))
     assert(isinstance(device.read_configuration(), dict))
 
-def test_CalibMacro_check_calib_raises_errors_properly():
+def test_CalibMacro_configure_raises_errors_on_bad_inputs():
     dev = CalibMacro("TST", name="test")
     config = deepcopy(dev.read_configuration())
 
@@ -38,12 +38,6 @@ def test_CalibMacro_check_calib_raises_errors_properly():
 
     # No errors if we dont pass any calib or motors
     assert dev.configure()
-    assert test_config_change(config, dev.read_configuration())
-
-    # InputError when we pass motors but not a calibration
-    with pytest.raises(InputError):
-        dev.configure(motors=[SynAxis(name="test")])
-    # Assert the calibration wasnt changed
     assert test_config_change(config, dev.read_configuration())
 
     # TypeError when the calibration is not a dataframe
@@ -70,11 +64,62 @@ def test_CalibMacro_check_calib_raises_errors_properly():
     # Assert the calibration wasnt changed
     assert test_config_change(config, dev.read_configuration())
 
-    # No error if we pass both correctly but none of the extra data
+@pytest.mark.parametrize("scale", [None, [1]])
+@pytest.mark.parametrize("start", [None, [1]])
+@pytest.mark.parametrize("scan", [None, pd.DataFrame(columns=['b'])])
+def test_CalibMacro_configure_works_with_good_inputs(scale, start, scan):
+    dev = CalibMacro("TST", name="test")
+
+    # There should be no errors with this configure
     assert dev.configure(calib=pd.DataFrame(columns=['a']), 
-                         motors=[SynAxis(name="test_1")])
-    # Assert the calibration was changed this time changed
-    assert isinstance(dev.read_configuration()['calib']['value'], pd.DataFrame)
-    assert isinstance(dev.read_configuration()['motors']['value'], list)
+                         motors=[SynAxis(name="test_1")],
+                         scan=scan,
+                         scale=scale,
+                         start=start)
+
+    config = dev.read_configuration()
+    # Assert the extra values are in the cofiguration
+    assert config['scan']['value'] is scan
+    assert config['scale']['value'] == scale
+    assert config['start']['value'] == start
+
+@pytest.mark.parametrize("calib", [None, 
+                                   pd.DataFrame(columns=['a']), 
+                                   pd.DataFrame(columns=['a', 'b'])])
+@pytest.mark.parametrize("motors", [None, 
+                                    [SynAxis(name='a')],
+                                    [SynAxis(name='a'), SynAxis(name='b')]])
+def test_CalibMacro_has_calib_correctly_indicates_there_is_a_valid_calibration(
+        calib, motors):
+    dev = CalibMacro("TST", name="test")
+    # Force replace the underlying calibration to use the inputs
+    dev._calib['calib']['value'] = calib
+    dev._calib['motors']['value'] = motors
     
-# def test_CalibMacro    
+    # There must be both a calibration and motors, and they are the same length
+    expected_logic = bool((calib is not None and motors) and 
+                          (len(calib.columns) == len(motors)))
+    assert dev.has_calib == expected_logic
+        
+def test_CalibMacro_calibration_returns_correct_parameters():
+    dev = CalibMacro("TST", name="test")
+    # Should be none if there is no calibration
+    assert dev.calibration is None
+    
+    # Create the parmeters we will pass
+    calib = pd.DataFrame(columns=['a'])
+    scan = pd.DataFrame(columns=['b'])
+    motors = [SynAxis(name='test')]
+    scale = [1]
+    start = [0]
+
+    # Configure and test the resulting calibration
+    dev.configure(calib=calib, scan=scan, motors=motors, scale=scale,
+                  start=start)
+    calibration = dev.calibration
+    assert calibration['calib'] is calib
+    assert calibration['scan'] is scan
+    assert calibration['motors'] == [m.name for m in motors]
+    assert calibration['scale'] == scale
+    assert calibration['start'] == start
+    

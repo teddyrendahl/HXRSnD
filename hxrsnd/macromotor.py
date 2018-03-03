@@ -97,6 +97,33 @@ class CalibMacro(SndDevice):
         # Run the inner plan
         RE(run_wrapper(inner()))
 
+    @property
+    def calibration(self):
+        """
+        Returns the current calibration of the motor as a dictionary.
+        
+        Returns
+        -------
+        calibration : dict
+            Dictionary containing calib, motors, scan, scale, and start 
+            calibration parameters.
+        """
+        if self.has_calib:
+            config = self.read_configuration()
+            # Grab the values of each of the calibration parameters
+            calib = {fld : config[fld]['value'] 
+                     for fld in ['calib', 'scan', 'scale', 'start']}
+            # Make sure there are motors before we iterate through the list
+            if config['motors']['value']:
+                # If the motors have name attributes, just return those
+                calib['motors'] = [mot.name if hasattr(mot, 'name') else mot 
+                                   for mot in config['motors']['value']]
+            else:
+                calib['motors'] = None
+            return calib
+        else: 
+            return None
+
     def configure(self, *, calib=None, motors=None, scan=None, scale=None, 
                   start=None):
         """
@@ -145,6 +172,20 @@ class CalibMacro(SndDevice):
         self._calib = save_calib
 
     def _check_calib(self, save_calib):
+        """
+        Internal method that checks the values passed in the calibration dict
+        to make sure they are valid before actually saving it. It will raise
+        errors or send warnings depending on the inputs.
+
+        Raises
+        ------
+        InputError
+            If a correction table is passed without motors or the correction
+            table and motors have a mismatched number of columns and motors.
+
+        TypeError
+            If a correction table is passed that is not a dataframe.        
+        """
         # Let's get all the values we will update the calibration with
         calib = save_calib['calib']['value']
         motors = save_calib['motors']['value']
@@ -152,14 +193,8 @@ class CalibMacro(SndDevice):
         scale = save_calib['scale']['value']
         start = save_calib['start']['value']
 
-        # Having no correction table and no calibration motors is valid
-        if calib is None and not motors:
-            pass
-
-        # We have no calibration but calibration motors.
-        elif calib is None and motors:
-            raise InputError("Adding motors for calibration but no correction "
-                             "table found.")
+        # If no correction table is passed, then there isn't anything to check
+        if calib is None: pass
 
         # We have a correction table but it isnt a Dataframe
         elif not isinstance(calib, pd.DataFrame):
@@ -168,9 +203,9 @@ class CalibMacro(SndDevice):
                             "{0}.".format(type(calib)))
 
         # We have a correction table but no motors to correct with
-        elif calib is not None and not motors:
-            raise InputError("Adding a correction table with no calibration "
-                             "motors")
+        elif not motors:
+            raise InputError("Inputted a correction table with no calibration "
+                             "motors.")
 
         # We have a correction table and calibration motors, but they arent the
         # same length, so we cannot actually use it
@@ -180,8 +215,9 @@ class CalibMacro(SndDevice):
                                 len(calib.columns),len(motors)))
 
         # We have the correct correction table and motors but one of the of the
-        # extra parameters were not passed. Not crutial but should warn the user
-        elif calib is not None and motors and not (scan or scale or start):
+        # extra parameters were not passed, which is critical for corrected
+        # motions but warn the user
+        elif scan is not None or not scale or not start:
             logger.warning("Inputted correction table and calibration motors "
                            "but not all configuration data. Some calibration "
                            "updating methods may not be functional!")
@@ -190,12 +226,16 @@ class CalibMacro(SndDevice):
         """
         Do the calib adjust move
         """
+        # Grab the current calibration
         calib = self._calib['calib']['value']
         motors = self._calib['motors']['value']
         status_list = []
 
+        # Only perform the compensation if there is a valid calibration and we
+        # want to use the calibration
         if not self.has_calib or not self.use_calib:
             return 
+
         # Grab the two rows where the main motor position (column 0) is
         # closest to the inputted position
         top = calib.iloc[(calib.iloc[:,0] - position).abs().argsort().iloc[:2]]
@@ -214,35 +254,69 @@ class CalibMacro(SndDevice):
             status = motor.move(interpolated_row[i+1], *args, **kwargs)
             status_list.append(status)
 
-        # Turn all the status objects into one AndStatus and return it
+        # Reduce all the status objects into one AndStatus object and return it
         return reduce(lambda x, y: x & y, status_list)
 
     @property
     def has_calib(self):
-        config = self._calib
-        calib = config['calib']['value']
-        motors = config['motors']['value']
-        # Return False if we dont have a table and motors
-        if calib is not None and not motors:
+        """
+        Indicator if there is a valid calibration that can be used to perform
+        correction moves.
+        
+        Because the only requirements to perform a corrected move are the
+        correction table and the calibration motors, they are the only
+        calibration parameters that must be defines. These parameters must also
+        pass ``_check_calib`` without raising any exceptions.
+        
+        Returns
+        -------
+        has_calib : bool
+            True if there is a calibration that can be used for correction 
+            motion, False otherwise.
+        """
+        # Grab the current correction table and calibration motors
+        calib = self._calib['calib']['value']
+        motors = self._calib['motors']['value']
+
+        # Return False if we dont have a correction table
+        if calib is None:
             return False
         try:
-            # If we make it through the check, we have a calibration
-            self._check_calib(config)
+            # If we make it through the check, we have a valid calibration
+            self._check_calib(self._calib)
             return True
         except:
-            # We ran into an error in the check, the config is somehow invalid
+            # An exception was raised, the config is somehow invalid
             return False
 
     @property
     def use_calib(self):
+        """
+        Returns whether the user indicated that corrected motions should be 
+        used.
+        
+        Returns
+        -------
+        use_calib : bool
+            Internal indicator if the user wants to perform correction motions.
+        """
         return self._use_calib
     
     @use_calib.setter
-    def use_calib(self, use):
-        self._use_calib = bool(use)
+    def use_calib(self, indicator):
+        """
+        Setter for use_calib. Will warn the user if corrected motions are 
+        desired but there is no valid configuration to use.
+        
+        Parameters
+        ----------
+        indicator : bool
+            Indicator for whether corrected motions should be performed or not.
+        """
+        self._use_calib = bool(indicator)
         if self._use_calib is True and not self.has_calib:
-            logger.warning("use_calib is currently set to True but the "
-                           "current calibration is not valid.")
+            logger.warning("use_calib is currently set to True but there is "
+                           "no valid calibration to use")
     
     def read_configuration(self):
         return self._calib
@@ -724,10 +798,11 @@ class DelayMacro(CalibMacro, DelayTowerMacro):
     def __init__(self, prefix, name=None, *args, **kwargs):
         super().__init__(prefix, name=name, *args, **kwargs)
         if self.parent:
+            self.motor_fields=['readback']
             self.calib_motors=[self.parent.t1.chi1, self.parent.t1.y1]
-            self.calib_fields=[field_prepend("user_readback", calib_motor)
+            self.calib_fields=[field_prepend('user_readback', calib_motor)
                                for calib_motor in self.calib_motors]
-            self.calib_detector=OpalDetector("XCS:USR:O1000:01", name="Opal 1")
+            self.calib_detector=OpalDetector('XCS:USR:O1000:01', name='Opal 1')
             self.detector_fields=['stats2_centroid_x', 'stats2_centroid_y',]
 
     def _length_to_delay(self, L=None, theta1=None, theta2=None):

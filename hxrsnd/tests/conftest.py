@@ -23,6 +23,8 @@ from bluesky.tests.conftest import RE
 from lmfit.models import LorentzianModel
 from pcdsdevices.areadetector.detectors import PCDSDetector
 
+from ..macromotor import CalibMacro
+
 logger = logging.getLogger(__name__)
 
 # Define the requires epics
@@ -145,6 +147,15 @@ class SynCamera(Device):
 
     def trigger(self):
         return self.centroid_x.trigger() & self.centroid_y.trigger()
+
+
+class CalibTest(CalibMacro):
+    motor = Cmp(SynAxis, name="test axis")
+    def __init__(self, prefix, m1, m2, *args, **kwargs):
+        super().__init__(prefix, name="test calib", *args, **kwargs)
+        self.calib_detector=SynCamera(m1, m2, self.motor, name="camera")
+        self.calib_motors=[m1, m2,]
+        self.detector_fields=['centroid_x', 'centroid_y',]
     
 # Simulated Crystal motor that goes where you tell it
 crystal = SynAxis(name='angle')
@@ -169,6 +180,10 @@ def set_level(pytestconfig):
 @pytest.fixture(scope='function')
 def fresh_RE(request):
     return RE(request)
+
+@pytest.fixture(scope='function')
+def get_calib_motor(request):
+    return CalibTest("", m1, m2)
 
 def get_classes_in_module(module, subcls=None, blacklist=None):
     classes = []
