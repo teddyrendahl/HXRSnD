@@ -23,7 +23,7 @@ from bluesky.tests.conftest import RE
 from lmfit.models import LorentzianModel
 from pcdsdevices.areadetector.detectors import PCDSDetector
 
-from ..macromotor import CalibMacro
+from ..sndmotor import CalibMotor
 
 logger = logging.getLogger(__name__)
 
@@ -149,7 +149,7 @@ class SynCamera(Device):
         return self.centroid_x.trigger() & self.centroid_y.trigger()
 
 
-class CalibTest(CalibMacro):
+class CalibTest(CalibMotor):
     motor = Cmp(SynAxis, name="test axis")
     def __init__(self, prefix, m1, m2, *args, **kwargs):
         super().__init__(prefix, name="test calib", *args, **kwargs)
