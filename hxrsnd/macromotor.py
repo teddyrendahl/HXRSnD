@@ -18,7 +18,7 @@ from pswalker.utils import field_prepend
 from .sndmotor import SndMotor
 from .snddevice import SndDevice
 from .detectors import OpalDetector
-from .utils import as_list, flatten, PythonSignal
+from .utils import as_list, flatten, PythonSignal, none_if_no_parent
 from .bragg import bragg_angle, cosd, sind
 from .exceptions import (MotorDisabled, MotorFaulted, MotorStopped, 
                          BadN2Pressure, InputError)
@@ -207,7 +207,7 @@ class CalibMacro(SndDevice):
 
         # Use the slope and the closest point to interpolate the motor positions
         # at the inputted position
-        interpolated_row = slopes * (position - first[0]) + first
+        interpolated_row = slopes * (position-first[0]) + first
 
         # Move each calibration motor to the interpolated position
         for i, motor in enumerate(motors[1:]):
@@ -276,7 +276,7 @@ class MacroBase(SndMotor):
         self.readback._func = lambda : self.position
 
         # Make sure this is used
-        if self.parent is None:
+        if not self.parent:
             logger.warning("Macromotors must be instantiated with a parent "
                            "that has the SnD towers as components to function "
                            "properly.")
@@ -284,6 +284,7 @@ class MacroBase(SndMotor):
             self._delay_towers = [self.parent.t1, self.parent.t4]
             self._channelcut_towers = [self.parent.t2, self.parent.t3]
 
+    @none_if_no_parent
     @property
     def position(self):
         """
@@ -722,12 +723,12 @@ class DelayMacro(CalibMacro, DelayTowerMacro):
 
     def __init__(self, prefix, name=None, *args, **kwargs):
         super().__init__(prefix, name=name, *args, **kwargs)
-
-        self.calib_motors=[self.parent.t1.chi1, self.parent.t1.y1]
-        self.calib_fields=[field_prepend("user_readback", calib_motor)
-                           for calib_motors in self.calib_motors]
-        self.calib_detector=OpalDetector("XCS:USR:O1000:01", name="Opal 1")
-        self.detector_fields=['stats2_centroid_x', 'stats2_centroid_y',]
+        if self.parent:
+            self.calib_motors=[self.parent.t1.chi1, self.parent.t1.y1]
+            self.calib_fields=[field_prepend("user_readback", calib_motor)
+                               for calib_motor in self.calib_motors]
+            self.calib_detector=OpalDetector("XCS:USR:O1000:01", name="Opal 1")
+            self.detector_fields=['stats2_centroid_x', 'stats2_centroid_y',]
 
     def _length_to_delay(self, L=None, theta1=None, theta2=None):
         """
@@ -896,6 +897,7 @@ class DelayMacro(CalibMacro, DelayTowerMacro):
 
         return status        
 
+    @none_if_no_parent
     @property
     def position(self):
         """
@@ -1157,6 +1159,7 @@ class Energy1Macro(DelayTowerMacro):
         """
         return super()._get_delay_diagnostic_position(E1=E1)
 
+    @none_if_no_parent
     @property
     def position(self):
         """
@@ -1571,6 +1574,7 @@ class Energy2Macro(MacroBase):
 
         return status        
 
+    @none_if_no_parent
     @property
     def position(self):
         """

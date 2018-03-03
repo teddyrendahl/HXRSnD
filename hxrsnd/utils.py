@@ -264,3 +264,18 @@ def stop_on_keyboardinterrupt(func):
                                  "stop_on_keyboardinterrupt decorator.".format(
                                      obj))
     return stop_dev_on_keyboardinterrupt
+
+def none_if_no_parent(value=None):
+    """
+    Decorator that will return None if the object passed via self does not have
+    a parent.
+    """
+    def wrapper(method):
+        @wraps(method)
+        def inner(obj, *args, **kwargs):
+            if obj.parent:
+                return method(obj, *args, **kwargs)
+            else:
+                return value
+        return inner
+    return wrapper

@@ -1,23 +1,14 @@
 """
 Tests for pyutils.pyutils
 """
-############
-# Standard #
-############
 import re
 import logging
 import pathlib
 from collections.abc import Iterable
 
-###############
-# Third Party #
-###############
 import pytest
 import numpy as np
 
-##########
-# Module #
-##########
 from hxrsnd import utils
 
 logger = logging.getLogger(__name__)
@@ -60,3 +51,16 @@ def test_stop_on_keyboardinterrupt_runs_stop_method():
     assert tst.stopped == False
     tst.something_that_raises_keyboardinterrupt()
     assert tst.stopped == True
+
+@pytest.mark.parametrize("value", [None, 10])
+def test_none_if_no_parent_returns_the_correct_value(value):
+    class Test:
+        @utils.none_if_no_parent(value)
+        def tst(self):
+            return True
+    tst = Test()
+    tst.parent = None
+    assert tst.tst() is value
+    tst.parent = True
+    assert tst.tst() is True
+    
