@@ -15,7 +15,7 @@ from bluesky.preprocessors import (stage_decorator, run_decorator, msg_mutator,
 from pswalker.utils import field_prepend
 from pswalker.plans import measure_average
 
-from .preprocessors import return_to_initial
+from .preprocessors import return_to_start as _return_to_start
 from ..utils import as_list
 
 logger = logging.getLogger(__name__)
@@ -182,7 +182,7 @@ def centroid_scan(detector, motor, start, stop, steps, average=None,
             df.loc[step, fld] = reads[fld]
 
     # Run the inner plan
-    @return_to_initial(motor, perform=return_to_start)
+    @_return_to_start(motor, perform=return_to_start)
     def inner():
         plan = scan([detector], motor, start, stop, steps, per_step=per_step)
         yield from stub_wrapper(plan)

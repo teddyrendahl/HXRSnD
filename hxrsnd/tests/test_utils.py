@@ -3,7 +3,7 @@ Tests for pyutils.pyutils
 """
 import re
 import logging
-import pathlib
+from pathlib import Path
 from collections.abc import Iterable
 
 import pytest
@@ -35,8 +35,8 @@ def test_flatten_works_correctly(test):
 def test_absolute_submodule_path_works_correctly(screen):
     path = "HXRSnD/screens/{0}".format(screen)
     template = "/reg/neh/operator/xcsopr/bin/snd/HXRSnD/hxrsnd/utils.py"
-    abs_path = utils.absolute_submodule_path(path, template)
-    assert abs_path == ("/".join(template.split("/")[:-3]) + "/" + path)
+    abs_path = Path(utils.absolute_submodule_path(path, template))
+    assert abs_path == Path("/".join(template.split("/")[:-3]) + "/" + path)
     
 def test_stop_on_keyboardinterrupt_runs_stop_method():
     class TestClass:

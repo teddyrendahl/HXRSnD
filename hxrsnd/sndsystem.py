@@ -97,8 +97,10 @@ class SplitAndDelay(SndDevice):
     E2 = Cmp(Energy2Macro, "", desc="CC Energy")
     delay = Cmp(DelayMacro, "", desc="Delay")
 
-    def __init__(self, prefix, name=None, daq=None, RE=None,
-                 *args, **kwargs):
+    # DAQ
+    daq = Cmp(Daq, None, platform=1)
+    
+    def __init__(self, prefix, name=None, RE=None, *args, **kwargs):
         super().__init__(prefix, name=name, *args, **kwargs)
         self.daq = daq
         self.RE = RE
@@ -110,7 +112,7 @@ class SplitAndDelay(SndDevice):
         self._diagnostics = self._delay_diagnostics+self._channelcut_diagnostics
 
         # Get the LCLS RunEngine
-        self._RE = RunEngine({})
+        self._RE = RE or RunEngine({})
         self.RE = make_daq_run_engine(self.daq)
 
         # Set the position calculators of dd and dcc

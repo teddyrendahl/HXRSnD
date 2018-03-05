@@ -4,7 +4,11 @@ from functools import wraps
 from bluesky.utils import short_uid
 from bluesky.plan_stubs import wait as plan_wait, abs_set, checkpoint
 
-def return_to_initial(*devices, perform=True):
+def return_to_start(*devices, perform=True):
+    """
+    Decorator that will find the current positions of all the inputted devices,
+    and them move them back to those positions after running the inner plan.
+    """
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -15,7 +19,6 @@ def return_to_initial(*devices, perform=True):
             finally:
                 # Start returning all the devices to their initial positions
                 if perform:
-                    yield from checkpoint()
                     group = short_uid('set')
                     for dev, pos in initial_positions.items():
                         yield from abs_set(dev, pos, group=group)
