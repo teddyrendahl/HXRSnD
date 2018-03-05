@@ -69,12 +69,11 @@ class SamMotor(SndMotor):
 
 
 # TODO: Add a centroid scanning method
-# TODO: Add has_calib and use_calib attributes
 # TODO: Add ability to save caibrations to disk
 # TODO: Add ability to load calibrations from disk
 # TODO: Add ability to display calibrations
 # TODO: Add ability to change post-processing done to scan. 
-# TODO : Add ability to redo scaling on scan
+# TODO: Add ability to redo scaling on scan
 class CalibMotor(SndDevice):
     """
     Provides the calibration macro methods.
@@ -90,14 +89,24 @@ class CalibMotor(SndDevice):
         self._calib = OrderedDict()
         self.configure()
 
-    def move(self, position, wait=False, use_calib=True, *args, **kwargs):
+    def move(self, position, wait=False, *args, **kwargs):
         """
         Move that performs the additional calibration move.
+
+        Parameters
+        ----------
+        position
+            Position to move to.
+
+        Returns
+        -------
+        status : AndStatus
+            Status object for the moves.
         """
         status = super().move(position, wait=False, *args, **kwargs)
         
         # Perform the calibration move
-        if use_calib and self._has_calib:
+        if self.use_calib and self.has_calib:
             status = status & self._calib_compensate(position)
             
         # Wait for all the motors to finish moving
@@ -112,6 +121,36 @@ class CalibMotor(SndDevice):
         """
         Performs a calibration scan for this motor and updates the 
         configuration.
+
+        Parameters
+        ----------
+        start : float
+            Starting position of motor
+
+        stop : float
+            Ending position of motor
+
+        steps : int
+            Number of steps to take
+
+        average : int, optional
+            Number of averages to take for each measurement
+
+        confirm_overwrite : bool, optional
+            Prompt the user if this plan will overwrite an existing calibration
+
+        detector : :class:`.BeamDetector`, optional
+            Detector from which to take the value measurements
+
+        detector_fields : iterable, optional
+            Fields of the detector to measure
+
+        RE : RunEngine, optional
+            Bluesky runengine instance to run the calibration plan.
+
+        return_to_start : bool, optional
+            Move all the motors to their original positions after the scan has been
+            completed        
         """
         # Use the inputted runengine or the parent's
         RE = RE or self.parent._RE
@@ -167,13 +206,26 @@ class CalibMotor(SndDevice):
     def configure(self, *, calib=None, motors=None, scan=None, scale=None, 
                   start=None):
         """
-        Configure the macro-motor's move parameters.
+        Configure the calib-motor's move parameters.
 
         Parameters
         ----------
-        calib : DataFrame or dict, optional
+        calib : DataFrame, optional
             Lookup table for move calibration. This represents set positions of
             auxiliary movers that should be chosen as we move our main macro.
+
+        motors : list, optional
+        	List of calibration motors
+
+        scan : pd.DataFrame, optional
+        	Dataframe of the centroid scan used to compute the correction table
+
+        scale : list, optional
+            List of scales in the units of motor egu / detector value
+
+        start : list, optional
+            List of the initial positions of the motors before the walk        
+        
         Returns
         -------
         configs : tuple of dict
@@ -192,7 +244,26 @@ class CalibMotor(SndDevice):
 
     def _config_calib(self, calib, motors, scan, scale, start):
         """
-        Handle calib arg from configure
+        Handle the calibration arguments, and update the config dictionary
+        accordingly.
+
+        Parameters
+        ----------
+        calib : DataFrame
+            Lookup table for move calibration. This represents set positions of
+            auxiliary movers that should be chosen as we move our main macro.
+
+        motors : list
+        	List of calibration motors
+
+        scan : pd.DataFrame
+        	Dataframe of the centroid scan used to compute the correction table
+
+        scale : list
+            List of scales in the units of motor egu / detector value
+
+        start : list
+            List of the initial positions of the motors before the walk        
         """
         # Start with all the previous calibration parameters
         save_calib = OrderedDict(self._calib)
@@ -264,7 +335,18 @@ class CalibMotor(SndDevice):
 
     def _calib_compensate(self, position, *args, **kwargs):
         """
-        Do the calib adjust move
+        Perform the additional corrected motions if there is a valid calibration
+        and the user has indicated that they want to perform them.
+
+        Parameters
+        ---------- 
+        position
+            Position to move to.
+
+        Returns
+        -------
+        status : AndStatus
+        	Status objects of all the extra motions performed.
         """
         # Grab the current calibration
         calib = self._calib['calib']['value']

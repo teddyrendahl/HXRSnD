@@ -23,8 +23,7 @@ logger = logging.getLogger(__name__)
 def calibrate_motor(detector, detector_fields, motor, motor_fields, 
                     calib_motors, calib_fields, start, stop, steps,
                     confirm_overwrite=True, *args, **kwargs):
-    """
-    Performs a calibration scan using the inputted detector, motor, and
+    """Performs a calibration scan using the inputted detector, motor, and
     calibration motors, then configures the motor using the resulting
     calibration.
     
@@ -51,6 +50,9 @@ def calibrate_motor(detector, detector_fields, motor, motor_fields,
     steps : int
         Number of steps to take
 
+    confirm_overwrite : bool, optional
+    	Prompt the user if this plan will overwrite an existing calibration
+    
     Returns
     -------
     configs : tuple of dict
@@ -97,8 +99,7 @@ def calibration_scan(detector, detector_fields, motor, motor_fields,
                      calib_motors, calib_fields, start, stop, steps,
                      first_step=0.01, average=None, filters=None, 
                      return_to_start=True, *args, **kwargs):
-    """
-    Performs a calibration scan for the main motor and returns a correction
+    """Performs a calibration scan for the main motor and returns a correction
     table for the calibration motors.
 
     This adds to ``calibration_scan`` by moving the motors to their original
@@ -217,8 +218,7 @@ def calibration_scan(detector, detector_fields, motor, motor_fields,
 
 def calibration_centroid_scan(detector, motor, calib_motors, start, stop, steps,
                               calib_fields=None, *args, **kwargs):
-    """
-    Performs a centroid scan producing a dataframe with the values of the
+    """Performs a centroid scan producing a dataframe with the values of the
     detector, motor, and calibration motor fields.
 
     Parameters
