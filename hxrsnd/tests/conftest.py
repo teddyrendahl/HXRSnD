@@ -149,18 +149,24 @@ class SynCamera(Device):
 
 class CalibTest(CalibMotor):
     motor = Cmp(SynAxis, name="test_axis")
-    def __init__(self, *args, name="calib", **kwargs):
+    def __init__(self, *args, name="calib", m1=None, m2=None, **kwargs):
         super().__init__(*args, name="calib", **kwargs)
         self.calib_detector=SynCamera(m1, m2, self.motor, name="camera")
         self.calib_motors=[m1, m2,]
         self.motor_fields=[self.motor.name]
         self.detector_fields=['centroid_x', 'centroid_y',]
-        self.set = self.motor.set
+        self.set = self.move
+        for m in [self.motor] + self.calib_motors:
+            m.move = m.set
     @property
     def position(self):
         return self.motor.position
-    def move(self, *args, **kwargs):
-        return self.set(*args, **kwargs) & super().move(*args, **kwargs)
+    def move(self, position, *args, **kwargs):
+        # Perform the calibration move
+        status = self.motor.set(position, *args, *kwargs)
+        if self.has_calib and self.use_calib:
+            status = status & self._calib_compensate(position)
+        return status
     
 # Simulated Crystal motor that goes where you tell it
 crystal = SynAxis(name='angle')
@@ -188,7 +194,9 @@ def fresh_RE(request):
 
 @pytest.fixture(scope='function')
 def get_calib_motor(request):
-    return CalibTest("test")
+    m1 = SynAxis(name="m1")
+    m2 = SynAxis(name="m2")
+    return CalibTest("test", m1=m1, m2=m2)
 
 def get_classes_in_module(module, subcls=None, blacklist=None):
     classes = []

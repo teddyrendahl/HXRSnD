@@ -661,7 +661,11 @@ class DelayMacro(CalibMotor, DelayTowerMacro):
             # Move the delay diagnostic to the inputted position
             status += [self.parent.dd.x.move(position_dd, wait=False)]
 
-        return status        
+        # Perform the compensation
+        if self.has_calib and self.use_calib:
+            status.append(self._calib_compensate(delay))
+    
+        return status
 
     @none_if_no_parent
     @property

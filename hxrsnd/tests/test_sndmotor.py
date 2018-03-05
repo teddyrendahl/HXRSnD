@@ -10,9 +10,11 @@ import pandas as pd
 from ophyd.device import Device
 from ophyd.sim import SynAxis
 from ophyd.tests.conftest import using_fake_epics_pv
+from bluesky.preprocessors  import run_wrapper
 
 from hxrsnd import sndmotor
 from .conftest import get_classes_in_module, fake_device, SynCamera
+from ..plans.scans import centroid_scan
 from ..sndmotor import CalibMotor
 from ..exceptions import InputError
 
@@ -155,3 +157,31 @@ def test_CalibMotor_calibrates_correctly(fresh_RE, get_calib_motor):
             cmotor.set(df_calib[cmotor.name+"_post"].iloc[i])
             # Check the centroids are where they should be
             assert np.isclose(cent.get(), exp_cent, rtol=rtol)
+
+def test_CalibMotor_move_compensation(fresh_RE, get_calib_motor):
+    # Define all the needed variables
+    motor = get_calib_motor
+    calib_motors = motor.calib_motors
+    camera = SynCamera(*motor.calib_motors, motor, name="camera")
+    centroids = [camera.centroid_x, camera.centroid_y]
+    start, stop, steps = -1, 1, 5
+
+    # Create the plan
+    def test_plan():
+        # Perform the calibration
+        df_scan = (yield from centroid_scan(
+            camera,
+            motor,
+            start, stop, steps,
+            motor_fields=motor.motor_fields,
+            detector_fields=motor.detector_fields))
+    
+        # Expected positions of the centroids are the first positions
+        df_centroids = df_scan[[c.name for c in centroids]]
+        assert (df_centroids == df_centroids.iloc[0]).all().all()
+    
+    # Calibrate the motors
+    motor.calibrate(start, stop, steps, RE=fresh_RE, detector=camera,
+                    average=1, tolerance=0, confirm_overwrite=False)
+    # Run the plan
+    fresh_RE(run_wrapper(test_plan()))    

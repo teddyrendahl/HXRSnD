@@ -3,6 +3,7 @@ Script for abstract motor classes used in the SnD.
 """
 import time
 import logging
+from functools import reduce
 from collections import OrderedDict
 
 import pandas as pd
@@ -88,32 +89,6 @@ class CalibMotor(SndDevice):
         self.use_calib = False
         self._calib = OrderedDict()
         self.configure()
-
-    def move(self, position, wait=False, *args, **kwargs):
-        """
-        Move that performs the additional calibration move.
-
-        Parameters
-        ----------
-        position
-            Position to move to.
-
-        Returns
-        -------
-        status : AndStatus
-            Status object for the moves.
-        """
-        status = super().move(position, wait=False, *args, **kwargs)
-        
-        # Perform the calibration move
-        if self.use_calib and self.has_calib:
-            status = status & self._calib_compensate(position)
-            
-        # Wait for all the motors to finish moving
-        if wait:
-            self.wait(status)
-
-        return status
 
     def calibrate(self, start, stop, steps, average=100, confirm_overwrite=True,
                   detector=None, detector_fields=None, RE=None,
