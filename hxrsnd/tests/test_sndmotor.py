@@ -12,11 +12,12 @@ from ophyd.sim import SynAxis
 from ophyd.tests.conftest import using_fake_epics_pv
 
 from hxrsnd import sndmotor
-from .conftest import get_classes_in_module, fake_device
+from .conftest import get_classes_in_module, fake_device, SynCamera
 from ..sndmotor import CalibMotor
 from ..exceptions import InputError
 
 logger = logging.getLogger(__name__)
+rtol = 1e-6                             # Numpy relative tolerance
 
 @using_fake_epics_pv
 @pytest.mark.parametrize("dev", get_classes_in_module(sndmotor, Device))
@@ -119,9 +120,38 @@ def test_CalibMotor_calibration_returns_correct_parameters():
     dev.configure(calib=calib, scan=scan, motors=motors, scale=scale,
                   start=start)
     calibration = dev.calibration
-    assert calibration['calib'] is calib
-    assert calibration['scan'] is scan
+    assert calibration['calib'].equals(calib)
+    assert calibration['scan'].equals(scan)
     assert calibration['motors'] == [m.name for m in motors]
     assert calibration['scale'] == scale
     assert calibration['start'] == start
+
+def test_CalibMotor_calibrates_correctly(fresh_RE, get_calib_motor):
+    # Define all the needed variables
+    motor = get_calib_motor
+    calib_motors = motor.calib_motors
+    camera = SynCamera(*motor.calib_motors, motor, name="camera")
+    centroids = [camera.centroid_x, camera.centroid_y]
+    start, stop, steps = -1, 1, 5
     
+    # Perform the calibration
+    motor.calibrate(start, stop, steps, RE=fresh_RE, detector=camera,
+                    average=1, tolerance=0, confirm_overwrite=False)
+    
+    # Grab the resulting calibration parameters
+    df_calib = motor.calibration['calib']
+    df_scan = motor.calibration['scan']
+    
+    # Expected positions of the centroids are the first positions
+    expected_centroids = df_scan[[c.name for c in centroids]].iloc[0]
+
+    for i in range(len(df_scan)):
+        # Move to the scan position for the main motor
+        motor.set(df_calib[motor.motor_fields[0]].iloc[i])
+
+        for cmotor, exp_cent, cent in zip(calib_motors, expected_centroids, 
+                                          centroids):
+            # Move to the abosolute corrected position
+            cmotor.set(df_calib[cmotor.name+"_post"].iloc[i])
+            # Check the centroids are where they should be
+            assert np.isclose(cent.get(), exp_cent, rtol=rtol)

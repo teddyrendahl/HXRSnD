@@ -103,18 +103,16 @@ class SynCentroid(SynSignal):
     """
     Synthetic centroid signal.
     """
-    def __init__(self, motors, weights, motor_field=None, noise_multiplier=None, 
-                 name=None, *args, **kwargs):
+    def __init__(self, motors, weights, noise_multiplier=None, name=None,
+                 *args, **kwargs):
         # Eliminate noise if not requested
         self.motors = motors
         self.weights = weights
-        self.motor_field = motor_field
         self.noise = noise_multiplier or 0.
                 
         def func():
             # Evaluate the positions of each motor
-            pos = [m.read()[self.motor_field or m.name]['value']
-                   for m in self.motors]
+            pos = [m.position for m in self.motors]
             # Get the centroid position
             cent = np.dot(pos, self.weights)
             # Add uniform noise
@@ -150,12 +148,19 @@ class SynCamera(Device):
 
 
 class CalibTest(CalibMotor):
-    motor = Cmp(SynAxis, name="test axis")
-    def __init__(self, prefix, m1, m2, *args, **kwargs):
-        super().__init__(prefix, name="test calib", *args, **kwargs)
+    motor = Cmp(SynAxis, name="test_axis")
+    def __init__(self, *args, name="calib", **kwargs):
+        super().__init__(*args, name="calib", **kwargs)
         self.calib_detector=SynCamera(m1, m2, self.motor, name="camera")
         self.calib_motors=[m1, m2,]
+        self.motor_fields=[self.motor.name]
         self.detector_fields=['centroid_x', 'centroid_y',]
+        self.set = self.motor.set
+    @property
+    def position(self):
+        return self.motor.position
+    def move(self, *args, **kwargs):
+        return self.set(*args, **kwargs) & super().move(*args, **kwargs)
     
 # Simulated Crystal motor that goes where you tell it
 crystal = SynAxis(name='angle')
@@ -183,7 +188,7 @@ def fresh_RE(request):
 
 @pytest.fixture(scope='function')
 def get_calib_motor(request):
-    return CalibTest("", m1, m2)
+    return CalibTest("test")
 
 def get_classes_in_module(module, subcls=None, blacklist=None):
     classes = []

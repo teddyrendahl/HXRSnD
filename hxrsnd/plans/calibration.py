@@ -15,17 +15,48 @@ from bluesky.preprocessors import msg_mutator, stub_wrapper
 from pswalker.plans import measure_average, walk_to_pixel
 
 from .scans import centroid_scan
-from .preprocessors import return_to_initial
+from .preprocessors import return_to_start as _return_to_start
 from ..utils import as_list, flatten
 
 logger = logging.getLogger(__name__)
 
-def calibrate_motor(detector, motor, motor_fields, calib_motors, start, 
-                    stop, steps, detector_fields=[
-                        'stats2_centroid_x', 'stats2_centroid_y',],
+def calibrate_motor(detector, detector_fields, motor, motor_fields, 
+                    calib_motors, calib_fields, start, stop, steps,
                     confirm_overwrite=True, *args, **kwargs):
-    calib_motors = as_list(calib_motors)
+    """
+    Performs a calibration scan using the inputted detector, motor, and
+    calibration motors, then configures the motor using the resulting
+    calibration.
+    
+    Parameters
+    ----------
+    detector : :class:`.BeamDetector`
+        Detector from which to take the value measurements
 
+    detector_fields : iterable
+        Fields of the detector to measure
+
+    motor : :class:`.Motor`
+        Main motor to perform the scan
+
+    calib_motors : iterable, :class:`.Motor`
+        Motor to calibrate each detector field with
+
+    start : float
+        Starting position of motor
+
+    stop : float
+        Ending position of motor
+
+    steps : int
+        Number of steps to take
+
+    Returns
+    -------
+    configs : tuple of dict
+        Old configuration and the new configuration.
+    """    
+    calib_motors = as_list(calib_motors)    
     # Check for motor having a _calib field
     motor_config = motor.read_configuration()
     if motor_config['calib']['value'] and motor_config['motors']['value']:
@@ -43,18 +74,24 @@ def calibrate_motor(detector, motor, motor_fields, calib_motors, start,
                 logger.info("\Calibration cancelled.")
                 return
             logger.debug("\nOverwrite confirmed.")
-        
+
     # Perform the calibration scan
     df_calib, df_scan, scaling, start_pos = yield from calibration_scan(
-        detector, detector_fields,
-        motor, motor_fields,
-        calib_motors, 
+        detector,
+        detector_fields,
+        motor,
+        motor_fields,
+        calib_motors,
+        calib_fields,
         start, stop, steps, 
         *args, **kwargs)
     
-    # load the calibration into the motor
-    motor.configure(calib=df_calib, motors=[motor]+calib_motors, scale=scaling,
-                    start=start_pos)
+    # Load the calibration into the motor
+    return motor.configure(calib=df_calib,
+                           scan=df_scan,
+                           motors=[motor]+calib_motors,
+                           scale=scaling,
+                           start=start_pos)
     
 def calibration_scan(detector, detector_fields, motor, motor_fields, 
                      calib_motors, calib_fields, start, stop, steps,
@@ -145,7 +182,7 @@ def calibration_scan(detector, detector_fields, motor, motor_fields,
         raise ValueError("Must have same number of calibration fields as "
                          "detector fields.")
     
-    @return_to_initial(motor, *calib_motors, perform=return_to_start)
+    @_return_to_start(motor, *calib_motors, perform=return_to_start)
     def inner():
         # Perform the main scan, reading the positions of all the devices
         logger.debug("Beginning calibration scan")

@@ -12,7 +12,6 @@ from ..plans import calibration as calib
 logger = logging.getLogger(__name__)
 
 rtol = 1e-6                             # Numpy relative tolerance
-
 m1 = SynAxis(name="m1")
 m2 = SynAxis(name="m2")
 delay = SynAxis(name="delay")
@@ -157,7 +156,7 @@ def test_scale_scan_df_creates_correct_calibration_tables(fresh_RE, weights):
     fresh_RE(run_wrapper(test_plan()))
 
 @pytest.mark.parametrize("weights", [(1,1), (.5,-.5), (-10,5.5)])
-def test_calibration_scan_gets_correct_calibration(fresh_RE, weights):
+def test_calibration_scan(fresh_RE, weights):
     camera = SynCamera(m1, m2, delay, name="camera")
     centroids = [camera.centroid_x, camera.centroid_y]
     calib_motors = [m1,m2]    
@@ -175,7 +174,7 @@ def test_calibration_scan_gets_correct_calibration(fresh_RE, weights):
 
         for i in range(len(df_scan)):
             # Save the initial positions
-            starting_pos = {m.name : m.position for m in [m1,m2]}
+            starting_pos = {m.name : m.position for m in calib_motors}
             # Move to the scan position for the main motor
             delay.set(df_calib[delay.name].iloc[i])
 
@@ -189,4 +188,46 @@ def test_calibration_scan_gets_correct_calibration(fresh_RE, weights):
     # Run the plan
     fresh_RE(run_wrapper(test_plan()))
 
+def test_calibrate_motor(fresh_RE, get_calib_motor):
+    # Should be properly configured to start
+    motor = get_calib_motor
+    camera = SynCamera(*motor.calib_motors, motor, name="camera")
+    calib_motors = motor.calib_motors
+    start, stop, steps = -1, 1, 5
 
+    def test_plan():
+        # Perform the scan to get the expected scan results
+        df_calib, df_scan, scale, start_pos = yield from calib.calibration_scan(
+            camera,
+            motor.detector_fields,
+            motor,
+            motor.motor_fields,
+            motor.calib_motors,
+            motor.calib_fields,
+            start, stop, steps,
+            tolerance=0)
+        
+        # Calibrate the motor
+        _, _ = yield from calib.calibrate_motor(
+            camera,
+            motor.detector_fields,
+            motor,
+            motor.motor_fields,
+            motor.calib_motors,
+            motor.calib_fields,
+            start, stop, steps,
+            confirm_overwrite=False,
+            tolerance=0)
+
+        # Get the configuration from the motor as it sees it
+        config = motor.read_configuration()
+
+        # Ensure the resulting config is what we got in the initial scan
+        assert config['calib']['value'].equals(df_calib)
+        assert config['scan']['value'].equals(df_scan)
+        assert config['motors']['value'] == [motor] + calib_motors
+        assert config['scale']['value'] == scale
+        assert config['start']['value'] == start_pos
+        
+    # Run the plan
+    fresh_RE(run_wrapper(test_plan()))

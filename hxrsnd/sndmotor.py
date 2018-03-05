@@ -16,7 +16,7 @@ from pcdsdevices.signal import Signal
 
 from .snddevice import SndDevice
 from .plans.calibration import calibrate_motor
-from .plans.preprocessors import return_to_initial
+from .plans.preprocessors import return_to_start as _return_to_start
 from .exceptions import InputError
 
 logger = logging.getLogger(__name__)
@@ -82,7 +82,6 @@ class CalibMotor(SndDevice):
     def __init__(self, prefix, name=None, calib_detector=None, 
                  calib_motors=None, calib_fields=None, motor_fields=None, 
                  *args, **kwargs):
-
         super().__init__(prefix, name=name, *args, **kwargs)
         self.calib_motors = calib_motors
         self.calib_fields = calib_fields
@@ -108,7 +107,8 @@ class CalibMotor(SndDevice):
         return status
 
     def calibrate(self, start, stop, steps, average=100, confirm_overwrite=True,
-                  detector=None, detector_fields=None, RE=None, *args, **kwargs):
+                  detector=None, detector_fields=None, RE=None,
+                  return_to_start=True, *args, **kwargs):
         """
         Performs a calibration scan for this motor and updates the 
         configuration.
@@ -119,17 +119,17 @@ class CalibMotor(SndDevice):
         detector_fields = detector_fields or self.detector_fields
 
         # Make sure everything returns to the starting position when finished
-        @return_to_initial(self, *self.calib_motors)
+        @_return_to_start(self, *self.calib_motors, perform=return_to_start)
         def inner():
-            yield from calibrate_motor(
-                detector, 
+            _, _ = yield from calibrate_motor(
+                detector,
+                detector_fields,
                 self, 
                 self.motor_fields,
                 self.calib_motors,
+                self.calib_fields,
                 start, stop, steps,
                 average=average,
-                detector_fields=detector_fields,
-                calib_fields=self.calib_fields,
                 confirm_overwrite=confirm_overwrite,
                 return_to_start=False,
                 *args, **kwargs)
@@ -257,7 +257,7 @@ class CalibMotor(SndDevice):
         # We have the correct correction table and motors but one of the of the
         # extra parameters were not passed, which is critical for corrected
         # motions but warn the user
-        elif scan is not None or not scale or not start:
+        elif scan is None or not scale or not start:
             logger.warning("Inputted correction table and calibration motors "
                            "but not all configuration data. Some calibration "
                            "updating methods may not be functional!")
