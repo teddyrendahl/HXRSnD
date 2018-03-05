@@ -3,6 +3,7 @@ Tests for pyutils.pyutils
 """
 import re
 import logging
+from math import isnan
 from pathlib import Path
 from collections.abc import Iterable
 
@@ -52,15 +53,21 @@ def test_stop_on_keyboardinterrupt_runs_stop_method():
     tst.something_that_raises_keyboardinterrupt()
     assert tst.stopped == True
 
-@pytest.mark.parametrize("value", [None, 10])
-def test_none_if_no_parent_returns_the_correct_value(value):
+def test_nan_if_no_parent_works_for_methods_and_properties():
     class Test:
-        @utils.none_if_no_parent(value)
-        def tst(self):
+        @property
+        @utils.nan_if_no_parent
+        def tst_property(self):
+            return True
+        @utils.nan_if_no_parent
+        def tst_method(self):
             return True
     tst = Test()
     tst.parent = None
-    assert tst.tst() is value
+    assert isnan(tst.tst_property)
+    assert isnan(tst.tst_method())
     tst.parent = True
-    assert tst.tst() is True
+    assert tst.tst_property is True
+    assert tst.tst_method() is True
+
     

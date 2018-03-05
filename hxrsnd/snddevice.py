@@ -61,3 +61,19 @@ class SndDevice(Device):
             Use a shortened list or all relevant parameters
         """
         return self.status(*args, **kwargs) 
+
+    def __repr__(self):
+        """
+        Returns the status of the device. Alias for status().
+
+        Returns
+        -------
+        status : str
+            Status string.
+        """
+        # Try to return the status
+        try:
+            return self.status(print_status=False)
+        # There is no scenario where we would want to know of an error here
+        except:
+            return super().__repr__()

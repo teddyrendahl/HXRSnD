@@ -5,6 +5,7 @@ import os
 import inspect
 import logging
 import logging.config
+from math import nan
 from pathlib import Path
 from functools import wraps
 from collections.abc import Iterable
@@ -17,16 +18,6 @@ import coloredlogs
 
 logger = logging.getLogger(__name__)
 
-class PythonSignal(Signal):
-    """
-    Signal that returns the results of a python function.
-    """
-    def __init__(self, func, *args, **kwargs):
-        self._func = func
-        super().__init__(*args, **kwargs)
-        
-    def get(self):
-        return self._func()
 
 class RotatingFileHandlerRelativePath(logging.handlers.RotatingFileHandler):
     """
@@ -265,17 +256,15 @@ def stop_on_keyboardinterrupt(func):
                                      obj))
     return stop_dev_on_keyboardinterrupt
 
-def none_if_no_parent(value=None):
+def nan_if_no_parent(method):
     """
     Decorator that will return None if the object passed via self does not have
     a parent.
     """
-    def wrapper(method):
-        @wraps(method)
-        def inner(obj, *args, **kwargs):
-            if obj.parent:
-                return method(obj, *args, **kwargs)
-            else:
-                return value
-        return inner
-    return wrapper
+    @wraps(method)
+    def inner(obj, *args, **kwargs):
+        if obj.parent:
+            return method(obj, *args, **kwargs)
+        else:
+            return nan
+    return inner

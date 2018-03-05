@@ -190,10 +190,10 @@ class CalibMotor(SndDevice):
             auxiliary movers that should be chosen as we move our main macro.
 
         motors : list, optional
-        	List of calibration motors
+            List of calibration motors
 
         scan : pd.DataFrame, optional
-        	Dataframe of the centroid scan used to compute the correction table
+            Dataframe of the centroid scan used to compute the correction table
 
         scale : list, optional
             List of scales in the units of motor egu / detector value
@@ -229,10 +229,10 @@ class CalibMotor(SndDevice):
             auxiliary movers that should be chosen as we move our main macro.
 
         motors : list
-        	List of calibration motors
+            List of calibration motors
 
         scan : pd.DataFrame
-        	Dataframe of the centroid scan used to compute the correction table
+            Dataframe of the centroid scan used to compute the correction table
 
         scale : list
             List of scales in the units of motor egu / detector value
@@ -321,7 +321,7 @@ class CalibMotor(SndDevice):
         Returns
         -------
         status : AndStatus
-        	Status objects of all the extra motions performed.
+            Status objects of all the extra motions performed.
         """
         # Grab the current calibration
         calib = self._calib['calib']['value']

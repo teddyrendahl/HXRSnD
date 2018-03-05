@@ -195,14 +195,3 @@ class SplitAndDelay(SndDevice):
         else:
             logger.debug(status)
             return status
-
-    def __repr__(self):
-        """
-        Returns the status of the device. Alias for status().
-
-        Returns
-        -------
-        status : str
-            Status string.
-        """
-        return self.status(print_status=False)

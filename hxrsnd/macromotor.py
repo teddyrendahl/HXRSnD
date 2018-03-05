@@ -7,6 +7,7 @@ import logging
 from functools import reduce
 
 import numpy as np
+from ophyd.signal import AttributeSignal
 from ophyd.device import Component as Cmp
 from ophyd.utils import LimitError
 from ophyd.status import wait as status_wait
@@ -16,7 +17,7 @@ from pswalker.utils import field_prepend
 from .snddevice import SndDevice
 from .detectors import OpalDetector
 from .sndmotor import SndMotor, CalibMotor
-from .utils import flatten, PythonSignal, none_if_no_parent
+from .utils import flatten, nan_if_no_parent
 from .bragg import bragg_angle, cosd, sind
 from .exceptions import (MotorDisabled, MotorFaulted, MotorStopped, 
                          BadN2Pressure)
@@ -32,13 +33,13 @@ class MacroBase(SndMotor):
     c = 0.299792458             # mm/ps
     gap = 55                    # m
 
-    readback = Cmp(PythonSignal, lambda : None)
+    # Set add_prefix to be blank so cmp doesnt append the parent prefix
+    readback = Cmp(AttributeSignal, "position", add_prefix='')
 
     def __init__(self, prefix, name=None, read_attrs=None, *args, **kwargs):
         read_attrs = read_attrs or ["readback"]
         super().__init__(prefix, name=name, read_attrs=read_attrs, *args, 
                          **kwargs)
-        self.readback._func = lambda : self.position
 
         # Make sure this is used
         if not self.parent:
@@ -49,8 +50,8 @@ class MacroBase(SndMotor):
             self._delay_towers = [self.parent.t1, self.parent.t4]
             self._channelcut_towers = [self.parent.t2, self.parent.t3]
 
-    @none_if_no_parent
     @property
+    @nan_if_no_parent
     def position(self):
         """
         Returns the current position
@@ -349,10 +350,14 @@ class MacroBase(SndMotor):
         """
         try:
             status += "\n{0}{1:<16} {2:^16}".format(
-                " "*offset, self.desc+":", self.position)
+                " "*offset, 
+                self.desc+":", 
+                self.position)
         except TypeError:
             status += "\n{0}{1:<16} {2:^}".format(
-                " "*offset, self.desc+":", str(self.position))
+                " "*offset, 
+                self.desc+":", 
+                str(self.position))
 
         if newline:
             status += "\n"
@@ -361,17 +366,6 @@ class MacroBase(SndMotor):
         else:
             return status        
         
-    def __repr__(self):
-        """
-        Returns the status of the motor. Alias for status().
-
-        Returns
-        -------
-        status : str
-            Status string.
-        """
-        return self.status(print_status=False)
-
 
 class DelayTowerMacro(MacroBase):
     """
@@ -667,8 +661,8 @@ class DelayMacro(CalibMotor, DelayTowerMacro):
     
         return status
 
-    @none_if_no_parent
     @property
+    @nan_if_no_parent
     def position(self):
         """
         Returns the current energy of the channel cut line.
@@ -929,8 +923,8 @@ class Energy1Macro(DelayTowerMacro):
         """
         return super()._get_delay_diagnostic_position(E1=E1)
 
-    @none_if_no_parent
     @property
+    @nan_if_no_parent
     def position(self):
         """
         Returns the current energy of the delay line.
@@ -1344,8 +1338,8 @@ class Energy2Macro(MacroBase):
 
         return status        
 
-    @none_if_no_parent
     @property
+    @nan_if_no_parent
     def position(self):
         """
         Returns the current energy of the channel cut line.
