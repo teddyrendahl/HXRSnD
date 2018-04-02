@@ -12,11 +12,11 @@ class SndDevice(Device):
     """
     Base Sndmotor class
     """
-    def __init__(self, prefix, name=None, desc=None, timeout=1, *args, 
+    def __init__(self, prefix, name=None, desc=None, set_timeout=1, *args, 
                  **kwargs):
         super().__init__(prefix, name=name, *args, **kwargs)
         self.desc = desc or self.name
-        self.timeout = timeout
+        self.set_timeout = set_timeout
 
     def _apply_all(self, method, subclass=object, *method_args, 
                    **method_kwargs):

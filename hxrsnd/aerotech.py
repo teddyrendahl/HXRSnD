@@ -74,7 +74,7 @@ class AeroBase(SndEpicsMotor):
         self._state_list = ["Stop", "Pause", "Move", "Go"]
 
     def _status_print(self, status, msg=None, ret_status=False, print_set=True,
-                      wait=True, reraise=False):
+                      timeout=None, wait=True, reraise=False):
         """
         Internal method that optionally returns the status object and optionally
         prints a message about the set. If a message is passed but print_set is
@@ -109,7 +109,7 @@ class AeroBase(SndEpicsMotor):
             # Wait for the status to complete
             if wait:
                 for s in as_list(status):
-                    status_wait(s, self.timeout)
+                    status_wait(s, timeout)
 
             # Notify the user
             if msg is not None:
@@ -151,7 +151,7 @@ class AeroBase(SndEpicsMotor):
         # Check the motor status
         if check_status:
             self.check_status()
-        status = self.home_forward.set(1, timeout=self.timeout)
+        status = self.home_forward.set(1, timeout=self.set_timeout)
         return self._status_print(status, "Homing '{0}' forward.".format(
             self.desc), print_set=print_set, ret_status=ret_status)
 
@@ -179,7 +179,7 @@ class AeroBase(SndEpicsMotor):
         # Check the motor status
         if check_status:
             self.check_status()
-        status = self.home_reverse.set(1, timeout=self.timeout)
+        status = self.home_reverse.set(1, timeout=self.set_timeout)
         return self._status_print(status, "Homing '{0}' in reverse.".format(
             self.desc), print_set=print_set, ret_status=ret_status)
 
@@ -383,7 +383,7 @@ class AeroBase(SndEpicsMotor):
         Status
             The status object for setting the power signal.
         """
-        status = self.power.set(1, timeout=self.timeout)
+        status = self.power.set(1, timeout=self.set_timeout)
         return self._status_print(status, "Enabled motor '{0}'.".format(
             self.desc), print_set=print_set, ret_status=ret_status)
 
@@ -404,7 +404,7 @@ class AeroBase(SndEpicsMotor):
         Status
             The status object for setting the power signal.
         """
-        status = self.power.set(0, timeout=self.timeout)
+        status = self.power.set(0, timeout=self.set_timeout)
         return self._status_print(status, "Disabled motor '{0}'.".format(
             self.desc), print_set=print_set, ret_status=ret_status)
 
@@ -437,7 +437,7 @@ class AeroBase(SndEpicsMotor):
         Status
             The status object for setting the clear_error signal.
         """
-        status = self.clear_error.set(1, timeout=self.timeout)
+        status = self.clear_error.set(1, timeout=self.set_timeout)
         return self._status_print(status, "Cleared motor '{0}'.".format(
             self.desc), print_set=print_set, ret_status=ret_status)
 
@@ -458,7 +458,7 @@ class AeroBase(SndEpicsMotor):
         Status
             The status object for setting the config signal.
         """
-        status = self.config.set(1, timeout=self.timeout)
+        status = self.config.set(1, timeout=self.set_timeout)
         return self._status_print(status, "Reconfigured motor '{0}'.".format(
             self.desc), print_set=print_set, ret_status=ret_status)
 
@@ -494,7 +494,7 @@ class AeroBase(SndEpicsMotor):
         status : StatusObject        
             Status object for the set.
         """
-        status = self.zero_all_proc.set(1, timeout=self.timeout)
+        status = self.zero_all_proc.set(1, timeout=self.set_timeout)
         return self._status_print(status, "Zeroed motor '{0}'.".format(
             self.desc), print_set=print_set, ret_status=ret_status)
 
@@ -573,7 +573,7 @@ class AeroBase(SndEpicsMotor):
             raise ValueError(error)
         
         # Lets enforce it's a string or value
-        status = self.state_component.set(val, timeout=self.timeout)
+        status = self.state_component.set(val, timeout=self.set_timeout)
 
         return self._status_print(
             status, "Changed state of '{0} to '{1}'.".format(self.desc, val), 

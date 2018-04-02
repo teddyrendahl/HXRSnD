@@ -41,7 +41,7 @@ class EccController(SndDevice):
         """
         Saves the current configuration of the controller.
         """
-        return self._flash.set(1, timeout=self.timeout)
+        return self._flash.set(1, timeout=self.set_timeout)
 
 
 class EccBase(SndMotor, PositionerBase):
@@ -115,7 +115,7 @@ class EccBase(SndMotor, PositionerBase):
         return self.motor_egu.get()
 
     def _status_print(self, status, msg=None, ret_status=False, print_set=True,
-                      wait=True, reraise=False):
+                      timeout=None, wait=True, reraise=False):
         """
         Internal method that optionally returns the status object and optionally
         prints a message about the set. If a message is passed but print_set is
@@ -150,7 +150,7 @@ class EccBase(SndMotor, PositionerBase):
             # Wait for the status to complete
             if wait:
                 for s in as_list(status):
-                    status_wait(s, self._timeout)
+                    status_wait(s, timeout)
 
             # Notify the user
             if msg is not None:
@@ -185,7 +185,7 @@ class EccBase(SndMotor, PositionerBase):
         Status
             The status object for setting the power signal.
         """
-        status = self.motor_enable.set(1, timeout=self.timeout)
+        status = self.motor_enable.set(1, timeout=self.set_timeout)
         return self._status_print(status, "Enabled motor '{0}'".format(
             self.desc), ret_status=ret_status, print_set=print_set)
 
@@ -206,7 +206,7 @@ class EccBase(SndMotor, PositionerBase):
         Status
             The status object for setting the power signal.
         """
-        status = self.motor_enable.set(0, timeout=self.timeout)
+        status = self.motor_enable.set(0, timeout=self.set_timeout)
         return self._status_print(status, "Disabled motor '{0}'".format(
             self.desc), ret_status=ret_status, print_set=print_set)
 
@@ -267,7 +267,7 @@ class EccBase(SndMotor, PositionerBase):
         status : StatusObject        
             Status object for the set.
         """
-        status = self.motor_reset.set(1, timeout=self.timeout)
+        status = self.motor_reset.set(1, timeout=self.set_timeout)
         return self._status_print(status, "Reset motor '{0}'".format(
             self.desc), ret_status=ret_status, print_set=print_set)
     
@@ -441,7 +441,7 @@ class EccBase(SndMotor, PositionerBase):
         Status : StatusObject
             Status of the set.
         """
-        status = self.motor_stop.set(1, wait=False, timeout=self.timeout)
+        status = self.motor_stop.set(1, wait=False, timeout=self.set_timeout)
         super().stop(success=success)
         return self._status_print(status, "Stopped motor '{0}'".format(
             self.desc), ret_status=ret_status, print_set=print_set)        
