@@ -1,0 +1,41 @@
+{% set data = load_setup_py_data() %}
+
+package:
+  name: hxrsnd
+  version : {{ data.get('version') }}
+
+source:
+  path: ..
+
+build:
+  number: 0
+  script: python setup.py install --single-version-externally-managed --record=record.txt
+
+requirements:
+  build:
+    - python {{PY_VER}}*,>=3.6
+    - setuptools
+
+  run:
+    - python {{PY_VER}}*,>=3.6
+    - ipython
+    - numpy
+    - pandas
+    - lmfit
+    - simplejson
+    - pyyaml
+    - coloredlogs
+    - super_state_machine
+    - pswalker
+    - pcdsdevices >=0.6.0
+    - ophyd
+
+test:
+  imports:
+    - hxrsnd
+
+about:
+  home: https://github.com/pcdshub/hxrsnd
+  license: SLAC Open License
+  summary: XCS Split and Delay Device Classes
+
