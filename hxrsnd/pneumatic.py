@@ -1,15 +1,10 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Pneumatics for SnD
 """
 import logging
 
-import numpy as np
 from ophyd import Component as Cmp
-
-from pcdsdevices.device import Device
-from pcdsdevices.epics.signal import EpicsSignal, EpicsSignalRO
+from ophyd.signal import EpicsSignal, EpicsSignalRO
 
 from .snddevice import SndDevice
 

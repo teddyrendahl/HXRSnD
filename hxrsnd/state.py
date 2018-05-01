@@ -2,8 +2,7 @@ import logging
 from copy import copy
 
 from ophyd.device import Device, ComponentMeta
-from super_state_machine.machines import StateMachine
-from super_state_machine.extras  import PropertyMachine
+from super_state_machine.extras import PropertyMachine
 
 logger = logging.getLogger(__name__)
 

@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Attocube devices
 """
@@ -10,10 +8,8 @@ import numpy as np
 from ophyd import PositionerBase
 from ophyd import Component as Cmp
 from ophyd.utils import LimitError
+from ophyd.signal import EpicsSignal, EpicsSignalRO
 from ophyd.status import wait as status_wait
-
-from pcdsdevices.epics.signal import EpicsSignal, EpicsSignalRO
-from pcdsdevices.epics.epicsmotor import EpicsMotor
 
 from .sndmotor import SndMotor
 from .snddevice import SndDevice

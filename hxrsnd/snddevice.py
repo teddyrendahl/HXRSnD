@@ -3,7 +3,7 @@ Common SnD device classes
 """
 import logging
 
-from pcdsdevices.device import Device
+from ophyd.device import Device
 
 logger = logging.getLogger(__name__)
 

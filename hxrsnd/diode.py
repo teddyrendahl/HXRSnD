@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Diodes
 """
@@ -7,12 +5,11 @@ import logging
 
 import numpy as np
 from ophyd import EpicsSignalRO
-
-from pcdsdevices.component import Component as C, FormattedComponent as FC
+from ophyd.device import Component as C, FormattedComponent as FC
+from pcdsdevices.areadetector.detectors import DefaultAreaDetector
 
 from .snddevice import SndDevice
 from .aerotech import DiodeAero
-from .detectors import GigeDetector
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +113,7 @@ class HamamatsuXYMotionCamDiode(SndDevice):
     diode = C(HamamatsuDiode, ":DIODE")
     x = C(DiodeAero, ":X")
     y = C(DiodeAero, ":Y")
-    cam = C(GigeDetector, ":CAM")
+    cam = C(DefaultAreaDetector, ":CAM")
 
     def __init__(self, prefix, name=None, block_pos=5, pos_func=None, 
                  block_atol=0.001, desc=None, *args, **kwargs):

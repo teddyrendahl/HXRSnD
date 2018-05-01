@@ -4,10 +4,9 @@ Script for abstract motor classes used in the SnD.
 import logging
 
 from ophyd.device import Component as Cmp
+from ophyd.epics_motor import EpicsMotor
+from ophyd.signal import Signal
 from ophyd.utils import LimitError
-
-from pcdsdevices.signal import Signal
-from pcdsdevices.epics.epicsmotor import EpicsMotor
 
 from .snddevice import SndDevice
 from .utils import stop_on_keyboardinterrupt
