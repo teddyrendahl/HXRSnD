@@ -113,7 +113,7 @@ class HamamatsuXYMotionCamDiode(SndDevice):
     diode = C(HamamatsuDiode, ":DIODE")
     x = C(DiodeAero, ":X")
     y = C(DiodeAero, ":Y")
-    cam = C(DefaultAreaDetector, ":CAM")
+    cam = C(DefaultAreaDetector, ":CAM", lazy=True)
 
     def __init__(self, prefix, name=None, block_pos=5, pos_func=None, 
                  block_atol=0.001, desc=None, *args, **kwargs):
