@@ -1,27 +1,9 @@
-############
-# Standard #
-############
-import math
 import logging
 
-###############
-# Third Party #
-###############
 import numpy as np
-import pytest
-from lmfit.models           import LorentzianModel
 from bluesky.preprocessors  import run_wrapper
 from ophyd.sim              import SynAxis
 
-########
-# SLAC #
-########
-from pcdsdevices.device import Device
-from pcdsdevices.component import Component
-
-##########
-# Module #
-##########
 from .conftest import Diode
 from ..plans.alignment import maximize_lorentz, rocking_curve
 

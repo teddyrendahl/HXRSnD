@@ -244,13 +244,13 @@ def calibration_scan(detector, detector_fields, motor, calib_motors, start,
     df = pd.DataFrame(index=range(start, stop, steps), columns=columns)
 
     # Define the per_step plan
-    def per_step(detector, motor, step):
+    def per_step(detectors, motor, step):
         logger.debug("Beginning step '{0}'".format(step))
         # Move the delay motor to the step
         yield from abs_set(motor, step, wait=True)
         # Store the current motor position
         reads = (yield from measure_average(
-            detector+system, num=average, filters=filters))
+            detectors+system, num=average, filters=filters))
         df.loc[step, motor.name] = reads[motor.name]
         for fld in prep_det_fields:
             df.loc[step, fld] = reads[fld]

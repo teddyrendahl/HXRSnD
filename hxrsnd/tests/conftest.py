@@ -20,6 +20,7 @@ from ophyd.tests.conftest import using_fake_epics_pv
 from bluesky.run_engine import RunEngine
 from bluesky.tests.conftest import RE
 from lmfit.models import LorentzianModel
+from pcdsdevices.areadetector.detectors import DefaultAreaDetector
 
 logger = logging.getLogger(__name__)
 
@@ -205,3 +206,9 @@ def fake_detector(detector, name="TEST"):
         return comp
     detector = change_all_plugin_types(detector)
     return detector(name, name=name)
+
+
+# Hotfix area detector plugins for tests
+for comp in (DefaultAreaDetector.image, DefaultAreaDetector.stats):
+    plugin_class = comp.cls
+    plugin_class.plugin_type = Cmp(Signal, value=plugin_class._plugin_type)
