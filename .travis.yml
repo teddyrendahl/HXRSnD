@@ -13,7 +13,7 @@ matrix:
         - PCDS_CHANNEL=pcds-tag
     - python: 3.6
       env:
-        - PCDS_CHANNEL-pcds-dev
+        - PCDS_CHANNEL=pcds-dev
         - BUILD_DOCS=1
 
 install:
