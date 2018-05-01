@@ -622,7 +622,7 @@ class AeroBase(SndEpicsMotor):
         print_msg : bool, optional
             Prints that the screen is being launched.
         """
-        path = absolute_submodule_path("HXRSnD/screens/motor_expert_screens.sh")
+        path = absolute_submodule_path("hxrsnd/screens/motor_expert_screens.sh")
         if print_msg:
             logger.info("Launching expert screen.")
         os.system("{0} {1} {2} &".format(path, self.prefix, "aerotech"))
