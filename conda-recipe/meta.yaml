@@ -26,9 +26,9 @@ requirements:
     - pyyaml
     - coloredlogs
     - super_state_machine
-    - pswalker
-    - pcdsdevices >=0.6.0
-    - ophyd
+    - pswalker >=1.0.0
+    - pcdsdevices >0.6.0
+    - ophyd >=1.1.0
 
 test:
   imports:
