@@ -36,7 +36,7 @@ script: ::
 The shell will have all the SnD objects instantiated and ready for use.
 
 .. note:: This is a softlink to the launcher script which lives in
-          ``HXRSnD/bin/``
+          ``bin/``
 
 Instrument Screens
 ------------------
@@ -48,7 +48,7 @@ above: ::
   $ ./snd_main  
 
 .. note:: This is a softlink to the launcher script which lives in
-          ``HXRSnD/hxrsnd/screens/``
+          ``hxrsnd/screens/``
   
 To view diode correlation plots, run the following launcher script from the
 directory listed above: ::
