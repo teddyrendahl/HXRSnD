@@ -3,36 +3,39 @@ sudo: false
 
 env:
   global:
-    - OFFICIAL_REPO="slaclab/HXRSnD"    
+    - OFFICIAL_REPO="pcdshub/hxrsnd"    
     - secure: "ii21n3AE/32LdbxqP3r5sBlbxdHdZMBGk1icdDxsfinSNsXOYipCswMI3POZlSxHsO0g6uFtm5Qpi6WuNPknTrl7LqdpYDgnhhvneCyrEYMvOtK3weQLUqCjyPN0xx4KtzhAMXjNWAFccejQ16Z+0n4cU/4RU2mDZ/KfVPWNfXba7y/RGEVzGa8tCtJIHkSYZzIHS6ffWO1a6RsiBhDp0DTaV9pf20bnmCRzlrW8RlJ8c/5HXZ5mB11sMcM8S86XpElh6Wvts8cNq47Hv1u+BJg/vxJZJzkS8lGoXjsiu3k6vaZmmKV9Ylfgib1nEHZWbSpMAACaJ8X+7ltiBguTz6x7GnXVFx9AEn9J6tDzznCYs0xbs5ZMDxG6/yQWu4r8wF5Tk9rWwhTEBEdvCp+D+Sj2eUVeLkmB53FwPvIvr8ufe/vWSKHU3WNzTgchg3kt8Kq3WDgs+tERcYDZ/G7IJiDS1l2X8RyktP/Fa5fMgi6Uk6dEdFvTeI9ps/u/XaIjZz3kZREFNe/rBdOW8gOiki77UsnVapz9vPwu5cXI9Ap+WwvccvGzKMCKc7BvVnMkddslE5E6jf7LYNhWEs5YtSfNxuufSPg4d2oiqQEW0sBDhPnyGQ1mipbEfOcp+gMYrhQvUQfzZsmRJJdlz8uE8/tURFHJe7iyTyMHpqhVl8E="
 
 matrix:
-   include: 
-      - python: 3.5
-      - python: 3.6
-        env: BUILD_DOCS=1
+  include: 
+    - python: 3.6
+      env:
+        - PCDS_CHANNEL=pcds-tag
+    - python: 3.6
+      env:
+        - PCDS_CHANNEL=pcds-dev
+        - BUILD_DOCS=1
 
 install:
   - sudo apt-get update
-  # We do this conditionally because it saves us some downloading if the
-  # version is the same.
   - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
   - bash miniconda.sh -b -p $HOME/miniconda
   - export PATH="$HOME/miniconda/bin:$PATH"
   - hash -r
   - conda config --set always_yes yes --set changeps1 no
-  - conda update -q conda
+  - conda install conda-build anaconda-client
+  - conda update -q conda conda-build
+  - conda config --add channels pcds-tag
+  - conda config --add channels $PCDS_CHANNEL
+  - conda config --append channels conda-forge
   # Useful for debugging any issues with conda
   - conda info -a
-  #Grab all dependencies
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION swig simplejson pydm psbeam pswalker pcds-devices pandas opencv=3.1 coverage pip wheel ophyd==1.0.0 bluesky==1.0.0 event-model=1.3.0 pytest pytest-timeout -c pydm-dev -c skywalker-dev -c conda-forge -c gsecars -c lightsource2-tag
-  #Launch Conda environment
+  # Test conda build
+  - conda build -q conda-recipe --output-folder bld-dir
+  - conda config --add channels "file://`pwd`/bld-dir"
+  # Create test environment
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION hxrsnd --file dev-requirements.txt
   - source activate test-environment
-  #Install pedl
-  - pip install codecov
-  - pip install -r requirements.txt
-  #Install
-  - python setup.py install
 
 script:
   - coverage run run_tests.py
@@ -41,7 +44,6 @@ script:
   #Build docs
   - |
     if [[ -n "$DOCTR_DEPLOY_ENCRYPTION_KEY" && $BUILD_DOCS ]]; then
-      pip install -r docs-requirements.txt
       pushd docs
       make html
       popd

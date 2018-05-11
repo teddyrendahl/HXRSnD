@@ -1,8 +1,10 @@
-git+https://github.com/slaclab/lightpath#egg=lightpath
-super_state_machine
-lmfit
 numpy
-simplejson
 pandas
+lmfit
+simplejson
 pyyaml
 coloredlogs
+super_state_machine
+pswalker
+pcdsdevices
+ophyd

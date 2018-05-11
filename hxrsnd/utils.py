@@ -52,7 +52,7 @@ def absolute_submodule_path(submodule, cur_dir=inspect.stack()[0][1]):
     full_path = base_path / Path(submodule)
     return str(full_path)
 
-DIR_MODULE = Path(absolute_submodule_path("HXRSnD/"))
+DIR_MODULE = Path(absolute_submodule_path("hxrsnd/"))
 DIR_LOGS = DIR_MODULE / "logs"
 
 def setup_logging(path_yaml=None, dir_logs=None, default_level=logging.INFO):

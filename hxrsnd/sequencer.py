@@ -4,9 +4,8 @@ Sequencer Class
 import logging
 
 from ophyd import Component as Cmp
+from ophyd.signal import EpicsSignal
 from ophyd.status import wait as status_wait
-
-from pcdsdevices.epics.signal import EpicsSignal
 
 from .snddevice import SndDevice
 

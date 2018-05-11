@@ -4,166 +4,26 @@ Script for abstract motor classes used in the SnD.
 import logging
 
 from ophyd.device import Component as Cmp
+from ophyd.signal import Signal
 from ophyd.utils import LimitError
-
-from pcdsdevices.signal import Signal
-from pcdsdevices.epics.epicsmotor import EpicsMotor
+from pcdsdevices.epics_motor import PCDSMotorBase
+from pcdsdevices.mv_interface import FltMvInterface
 
 from .snddevice import SndDevice
-from .utils import stop_on_keyboardinterrupt
 
 logger = logging.getLogger(__name__)
 
 
-class SndMotor(SndDevice):
+class SndMotor(FltMvInterface, SndDevice):
     """
-    Base Sndmotor class that has methods common to all the various motors, even
-    the non-EpicsMotor ones. 
-
-    Note: Remove all the spec methods once pswalker has been updated to use
-    latest pcdsdevices and simply inherit from
-        `pcdsdevices.mv_interface.FltMvInterface`
+    Base Sndmotor class that has methods common to all the various motors,
+    even
+    the non-EpicsMotor ones.
     """
-    def wm(self):
-        """
-        Returns the current position of the motor.
-
-        Returns
-        -------
-        position : float
-            Current readback position of the motor.
-        """
-        return self.position    
-
-    def move_rel(self, rel_position, *args, **kwargs):
-        """
-        Move relative to the current position, optionally waiting for motion to
-        complete. Alias for self.move(rel_position + self.position).
-
-        Parameters
-        ----------
-        rel_position
-            Relative position to move to
-
-        wait : bool, optional
-            Wait for the motor to complete the motion.
-
-        moved_cb : callable
-            Call this callback when movement has finished. This callback must
-            accept one keyword argument: 'obj' which will be set to this
-            positioner instance.
-
-        timeout : float, optional
-            Maximum time to wait for the motion. If None, the default timeout
-            for this positioner is used.
-
-        Returns
-        -------
-        status : MoveStatus        
-            Status object for the move.
-        
-        Raises
-        ------
-        TimeoutError
-            When motion takes longer than `timeout`
-        
-        ValueError
-            On invalid positions
-        
-        RuntimeError
-            If motion fails other than timing out        
-        """
-        return self.move(rel_position + self.position, *args, **kwargs)
-
-    @stop_on_keyboardinterrupt
-    def mv(self, position, *args, **kwargs):
-        """
-        Move to a specified position, optionally waiting for motion to
-        complete. 
-
-        Parameters
-        ----------
-        position
-            Position to move to.
-
-        wait : bool, optional
-            Wait for the motor to complete the motion.
-
-        moved_cb : callable
-            Call this callback when movement has finished. This callback must
-            accept one keyword argument: 'obj' which will be set to this
-            positioner instance.
-
-        timeout : float, optional
-            Maximum time to wait for the motion. If None, the default timeout
-            for this positioner is used.
-
-        Returns
-        -------
-        status : MoveStatus        
-            Status object for the move.
-        """
-        return self.move(position, *args, **kwargs)
-
-    def mvr(self, rel_position, *args, **kwargs):
-        """
-        Move relative to the current position, optionally waiting for motion to
-        complete. Alias for self.mv(rel_position + self.position).
-
-        Parameters
-        ----------
-        rel_position
-            Relative position to move to.
-
-        wait : bool, optional
-            Wait for the motor to complete the motion.
-
-        moved_cb : callable
-            Call this callback when movement has finished. This callback must
-            accept one keyword argument: 'obj' which will be set to this
-            positioner instance.
-
-        timeout : float, optional
-            Maximum time to wait for the motion. If None, the default timeout
-            for this positioner is used.
-
-        Returns
-        -------
-        status : MoveStatus        
-            Status object for the move.
-        """
-        return self.mv(rel_position + self.position, *args, **kwargs)
-
-    def __call__(self, position, *args, **kwargs):
-        """
-        Moves the motor to the inputted position. Alias for self.mv(position).
-
-        Parameters
-        ----------
-        position
-            Position to move to.
-
-        wait : bool, optional
-            Wait for the motor to complete the motion.
-
-        moved_cb : callable
-            Call this callback when movement has finished. This callback must
-            accept one keyword argument: 'obj' which will be set to this
-            positioner instance.
-
-        timeout : float, optional
-            Maximum time to wait for the motion. If None, the default timeout
-            for this positioner is used.
-
-        Returns
-        -------
-        status : MoveStatus 
-            Status object for the move.
-        """
-        return self.mv(position, *args, **kwargs)
+    pass
 
 
-class SndEpicsMotor(SndMotor, EpicsMotor):
+class SndEpicsMotor(PCDSMotorBase, SndMotor):
     """
     SnD motor that inherits from EpicsMotor, therefore having all the relevant 
     signals

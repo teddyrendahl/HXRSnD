@@ -3,16 +3,14 @@ Script to hold the energy macromotors
 
 All units of time are in picoseconds, units of length are in mm.
 """
-import os
 import logging
 
-import numpy as np
 import pandas as pd
 from ophyd.utils import LimitError
 from ophyd.status import wait as status_wait
 
 from .sndmotor import SndMotor
-from .utils import as_list, flatten
+from .utils import flatten
 from .bragg import bragg_angle, cosd, sind
 from .exceptions import MotorDisabled, MotorFaulted, MotorStopped, BadN2Pressure
 

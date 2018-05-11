@@ -1,14 +1,14 @@
 ====================================================================
 Welcome to the Hard X-Ray Split and Delay Automated Controls System!
 ====================================================================
-.. image:: https://travis-ci.org/slaclab/HXRSnD.svg?branch=master
-    :target: https://travis-ci.org/slaclab/HXRSnD
+.. image:: https://travis-ci.org/pcdshub/hxrsnd.svg?branch=master
+    :target: https://travis-ci.org/pcdshub/hxrsnd
 
-.. image:: https://codecov.io/gh/slaclab/HXRSnD/branch/master/graph/badge.svg
-  :target: https://codecov.io/gh/slaclab/HXRSnD
+.. image:: https://codecov.io/gh/pcdshub/hxrsnd/branch/master/graph/badge.svg
+  :target: https://codecov.io/gh/pcdshub/hxrsnd
 
-.. image:: https://landscape.io/github/slaclab/HXRSnD/master/landscape.svg?style=flat
-   :target: https://landscape.io/github/slaclab/HXRSnD/master
+.. image:: https://landscape.io/github/pcdshub/hxrsnd/master/landscape.svg?style=flat
+   :target: https://landscape.io/github/pcdshub/hxrsnd/master
 
 Controls automation module for the hard x-ray split and delay instrument.
 
@@ -36,7 +36,7 @@ script: ::
 The shell will have all the SnD objects instantiated and ready for use.
 
 .. note:: This is a softlink to the launcher script which lives in
-          ``HXRSnD/bin/``
+          ``bin/``
 
 Instrument Screens
 ------------------
@@ -48,7 +48,7 @@ above: ::
   $ ./snd_main  
 
 .. note:: This is a softlink to the launcher script which lives in
-          ``HXRSnD/screens/``
+          ``hxrsnd/screens/``
   
 To view diode correlation plots, run the following launcher script from the
 directory listed above: ::

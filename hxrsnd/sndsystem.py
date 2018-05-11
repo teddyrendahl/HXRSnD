@@ -6,17 +6,11 @@ All units of time are in picoseconds, units of length are in mm.
 import os
 import logging
 
-import numpy as np
 from ophyd import Component as Cmp
-from bluesky import RunEngine
 
-from pcdsdevices.daq import Daq, make_daq_run_engine
-
-from .state import OphydMachine
 from .snddevice import SndDevice
 from .pneumatic import SndPneumatics
-from .utils import flatten, absolute_submodule_path
-from .bragg import bragg_angle, cosd, sind
+from .utils import absolute_submodule_path
 from .tower import DelayTower, ChannelCutTower
 from .diode import HamamatsuXMotionDiode, HamamatsuXYMotionCamDiode
 from .macromotor import Energy1Macro, Energy1CCMacro, Energy2Macro, DelayMacro
@@ -103,20 +97,17 @@ class SplitAndDelay(SndDevice):
     E2 = Cmp(Energy2Macro, "", desc="CC Energy")
     delay = Cmp(DelayMacro, "", desc="Delay")
 
-    # DAQ
-    daq = Cmp(Daq, None, platform=1)
-    
-    def __init__(self, prefix, name=None, *args, **kwargs):
+    def __init__(self, prefix, name=None, daq=None, RE=None,
+                 *args, **kwargs):
         super().__init__(prefix, name=name, *args, **kwargs)
+        self.daq = daq
+        self.RE = RE
         self._delay_towers = [self.t1, self.t4]
         self._channelcut_towers = [self.t2, self.t3]
         self._towers = self._delay_towers + self._channelcut_towers
         self._delay_diagnostics = [self.di, self.dd, self.do]
         self._channelcut_diagnostics = [self.dci, self.dcc, self.dco]
         self._diagnostics = self._delay_diagnostics+self._channelcut_diagnostics
-
-        # Get the LCLS RunEngine
-        self.RE = make_daq_run_engine(self.daq)
 
         # Set the position calculators of dd and dcc
         self.dd.pos_func = lambda : \
@@ -169,7 +160,7 @@ class SplitAndDelay(SndDevice):
         Launches the main SnD screen.
         """
         # Get the absolute path to the screen
-        path = absolute_submodule_path("HXRSnD/screens/snd_main")
+        path = absolute_submodule_path("hxrsnd/screens/snd_main")
         if print_msg:
             logger.info("Launching expert screen.")
         os.system("{0} {1} {2} &".format(path, p, axis))

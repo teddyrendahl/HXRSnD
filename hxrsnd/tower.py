@@ -7,9 +7,7 @@ import numpy as np
 from ophyd import Component as Cmp
 from ophyd.status import wait as status_wait
 
-from .rtd import OmegaRTD
 from .snddevice import SndDevice
-from .diode import HamamatsuDiode
 from .bragg import bragg_angle, bragg_energy
 from .attocube import EccBase, TranslationEcc, GoniometerEcc, DiodeEcc
 from .aerotech import (AeroBase, RotationAero, InterRotationAero,
