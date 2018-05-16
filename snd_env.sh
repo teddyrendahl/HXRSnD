@@ -6,7 +6,7 @@ unset LD_LIBRARY_PATH
 unset PYTHONPATH
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/reg/common/package/epicsca/3.14.12/lib/rhel6-x86_64
 export PATH=/reg/g/pcds/pyps/conda/py36/bin:$PATH
-conda_env=pcds-0.3.0
+conda_env=pcds-1.0.0
 
 # Source the EPICS env first before the conda env
 source /reg/g/pcds/setup/epicsenv-cur.sh
@@ -39,8 +39,6 @@ SCRIPTPATH="$( cd -P "$( dirname "$FILE" )" && pwd )"
 SNDPATH=$(readlink --canonicalize $SCRIPTPATH/..)
 
 # Add required modules to the python path
-PYTHONPATH=$SNDPATH/pcds-devices:$PYTHONPATH # pcds-devices
-PYTHONPATH=$SNDPATH/pswalker:$PYTHONPATH     # pswalker
 PYTHONPATH=$SNDPATH/HXRSnD:$PYTHONPATH       # HXRSnD
 
 export PYTHONPATH
