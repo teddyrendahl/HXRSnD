@@ -6,6 +6,9 @@ Performing uncalibrated scans using the ``delay`` macromotor results in
 positional instability of the beam at the sample. To address this, ``delay`` has
 several methods to characterize and correct the scan.
 
+.. warning:: The functionality described here has not been commissioned, and
+             should be used with caution.
+
 Characterizing Beam Instability
 ===============================
 
