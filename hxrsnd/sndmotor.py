@@ -94,9 +94,10 @@ class CalibMotor(SndDevice):
     def calibrate(self, start, stop, steps, average=100, confirm_overwrite=True,
                   detector=None, detector_fields=None, RE=None,
                   return_to_start=True, *args, **kwargs):
-        """
-        Performs a calibration scan for this motor and updates the 
+        """Performs a calibration scan for this motor and updates the 
         configuration.
+
+        Warning: This has not been commissioned.
 
         Parameters
         ----------
@@ -128,8 +129,11 @@ class CalibMotor(SndDevice):
             Move all the motors to their original positions after the scan has been
             completed        
         """
+        # Remove this once the calibration routine has been tested
+        logger.warning('Calibration functionality has not been commissioned.')
+
         # Use the inputted runengine or the parent's
-        RE = RE or self.parent._RE
+        RE = RE or self.parent.RE
         detector = detector or self.calib_detector
         detector_fields = detector_fields or self.detector_fields
 
