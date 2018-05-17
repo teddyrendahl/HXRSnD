@@ -77,7 +77,7 @@ class ProportionalValve(PneuBase):
         if self.opened:
             logger.info("Valve currently open.")
         else:
-            return self.valve.set(1, timeout=self.timeout)
+            return self.valve.set(1, timeout=self.set_timeout)
     
     def close(self):
         """
@@ -86,7 +86,7 @@ class ProportionalValve(PneuBase):
         if self.closed:
             logger.info("Valve currently closed.")
         else:
-            return self.valve.set(0, timeout=self.timeout)
+            return self.valve.set(0, timeout=self.set_timeout)
         
     @property
     def position(self):

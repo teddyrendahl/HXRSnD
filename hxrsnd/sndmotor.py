@@ -19,6 +19,7 @@ from .snddevice import SndDevice
 from .plans.calibration import calibrate_motor
 from .plans.preprocessors import return_to_start as _return_to_start
 from .exceptions import InputError
+from .utils import as_list
 
 logger = logging.getLogger(__name__)
 
