@@ -271,7 +271,7 @@ class EccBase(SndMotor, PositionerBase):
         return self._status_print(status, "Reset motor '{0}'".format(
             self.desc), ret_status=ret_status, print_set=print_set)
     
-    def move(self, position, check_status=True, timeout=0, *args, **kwargs):
+    def move(self, position, check_status=True, timeout=None, *args, **kwargs):
         """
         Move to a specified position.
 
@@ -340,8 +340,7 @@ class EccBase(SndMotor, PositionerBase):
             Status object for the move.
         """
         try:
-            status =  super().mv(position, ret_status=ret_status, 
-                                 print_move=print_move, *args, **kwargs)
+            status =  super().mv(position, *args, **kwargs)
 
             # Notify the user that a motor has completed or the command is sent
             if print_move:

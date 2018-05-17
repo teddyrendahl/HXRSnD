@@ -183,7 +183,7 @@ class AeroBase(SndEpicsMotor):
         return self._status_print(status, "Homing '{0}' in reverse.".format(
             self.desc), print_set=print_set, ret_status=ret_status)
 
-    def move(self, position, wait=False, check_status=True, timeout=0, *args, 
+    def move(self, position, wait=False, check_status=True, timeout=None, *args, 
              **kwargs):
         """
         Move to a specified position, optionally waiting for motion to
@@ -275,8 +275,7 @@ class AeroBase(SndEpicsMotor):
             Status object for the move.
         """
         try:
-            status = super().mv(position, wait=wait, ret_status=ret_status, 
-                                print_move=print_move, *args, **kwargs)
+            status = super().mv(position, wait=wait, *args, **kwargs)
 
             # Notify the user that a motor has completed or the command is sent
             if print_move:
