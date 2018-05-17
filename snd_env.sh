@@ -39,6 +39,8 @@ SCRIPTPATH="$( cd -P "$( dirname "$FILE" )" && pwd )"
 SNDPATH=$(readlink --canonicalize $SCRIPTPATH/..)
 
 # Add required modules to the python path
-PYTHONPATH=$SNDPATH/HXRSnD:$PYTHONPATH       # HXRSnD
+PYTHONPATH=$SNDPATH/pswalker:$PYTHONPATH       
+PYTHONPATH=$SNDPATH/HXRSnD:$PYTHONPATH       
+PYTHONPATH=$SNDPATH/pcdsdevices:$PYTHONPATH      
 
 export PYTHONPATH

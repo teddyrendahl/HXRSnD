@@ -12,10 +12,10 @@ from ophyd.device import Component as Cmp
 from ophyd.utils import LimitError
 from ophyd.status import wait as status_wait
 
+from pcdsdevices.areadetector.detectors import PCDSDetector
 from pswalker.utils import field_prepend
 
 from .snddevice import SndDevice
-from .detectors import OpalDetector
 from .sndmotor import SndMotor, CalibMotor
 from .utils import flatten, nan_if_no_parent
 from .bragg import bragg_angle, cosd, sind
@@ -487,7 +487,7 @@ class DelayMacro(CalibMotor, DelayTowerMacro):
             self.calib_motors=[self.parent.t1.chi1, self.parent.t1.y1]
             self.calib_fields=[field_prepend('user_readback', calib_motor)
                                for calib_motor in self.calib_motors]
-            self.calib_detector=OpalDetector('XCS:USR:O1000:01', name='Opal 1')
+            self.calib_detector=PCDSDetector('XCS:USR:O1000:01', name='Opal 1')
             self.detector_fields=['stats2_centroid_x', 'stats2_centroid_y',]
 
     def _length_to_delay(self, L=None, theta1=None, theta2=None):
