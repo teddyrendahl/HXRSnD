@@ -1,23 +1,15 @@
 """
 Tests for pyutils.pyutils
 """
-############
-# Standard #
-############
 import re
 import logging
-import pathlib
+from math import isnan
+from pathlib import Path
 from collections.abc import Iterable
 
-###############
-# Third Party #
-###############
 import pytest
 import numpy as np
 
-##########
-# Module #
-##########
 from hxrsnd import utils
 
 logger = logging.getLogger(__name__)
@@ -44,8 +36,8 @@ def test_flatten_works_correctly(test):
 def test_absolute_submodule_path_works_correctly(screen):
     path = "HXRSnD/screens/{0}".format(screen)
     template = "/reg/neh/operator/xcsopr/bin/snd/HXRSnD/hxrsnd/utils.py"
-    abs_path = utils.absolute_submodule_path(path, template)
-    assert abs_path == ("/".join(template.split("/")[:-3]) + "/" + path)
+    abs_path = Path(utils.absolute_submodule_path(path, template))
+    assert abs_path == Path("/".join(template.split("/")[:-3]) + "/" + path)
     
 def test_stop_on_keyboardinterrupt_runs_stop_method():
     class TestClass:
@@ -60,3 +52,22 @@ def test_stop_on_keyboardinterrupt_runs_stop_method():
     assert tst.stopped == False
     tst.something_that_raises_keyboardinterrupt()
     assert tst.stopped == True
+
+def test_nan_if_no_parent_works_for_methods_and_properties():
+    class Test:
+        @property
+        @utils.nan_if_no_parent
+        def tst_property(self):
+            return True
+        @utils.nan_if_no_parent
+        def tst_method(self):
+            return True
+    tst = Test()
+    tst.parent = None
+    assert isnan(tst.tst_property)
+    assert isnan(tst.tst_method())
+    tst.parent = True
+    assert tst.tst_property is True
+    assert tst.tst_method() is True
+
+    

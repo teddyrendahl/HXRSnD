@@ -41,7 +41,7 @@ class EccController(SndDevice):
         """
         Saves the current configuration of the controller.
         """
-        return self._flash.set(1, timeout=self.timeout)
+        return self._flash.set(1, timeout=self.set_timeout)
 
 
 class EccBase(SndMotor, PositionerBase):
@@ -115,7 +115,7 @@ class EccBase(SndMotor, PositionerBase):
         return self.motor_egu.get()
 
     def _status_print(self, status, msg=None, ret_status=False, print_set=True,
-                      wait=True, reraise=False):
+                      timeout=None, wait=True, reraise=False):
         """
         Internal method that optionally returns the status object and optionally
         prints a message about the set. If a message is passed but print_set is
@@ -150,7 +150,7 @@ class EccBase(SndMotor, PositionerBase):
             # Wait for the status to complete
             if wait:
                 for s in as_list(status):
-                    status_wait(s, self._timeout)
+                    status_wait(s, timeout)
 
             # Notify the user
             if msg is not None:
@@ -185,7 +185,7 @@ class EccBase(SndMotor, PositionerBase):
         Status
             The status object for setting the power signal.
         """
-        status = self.motor_enable.set(1, timeout=self.timeout)
+        status = self.motor_enable.set(1, timeout=self.set_timeout)
         return self._status_print(status, "Enabled motor '{0}'".format(
             self.desc), ret_status=ret_status, print_set=print_set)
 
@@ -206,7 +206,7 @@ class EccBase(SndMotor, PositionerBase):
         Status
             The status object for setting the power signal.
         """
-        status = self.motor_enable.set(0, timeout=self.timeout)
+        status = self.motor_enable.set(0, timeout=self.set_timeout)
         return self._status_print(status, "Disabled motor '{0}'".format(
             self.desc), ret_status=ret_status, print_set=print_set)
 
@@ -267,11 +267,11 @@ class EccBase(SndMotor, PositionerBase):
         status : StatusObject        
             Status object for the set.
         """
-        status = self.motor_reset.set(1, timeout=self.timeout)
+        status = self.motor_reset.set(1, timeout=self.set_timeout)
         return self._status_print(status, "Reset motor '{0}'".format(
             self.desc), ret_status=ret_status, print_set=print_set)
     
-    def move(self, position, check_status=True, *args, **kwargs):
+    def move(self, position, check_status=True, timeout=None, *args, **kwargs):
         """
         Move to a specified position.
 
@@ -304,9 +304,9 @@ class EccBase(SndMotor, PositionerBase):
             self.check_status(position)
         logger.debug("Moving {0} to {1}".format(self.name, position))
         # Begin the move process
-        return self.user_setpoint.set(position, timeout=self.timeout)
+        return self.user_setpoint.set(position, timeout=timeout)
 
-    def mv(self, position, ret_status=False, print_move=True, *args, **kwargs):
+    def mv(self, position, print_move=True, *args, **kwargs):
         """
         Move to a specified position, optionally waiting for motion to
         complete. mv() is different from move() by catching all the common
@@ -319,9 +319,6 @@ class EccBase(SndMotor, PositionerBase):
         ----------
         position
             Position to move to.
-
-        ret_status : bool, optional
-            Return the status object of the move.
 
         print_move : bool, optional
             Print a short statement about the move.
@@ -343,15 +340,13 @@ class EccBase(SndMotor, PositionerBase):
             Status object for the move.
         """
         try:
-            status = super().mv(position, ret_status=ret_status, 
-                                print_move=print_move, *args, **kwargs)
+            status =  super().mv(position, *args, **kwargs)
 
             # Notify the user that a motor has completed or the command is sent
             if print_move:
                 logger.info("Move command sent to '{0}'.".format(self.desc))
             # Check if a status object is desired
-            if ret_status:
-                return status
+            return status
 
         # Catch all the common motor exceptions
         except LimitError:
@@ -364,6 +359,7 @@ class EccBase(SndMotor, PositionerBase):
         except MotorFaulted:
             logger.warning("Cannot move - motor {0} is currently faulted. Try "
                            "running 'motor.clear()'.".format(self.desc))
+
     
     def check_status(self, position=None):
         """
@@ -444,7 +440,7 @@ class EccBase(SndMotor, PositionerBase):
         Status : StatusObject
             Status of the set.
         """
-        status = self.motor_stop.set(1, wait=False, timeout=self.timeout)
+        status = self.motor_stop.set(1, wait=False, timeout=self.set_timeout)
         super().stop(success=success)
         return self._status_print(status, "Stopped motor '{0}'".format(
             self.desc), ret_status=ret_status, print_set=print_set)        

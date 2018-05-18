@@ -96,9 +96,8 @@ class SplitAndDelay(SndDevice):
     E1_cc = Cmp(Energy1CCMacro, "", desc="CC Delay Energy")
     E2 = Cmp(Energy2Macro, "", desc="CC Energy")
     delay = Cmp(DelayMacro, "", desc="Delay")
-
-    def __init__(self, prefix, name=None, daq=None, RE=None,
-                 *args, **kwargs):
+    
+    def __init__(self, prefix, name=None, daq=None, RE=None, *args, **kwargs):
         super().__init__(prefix, name=name, *args, **kwargs)
         self.daq = daq
         self.RE = RE
@@ -189,14 +188,3 @@ class SplitAndDelay(SndDevice):
         else:
             logger.debug(status)
             return status
-
-    def __repr__(self):
-        """
-        Returns the status of the device. Alias for status().
-
-        Returns
-        -------
-        status : str
-            Status string.
-        """
-        return self.status(print_status=False)

@@ -12,6 +12,7 @@ from functools import wraps
 import pytest
 import epics
 import numpy as np
+import pandas as pd
 import epics
 from ophyd.signal import Signal
 from ophyd.sim import SynSignal, SynAxis
@@ -21,6 +22,8 @@ from bluesky.run_engine import RunEngine
 from bluesky.tests.conftest import RE
 from lmfit.models import LorentzianModel
 from pcdsdevices.areadetector.detectors import PCDSDetector
+
+from ..sndmotor import CalibMotor
 
 logger = logging.getLogger(__name__)
 
@@ -100,19 +103,20 @@ class SynCentroid(SynSignal):
     """
     Synthetic centroid signal.
     """
-    def __init__(self, motors, weights, motor_field=None, noise_multiplier=None, 
-                 name=None, *args, **kwargs):
+    def __init__(self, motors, weights, noise_multiplier=None, name=None,
+                 *args, **kwargs):
         # Eliminate noise if not requested
-        noise = noise_multiplier or 0.
-        
-        
+        self.motors = motors
+        self.weights = weights
+        self.noise = noise_multiplier or 0.
+                
         def func():
             # Evaluate the positions of each motor
-            pos = [m.read()[motor_field or m.name]['value'] for m in motors]
+            pos = [m.position for m in self.motors]
             # Get the centroid position
-            cent = np.dot(pos, weights)
+            cent = np.dot(pos, self.weights)
             # Add uniform noise
-            cent += int(np.round(np.random.uniform(-1, 1) * noise))
+            cent += int(np.round(np.random.uniform(-1, 1) * self.noise))
             return cent
         
         # Instantiate the synsignal
@@ -136,12 +140,33 @@ class SynCamera(Device):
         # Add them to _signals
         self._signals['centroid_x'] = self.centroid_x
         self._signals['centroid_y'] = self.centroid_y
-
         # Add them to the read_attrs
         self.read_attrs = ["centroid_x", "centroid_y"]
 
     def trigger(self):
         return self.centroid_x.trigger() & self.centroid_y.trigger()
+
+
+class CalibTest(CalibMotor):
+    motor = Cmp(SynAxis, name="test_axis")
+    def __init__(self, *args, name="calib", m1=None, m2=None, **kwargs):
+        super().__init__(*args, name="calib", **kwargs)
+        self.calib_detector=SynCamera(m1, m2, self.motor, name="camera")
+        self.calib_motors=[m1, m2,]
+        self.motor_fields=[self.motor.name]
+        self.detector_fields=['centroid_x', 'centroid_y',]
+        self.set = self.move
+        for m in [self.motor] + self.calib_motors:
+            m.move = m.set
+    @property
+    def position(self):
+        return self.motor.position
+    def move(self, position, *args, **kwargs):
+        # Perform the calibration move
+        status = self.motor.set(position, *args, *kwargs)
+        if self.has_calib and self.use_calib:
+            status = status & self._calib_compensate(position)
+        return status
     
 # Simulated Crystal motor that goes where you tell it
 crystal = SynAxis(name='angle')
@@ -166,6 +191,12 @@ def set_level(pytestconfig):
 @pytest.fixture(scope='function')
 def fresh_RE(request):
     return RE(request)
+
+@pytest.fixture(scope='function')
+def get_calib_motor(request):
+    m1 = SynAxis(name="m1")
+    m2 = SynAxis(name="m2")
+    return CalibTest("test", m1=m1, m2=m2)
 
 def get_classes_in_module(module, subcls=None, blacklist=None):
     classes = []
@@ -207,8 +238,18 @@ def fake_detector(detector, name="TEST"):
     detector = change_all_plugin_types(detector)
     return detector(name, name=name)
 
-
 # Hotfix area detector plugins for tests
 for comp in (PCDSDetector.image, PCDSDetector.stats):
     plugin_class = comp.cls
     plugin_class.plugin_type = Cmp(Signal, value=plugin_class._plugin_type)
+
+test_df_scan = pd.DataFrame(
+    [[  -1,  0,  0,   -0.25,    0.25],
+     [-0.5,  0,  0,  -0.125,   0.125],
+     [   0,  0,  0,       0,       0],
+     [ 0.5,  0,  0,   0.125,  -0.125],
+     [   1,  0,  0,    0.25,   -0.25]],
+     index = np.linspace(-1, 1, 5),
+     columns = ["delay", "m1_pre", "m2_pre", "camera_centroid_x", 
+                "camera_centroid_y"]
+    )

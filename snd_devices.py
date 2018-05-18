@@ -1,13 +1,15 @@
+# from bluesky import RunEngine
+
+from pcdsdevices.areadetector.detectors import PCDSDetector
 from hxrsnd.sndmotor import SamMotor
 from hxrsnd.sequencer import SeqBase
 from hxrsnd.sndsystem import SplitAndDelay
-from pcdsdevices.areadetector.detectors import PCDSDetector
 
 # Base PV
 pv_base = "XCS:SND"
 
 # Instantiate the whole system
-snd = SplitAndDelay(pv_base)
+snd = SplitAndDelay(pv_base, name="snd")
 daq = snd.daq
 
 # Additional Devices

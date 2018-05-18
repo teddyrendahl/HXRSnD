@@ -1,20 +1,22 @@
 """
 Scans for HXRSnD
 """
-
 import logging
+
 import numpy as np
 import pandas as pd
-from bluesky                    import Msg
-from bluesky.plans              import scan
-from bluesky.utils              import short_uid as _short_uid
-from bluesky.plan_stubs         import checkpoint, trigger_and_read
-from bluesky.plan_stubs         import abs_set
-from bluesky.preprocessors      import stage_decorator, run_decorator
-from bluesky.preprocessors      import msg_mutator
-from pswalker.utils             import field_prepend
-from pswalker.plans             import measure_average
-from .plan_stubs import block_run_control
+from bluesky import Msg
+from bluesky.plans import scan
+from bluesky.utils import short_uid as _short_uid
+from bluesky.plan_stubs import checkpoint, trigger_and_read, abs_set
+from bluesky.preprocessors import (stage_decorator, run_decorator, msg_mutator,
+                                   stub_wrapper)
+
+from pswalker.utils import field_prepend
+from pswalker.plans import measure_average
+
+from .preprocessors import return_to_start as _return_to_start
+from ..utils import as_list
 
 logger = logging.getLogger(__name__)
 
@@ -93,8 +95,9 @@ def linear_scan(motor, start, stop, num, use_diag=True, return_to_start=True,
     return (yield from inner_scan())    
 
 def centroid_scan(detector, motor, start, stop, steps, average=None, 
-                  detector_fields=['stats2_centroid_x', 'stats2_centroid_y',], 
-                  filters=None, *args, **kwargs):
+                  detector_fields=['stats2_centroid_x', 'stats2_centroid_y'], 
+                  motor_fields=None, system=None, system_fields=None,
+                  filters=None, return_to_start=True, *args, **kwargs):
     """
     Performs a scan and returns the centroids of the inputted detector.
 
@@ -106,15 +109,9 @@ def centroid_scan(detector, motor, start, stop, steps, average=None,
     ----------
     detector : :class:`.BeamDetector`
         Detector from which to take the value measurements
-
-    detector_fields : iterable
-        Fields of the detector to measure
-
+    
     motor : :class:`.Motor`
         Main motor to perform the scan
-
-    calib_motors : iterable, :class:`.Motor`
-        Motor to calibrate each detector field with
 
     start : float
         Starting position of motor
@@ -125,57 +122,71 @@ def centroid_scan(detector, motor, start, stop, steps, average=None,
     steps : int
         Number of steps to take
     
-    first_step : float, optional
-        First step to take on each calibration motor when performing the 
-        correction
-
     average : int, optional
         Number of averages to take for each measurement
 
-    delay : float, optional
-        Time to wait inbetween reads    
+    detector_fields : iterable, optional
+        Fields of the detector to add to the returned dataframe
 
-    tolerance : float, optional
-        Tolerance to use when applying the correction to detector field
+    motor_fields : iterable, optional
+        Fields of the motor to add to the returned dataframe
 
-    max_steps : int, optional
-        Limit the number of steps the correction will take before exiting
+    system : list, optional
+        Extra devices to include in the datastream as we measure the average
+        
+    system_fields : list, optional
+        Fields of the extra devices to add to the returned dataframe
+
+    filters : dict, optional
+        Key, callable pairs of event keys and single input functions that
+        evaluate to True or False. For more infromation see
+        :meth:`.apply_filters`
+
+    return_to_start : bool, optional
+        Move the scan motor back to its initial position after the scan     
     
-    gradient : float, optional
-        Assume an initial gradient for the relationship between detector value
-        and calibration motor position
-
     Returns
     -------
     df : pd.DataFrame
-        DataFrame containing the centroids of the detector, 
+        DataFrame containing the detector, motor, and system fields at every
+        step of the scan.
     """
     average = average or 1
+    system = as_list(system or [])
+    all_devices = [motor] + system + [detector]
+
+    # Ensure all fields are lists
+    detector_fields = as_list(detector_fields)
+    motor_fields = as_list(motor_fields or motor.name)
+    system_fields = as_list(system_fields or [])
+
     # Get the full detector fields
     prep_det_fields = [field_prepend(fld, detector) for fld in detector_fields]
+    # Put all the fields together into one list
+    all_fields = motor_fields + system_fields + prep_det_fields
 
     # Build the dataframe with the centroids
-    df = pd.DataFrame(index=range(start, stop, steps), columns= 
-                      prep_det_fields + [motor.name])
+    df = pd.DataFrame(columns=all_fields, index=np.linspace(start, stop, steps))
 
     # Create a basic measuring plan
-    def measure(detectors, motor, step):
+    def per_step(detectors, motor, step):
         # Perform step
-        logger.debug("Measuring average at step {0} ...".format(step))
         yield from checkpoint()
+        logger.debug("Measuring average at step {0} ...".format(step))
         yield from abs_set(motor, step, wait=True)
         # Measure the average
-        reads = (yield from measure_average([motor, detector], num=average,
+        reads = (yield from measure_average(all_devices, num=average,
                                             filters=filters, *args, **kwargs))
         # Fill the dataframe at this step with the centroid difference
-        df.loc[step, motor.name] = reads[motor.name]
-        for fld in prep_det_fields:
+        for fld in all_fields:
             df.loc[step, fld] = reads[fld]
-                
-    # Define the generic scans and run it
-    plan = scan([detector], motor, start, stop, steps, per_step=measure)
-    yield from msg_mutator(plan, block_run_control)
-    logger.debug("Got the following centroids: \n{0}".format(df))
+
+    # Run the inner plan
+    @_return_to_start(motor, perform=return_to_start)
+    def inner():
+        plan = scan([detector], motor, start, stop, steps, per_step=per_step)
+        yield from stub_wrapper(plan)
+    yield from inner()
 
     # Return the filled dataframe
     return df

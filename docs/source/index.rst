@@ -11,6 +11,7 @@
    screens.rst
    running_scans.rst
    running_daq_scans.rst
+   calibrating_delay_scans.rst
 
 
 .. toctree::

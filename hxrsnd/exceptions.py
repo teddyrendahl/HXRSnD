@@ -10,10 +10,9 @@ logger = logging.getLogger(__name__)
 
 # Exceptions
 
-
-class SndException(Exception):
+class InputError(Exception):
     """
-    Base aerotech motor exceptions.
+    Exception when the inputs to a function or method are invalid.
     """
     pass
 
@@ -21,6 +20,13 @@ class SndException(Exception):
 class UndefinedBounds(Exception):
     """
     Exception when bounds of plan are not defined
+    """
+    pass
+
+
+class SndException(Exception):
+    """
+    Base aerotech motor exceptions.
     """
     pass
 

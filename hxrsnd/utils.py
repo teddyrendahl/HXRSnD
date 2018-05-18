@@ -5,10 +5,13 @@ import os
 import inspect
 import logging
 import logging.config
+from math import nan
 from pathlib import Path
 from functools import wraps
 from collections.abc import Iterable
 from logging.handlers import RotatingFileHandler
+
+from ophyd.signal import Signal
 
 import yaml
 import coloredlogs
@@ -252,3 +255,16 @@ def stop_on_keyboardinterrupt(func):
                                  "stop_on_keyboardinterrupt decorator.".format(
                                      obj))
     return stop_dev_on_keyboardinterrupt
+
+def nan_if_no_parent(method):
+    """
+    Decorator that will return None if the object passed via self does not have
+    a parent.
+    """
+    @wraps(method)
+    def inner(obj, *args, **kwargs):
+        if obj.parent:
+            return method(obj, *args, **kwargs)
+        else:
+            return nan
+    return inner

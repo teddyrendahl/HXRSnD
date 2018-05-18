@@ -4,15 +4,23 @@ Script to hold the energy macromotors
 All units of time are in picoseconds, units of length are in mm.
 """
 import logging
+from functools import reduce
 
-import pandas as pd
+import numpy as np
+from ophyd.signal import AttributeSignal
+from ophyd.device import Component as Cmp
 from ophyd.utils import LimitError
 from ophyd.status import wait as status_wait
 
-from .sndmotor import SndMotor
-from .utils import flatten
+from pcdsdevices.areadetector.detectors import PCDSDetector
+from pswalker.utils import field_prepend
+
+from .snddevice import SndDevice
+from .sndmotor import SndMotor, CalibMotor
+from .utils import flatten, nan_if_no_parent
 from .bragg import bragg_angle, cosd, sind
-from .exceptions import MotorDisabled, MotorFaulted, MotorStopped, BadN2Pressure
+from .exceptions import (MotorDisabled, MotorFaulted, MotorStopped, 
+                         BadN2Pressure)
 
 logger = logging.getLogger(__name__)
 
@@ -25,20 +33,25 @@ class MacroBase(SndMotor):
     c = 0.299792458             # mm/ps
     gap = 55                    # m
 
-    def __init__(self, prefix, name=None, *args, **kwargs):
-        super().__init__(prefix, name=name, *args, **kwargs)
-        
+    # Set add_prefix to be blank so cmp doesnt append the parent prefix
+    readback = Cmp(AttributeSignal, "position", add_prefix='')
+
+    def __init__(self, prefix, name=None, read_attrs=None, *args, **kwargs):
+        read_attrs = read_attrs or ["readback"]
+        super().__init__(prefix, name=name, read_attrs=read_attrs, *args, 
+                         **kwargs)
+
         # Make sure this is used
-        if self.parent is None:
+        if not self.parent:
             logger.warning("Macromotors must be instantiated with a parent "
                            "that has the SnD towers as components to function "
                            "properly.")
         else:
             self._delay_towers = [self.parent.t1, self.parent.t4]
             self._channelcut_towers = [self.parent.t2, self.parent.t3]
-        self._calib = {}
 
     @property
+    @nan_if_no_parent
     def position(self):
         """
         Returns the current position
@@ -112,7 +125,7 @@ class MacroBase(SndMotor):
         logger.info("Waiting for the motors to finish moving...")
         for s in list(status):
             status_wait(s)
-        logger.info("\nMove completed.")
+        logger.info("Move completed.")
 
     def set(self, position, wait=True, verify_move=True, ret_status=True, 
             use_diag=True, use_calib=True):
@@ -152,137 +165,7 @@ class MacroBase(SndMotor):
                          ret_status=ret_status, use_diag=use_diag,
                          use_calib=use_calib)
 
-    def configure(self, *, calib=None):
-        """
-        Configure the macro-motor's move parameters.
-
-        Parameters
-        ----------
-        calib : DataFrame or dict, optional
-            Lookup table for move calibration. This represents set positions of
-            auxiliary movers that should be chosen as we move our main macro.
-            If a DataFrame, the index should be the primary axis of motion, the
-            argument to the move or set functions. The columns should be the
-            desired set positions of each auxiliary mover at each index point.
-            The columns should be labeled with the name of the mover. The names
-            are interpreted as attribute access of the parent object, e.g.
-            name=t1 ------> snd.t1
-            name=t1.chi1 -> snd.t1.chi1
-            If a dict, I'm either expecting the arguments to create a dataframe
-            e.g. data=dict(name=array, name2=array2), index=array3
-            OR a dictionary of names to functions of single variables, taking
-            in the main axis position and outputing the mover's adjustment.
-
-        Returns
-        -------
-        configs : tuple of dict
-            old_config, new_config
-        """
-        # Save prev for return statement
-        prev_config = self.read_configuration()
-        self._config_calib(calib)
-        return prev_config, self.read_configuration()
-
-    def _config_calib(self, calib):
-        """
-        Handle calib arg from configure
-        """
-        # Interpret calib
-        if calib is None:
-            save_calib = {}
-        elif isinstance(calib, pd.DataFrame):
-            save_calib = calib
-        elif isinstance(calib, dict):
-            try:
-                save_calib = pd.Dataframe(**calib)
-            except Exception:
-                save_calib = calib
-        else:
-            raise TypeError("Invalid calib type {}".format(type(calib)))
-
-        # Check for valid inputs
-        if isinstance(save_calib, pd.DataFrame):
-            names = save_calib.columns
-        elif isinstance(save_calib, dict):
-            for name, func in save_calib.items():
-                if not callable(func):
-                    err = 'Recieved non-callable for {}'.format(name)
-                    raise TypeError(err)
-            names = save_calib.keys()
-        for name in names:
-            try:
-                self._get_calib_obj(name)
-            except AttributeError:
-                raise TypeError("Invalid calib key {}!".format(name))
-
-        self._calib = save_calib
-
-    def _calib_compensate(self, position, *args, **kwargs):
-        """
-        Do the calib adjust move
-        """
-        calib = self._calib
-        statuses = []
-        if isinstance(calib, dict):
-            for name, func in calib.items():
-                obj = self._get_calib_obj(name)
-                stat = obj.set(func(position), *args, **kwargs)
-                statuses.append(stat)
-        elif isinstance(calib, pd.DataFrame):
-            lower = calib.index[0]
-            upper = calib.index[-1]
-            # Find largest lower, smallest upper such that
-            # lower <= position <= upper
-            for i in sorted(calib.index):
-                if lower < i <= position:
-                    lower = i
-                elif position <= i < upper:
-                    upper = i
-                    break
-            # Interpolate
-            if upper != lower:
-                portion = (position - lower) / (upper - lower)
-            for name in calib.columns:
-                if lower == upper:
-                    calib_pos = lower
-                else:
-                    low_pt = calib[name][lower]
-                    high_pt = calib[name][upper]
-                    calib_pos = (high_pt - low_pt) * portion + low_pt
-                obj = self._get_calib_obj(name)
-                stat = obj.set(calib_pos, *args, **kwargs)
-                statuses.append(stat)
-        for i, stat in enumerate(statuses):
-            if i == 0:
-                return_status = stat
-            else:
-                return_status = return_status & stat
-        return return_status
-
-    def _get_calib_obj(self, name):
-        """
-        Given str name path, find obj that calib needs
-        """
-        parts = name.split('.')
-        obj = self.parent
-        for part in parts:
-            obj = getattr(obj, part)
-        return obj
-
-    def read_configuration(self):
-        return dict(calib=self._calib)
-
-    def describe_configuration(self):
-        if isinstance(self._calib, dict):
-            shape = [len(self._calib)]
-        else:
-            shape = self._calib.shape
-        return dict(calib=dict(source='calibrate',
-                               dtype='array',
-                               shape=shape))
-
-    def move(self, position, wait=True, verify_move=True, ret_status=True, 
-             use_diag=True, use_calib=True):
+    def move(self, position, wait=True, verify_move=True, use_diag=True):
         """
         Moves the macro-motor to the inputted position, optionally waiting for
         the motors to complete their moves. Alias for set().
@@ -324,26 +207,20 @@ class MacroBase(SndMotor):
             return
 
         # Send the move commands to all the motors
-        status = flatten(self._move_towers_and_diagnostics(
+        status_list = flatten(self._move_towers_and_diagnostics(
             position, diag_pos, use_diag=use_diag))
-        if use_calib and self._calib:
-            self._status = status & self._calib_compensate(position)
-        else:
-            self._status = status
-            
+
+        # Aggregate the status objects
+        status = reduce(lambda x, y: x & y, status_list)
+
         # Wait for all the motors to finish moving
         if wait:
-            self.wait(self._status)
+            self.wait(status)
             
-        # Optionally return the status
-        if ret_status:
-            # Bluesky requires all the same interface as the status object 
-            # We need to make a new status class that uses the info from a 
-            # number of status objects
-            return self._status[0]
+        return status
 
-    def mv(self, position, wait=True, verify_move=True, ret_status=False, 
-           use_diag=True, *args, **kwargs):
+    def mv(self, position, wait=True, verify_move=True, use_diag=True, *args, 
+           **kwargs):
         """
         Moves the macro parameters to the inputted positions. For energy, this 
         moves the energies of both lines, energy1 moves just the delay line, 
@@ -400,8 +277,7 @@ class MacroBase(SndMotor):
         """
         try:
             return super().mv(position, wait=wait, verify_move=verify_move, 
-                              ret_status=ret_status, use_diag=use_diag, *args,
-                              **kwargs)
+                              use_diag=use_diag, *args, **kwargs)
         # Catch all the common motor exceptions        
         except LimitError:
             logger.warning("Requested move is outside the soft limits")
@@ -474,10 +350,14 @@ class MacroBase(SndMotor):
         """
         try:
             status += "\n{0}{1:<16} {2:^16}".format(
-                " "*offset, self.desc+":", self.position)
+                " "*offset, 
+                self.desc+":", 
+                self.position)
         except TypeError:
             status += "\n{0}{1:<16} {2:^}".format(
-                " "*offset, self.desc+":", str(self.position))
+                " "*offset, 
+                self.desc+":", 
+                str(self.position))
 
         if newline:
             status += "\n"
@@ -486,17 +366,6 @@ class MacroBase(SndMotor):
         else:
             return status        
         
-    def __repr__(self):
-        """
-        Returns the status of the motor. Alias for status().
-
-        Returns
-        -------
-        status : str
-            Status string.
-        """
-        return self.status(print_status=False)
-
 
 class DelayTowerMacro(MacroBase):
     """
@@ -581,7 +450,7 @@ class DelayTowerMacro(MacroBase):
         return position
     
 
-class DelayMacro(DelayTowerMacro):
+class DelayMacro(CalibMotor, DelayTowerMacro):
     """
     Macro-motor for the delay macro-motor.
     """
@@ -610,6 +479,16 @@ class DelayMacro(DelayTowerMacro):
     #         logger.warning("Delay mismatch between t1 and t4. t1: {0:.3f}ps, "
     #                        "t4: {1:.3f}ps".format(t1_delay, t4_delay))
     #     return is_aligned
+
+    def __init__(self, prefix, name=None, *args, **kwargs):
+        super().__init__(prefix, name=name, *args, **kwargs)
+        if self.parent:
+            self.motor_fields=['readback']
+            self.calib_motors=[self.parent.t1.chi1, self.parent.t1.y1]
+            self.calib_fields=[field_prepend('user_readback', calib_motor)
+                               for calib_motor in self.calib_motors]
+            self.calib_detector=PCDSDetector('XCS:USR:O1000:01', name='Opal 1')
+            self.detector_fields=['stats2_centroid_x', 'stats2_centroid_y',]
 
     def _length_to_delay(self, L=None, theta1=None, theta2=None):
         """
@@ -776,9 +655,14 @@ class DelayMacro(DelayTowerMacro):
             # Move the delay diagnostic to the inputted position
             status += [self.parent.dd.x.move(position_dd, wait=False)]
 
-        return status        
+        # Perform the compensation
+        if self.has_calib and self.use_calib:
+            status.append(self._calib_compensate(delay))
+    
+        return status
 
     @property
+    @nan_if_no_parent
     def position(self):
         """
         Returns the current energy of the channel cut line.
@@ -857,7 +741,6 @@ class Energy1Macro(DelayTowerMacro):
     #         logger.warning("Energy mismatch between t1 and t4. t1: {0:.3f}  eV,"
     #                        " t4: {1:.3f} eV".format(t1.energy, t4.energy))                        
     #     return is_aligned
-
 
     def _length_to_delay(self, L=None, theta1=None, theta2=None):
         """
@@ -1041,6 +924,7 @@ class Energy1Macro(DelayTowerMacro):
         return super()._get_delay_diagnostic_position(E1=E1)
 
     @property
+    @nan_if_no_parent
     def position(self):
         """
         Returns the current energy of the delay line.
@@ -1455,6 +1339,7 @@ class Energy2Macro(MacroBase):
         return status        
 
     @property
+    @nan_if_no_parent
     def position(self):
         """
         Returns the current energy of the channel cut line.
